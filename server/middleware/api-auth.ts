@@ -88,9 +88,18 @@ export const authenticateUserOrApiKey = async (req: Request, res: Response, next
     // If no X-API-Key header, try the existing authenticateUser middleware
     const apiKeyValue = req.headers['x-api-key'] as string;
     if (!apiKeyValue) {
-      // Import and run the existing authenticateUser middleware
-      const { authenticateUser } = require('../services/auth');
-      return authenticateUser(req, res, next);
+      try {
+        // Import and run the existing authenticateUser middleware
+        const { authenticateUser } = await import('../services/auth.js');
+        return authenticateUser(req, res, next);
+      } catch (importError) {
+        console.warn('Could not import authenticateUser middleware:', importError);
+        // Fall back to 401 if authentication middleware fails to import
+        return res.status(401).json({ 
+          error: 'Authentication required', 
+          message: 'Please login or provide a valid API key via X-API-Key header' 
+        });
+      }
     }
 
     // Try API key authentication (only via X-API-Key header)
