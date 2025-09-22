@@ -6,6 +6,7 @@ import { stripe, createOrGetCustomer, createSubscription, PRICING_PLANS } from "
 import { generateProbeFromCode, suggestProbeImprovements } from "./services/anthropic";
 import { insertUserSchema, insertTenantSchema, insertProbeSchema, insertGatewaySchema, insertNotificationGroupSchema } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { getApiStats } from "./middleware/api-interceptor";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize default SuperAdmins
@@ -353,6 +354,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Fetch gateway probes error:', error);
       res.status(500).json({ message: 'Failed to fetch probes' });
+    }
+  });
+
+  // API Statistics endpoint (SuperAdmin only)
+  app.get("/api/admin/api-stats", authenticateUser, requireRole(['SuperAdmin']), async (req, res) => {
+    try {
+      const stats = getApiStats();
+      res.json({
+        success: true,
+        data: stats,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('API stats error:', error);
+      res.status(500).json({ message: 'Failed to fetch API statistics' });
     }
   });
 
