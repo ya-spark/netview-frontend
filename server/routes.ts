@@ -10,6 +10,7 @@ import { randomUUID } from "crypto";
 import { getApiStats } from "./middleware/api-interceptor";
 import { sendNotification, sendToGroup, getNotificationStats, getNotificationLogs } from "./services/notification-manager";
 import { ApiKeyManager } from "./services/api-key-manager";
+import { verifyToken } from "./services/auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize default SuperAdmins
@@ -18,13 +19,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.post("/api/auth/register", async (req, res) => {
     try {
-      const { firebaseUid, email, firstName, lastName, company, region } = req.body;
+      // Verify Firebase ID token first
+      const authHeader = req.headers.authorization;
+      if (!authHeader?.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'No token provided' });
+      }
+
+      const token = authHeader.substring(7);
+      const decodedToken = await verifyToken(token);
+      
+      // Use UID and email from verified token, not from client body
+      const firebaseUid = decodedToken.uid;
+      const email = decodedToken.email;
+      
+      if (!email) {
+        return res.status(400).json({ message: 'Email not found in token' });
+      }
       
       // Check if user already exists
       const existingUser = await storage.getUserByFirebaseUid(firebaseUid);
       if (existingUser) {
         return res.json(existingUser);
       }
+
+      // Get additional data from request body (but ignore firebaseUid and email)
+      const { firstName, lastName, company, region } = req.body;
 
       // Check if this is a default SuperAdmin
       const defaultSuperAdmins = ['Yaseen.gem@gmail.com', 'Asia.Yaseentech@gmail.com', 'contact@yaseenmd.com'];

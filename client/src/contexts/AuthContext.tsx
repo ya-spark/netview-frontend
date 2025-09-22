@@ -46,7 +46,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               lastName: firebaseUser.displayName?.split(' ').slice(1).join(' ') || '',
             };
 
-            const registerResponse = await apiRequest('POST', '/api/auth/register', registrationData);
+            // Make registration request with Authorization header
+            const registerResponse = await fetch('/api/auth/register', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${idToken}`,
+              },
+              body: JSON.stringify(registrationData),
+            });
+
+            if (!registerResponse.ok) {
+              throw new Error('Registration failed');
+            }
+
             const userData = await registerResponse.json();
             setUser(userData);
           }
