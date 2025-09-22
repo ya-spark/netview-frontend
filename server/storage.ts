@@ -360,6 +360,58 @@ export class DatabaseStorage implements IStorage {
       creditsUsed: tenant?.creditsUsed || 0,
     };
   }
+
+  // API Keys
+  async getApiKey(id: string): Promise<ApiKey | undefined> {
+    const [apiKey] = await db.select().from(apiKeys).where(eq(apiKeys.id, id));
+    return apiKey || undefined;
+  }
+
+  async getApiKeyByHash(keyHash: string): Promise<ApiKey | undefined> {
+    const [apiKey] = await db.select().from(apiKeys).where(eq(apiKeys.keyHash, keyHash));
+    return apiKey || undefined;
+  }
+
+  async getUserApiKeys(userId: string): Promise<ApiKey[]> {
+    return await db.select().from(apiKeys).where(eq(apiKeys.userId, userId)).orderBy(desc(apiKeys.createdAt));
+  }
+
+  async getTenantApiKeys(tenantId: string): Promise<ApiKey[]> {
+    return await db.select().from(apiKeys).where(eq(apiKeys.tenantId, tenantId)).orderBy(desc(apiKeys.createdAt));
+  }
+
+  async createApiKey(apiKey: InsertApiKey & { keyHash: string }): Promise<ApiKey> {
+    const [created] = await db.insert(apiKeys).values(apiKey).returning();
+    return created;
+  }
+
+  async updateApiKey(id: string, updates: Partial<Omit<InsertApiKey, 'userId' | 'tenantId'>>): Promise<ApiKey> {
+    const [updated] = await db.update(apiKeys)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(apiKeys.id, id))
+      .returning();
+    return updated;
+  }
+
+  async updateApiKeyUsage(id: string): Promise<void> {
+    await db.update(apiKeys)
+      .set({
+        lastUsed: new Date(),
+        usageCount: sql`${apiKeys.usageCount} + 1`,
+        updatedAt: new Date()
+      })
+      .where(eq(apiKeys.id, id));
+  }
+
+  async deactivateApiKey(id: string): Promise<void> {
+    await db.update(apiKeys)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(apiKeys.id, id));
+  }
+
+  async deleteApiKey(id: string): Promise<void> {
+    await db.delete(apiKeys).where(eq(apiKeys.id, id));
+  }
 }
 
 export const storage = new DatabaseStorage();

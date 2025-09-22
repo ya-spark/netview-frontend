@@ -90,7 +90,7 @@ export class ApiKeyManager {
 
       // Update usage stats asynchronously (don't wait)
       setImmediate(() => {
-        storage.updateApiKeyUsage(apiKey.id).catch(error => {
+        storage.updateApiKeyUsage(apiKey.id).catch((error: any) => {
           console.warn(`Failed to update API key usage for ${apiKey.id}:`, error);
         });
       });
@@ -131,7 +131,7 @@ export class ApiKeyManager {
       fullKey, // Only returned on creation
       scopes: createdKey.scopes || [],
       expiresAt: createdKey.expiresAt || undefined,
-      createdAt: createdKey.createdAt,
+      createdAt: createdKey.createdAt!
     };
   }
 
@@ -142,7 +142,7 @@ export class ApiKeyManager {
     const apiKeys = await storage.getUserApiKeys(userId);
     
     // Remove sensitive keyHash from the response
-    return apiKeys.map(({ keyHash, ...apiKey }) => apiKey);
+    return apiKeys.map(({ keyHash, ...apiKey }: any) => apiKey);
   }
 
   /**
@@ -152,7 +152,7 @@ export class ApiKeyManager {
     const apiKeys = await storage.getTenantApiKeys(tenantId);
     
     // Remove sensitive keyHash from the response
-    return apiKeys.map(({ keyHash, ...apiKey }) => apiKey);
+    return apiKeys.map(({ keyHash, ...apiKey }: any) => apiKey);
   }
 
   /**
@@ -192,16 +192,16 @@ export class ApiKeyManager {
 
     const stats = {
       total: apiKeys.length,
-      active: apiKeys.filter(key => key.isActive).length,
-      expired: apiKeys.filter(key => key.expiresAt && key.expiresAt <= new Date()).length,
-      recentlyUsed: apiKeys.filter(key => key.lastUsed && key.lastUsed.getTime() > oneWeekAgo).length,
-      totalUsage: apiKeys.reduce((sum, key) => sum + (key.usageCount || 0), 0),
+      active: apiKeys.filter((key: any) => key.isActive).length,
+      expired: apiKeys.filter((key: any) => key.expiresAt && key.expiresAt <= new Date()).length,
+      recentlyUsed: apiKeys.filter((key: any) => key.lastUsed && key.lastUsed.getTime() > oneWeekAgo).length,
+      totalUsage: apiKeys.reduce((sum: any, key: any) => sum + (key.usageCount || 0), 0),
       byScope: {} as Record<string, number>,
     };
 
     // Count by scope
-    apiKeys.forEach(key => {
-      key.scopes?.forEach(scope => {
+    apiKeys.forEach((key: any) => {
+      key.scopes?.forEach((scope: any) => {
         stats.byScope[scope] = (stats.byScope[scope] || 0) + 1;
       });
     });

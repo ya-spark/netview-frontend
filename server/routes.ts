@@ -2,12 +2,14 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { authenticateUser, requireRole, createDefaultSuperAdmins } from "./services/auth";
+import { authenticateUserOrApiKey, requireScopes, requireRoleOrScopes } from "./middleware/api-auth";
 import { stripe, createOrGetCustomer, createSubscription, PRICING_PLANS } from "./services/stripe";
 import { generateProbeFromCode, suggestProbeImprovements } from "./services/anthropic";
 import { insertUserSchema, insertTenantSchema, insertProbeSchema, insertGatewaySchema, insertNotificationGroupSchema } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { getApiStats } from "./middleware/api-interceptor";
 import { sendNotification, sendToGroup, getNotificationStats, getNotificationLogs } from "./services/notification-manager";
+import { ApiKeyManager } from "./services/api-key-manager";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize default SuperAdmins
@@ -80,7 +82,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Probe routes
-  app.get("/api/probes", authenticateUser, async (req, res) => {
+  app.get("/api/probes", authenticateUserOrApiKey, requireScopes(['probes:read']), async (req, res) => {
     try {
       if (req.user?.role === 'SuperAdmin') {
         // SuperAdmins can see all probes across all tenants
@@ -503,6 +505,247 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Send to group error:', error);
       res.status(500).json({ message: 'Failed to send notifications to group' });
+    }
+  });
+
+  // API Key Management endpoints
+
+  // Create API key
+  app.post("/api/api-keys", authenticateUser, async (req, res) => {
+    try {
+      const { name, scopes, expiresAt } = req.body;
+      
+      if (!name || name.length < 3) {
+        return res.status(400).json({ message: 'API key name must be at least 3 characters long' });
+      }
+
+      if (name.length > 100) {
+        return res.status(400).json({ message: 'API key name cannot exceed 100 characters' });
+      }
+
+      // Parse expiration date if provided
+      let expiration: Date | undefined;
+      if (expiresAt) {
+        expiration = new Date(expiresAt);
+        if (isNaN(expiration.getTime())) {
+          return res.status(400).json({ message: 'Invalid expiration date format' });
+        }
+        if (expiration <= new Date()) {
+          return res.status(400).json({ message: 'Expiration date must be in the future' });
+        }
+      }
+
+      // Validate scopes if provided
+      const availableScopes = ApiKeyManager.getAvailableScopes().map(s => s.scope);
+      if (scopes && Array.isArray(scopes)) {
+        const invalidScopes = scopes.filter(scope => !availableScopes.includes(scope));
+        if (invalidScopes.length > 0) {
+          return res.status(400).json({ 
+            message: `Invalid scopes: ${invalidScopes.join(', ')}`,
+            availableScopes 
+          });
+        }
+      }
+
+      const apiKey = await ApiKeyManager.createApiKey(req.user!, {
+        name,
+        scopes: scopes || [],
+        expiresAt: expiration
+      });
+
+      res.status(201).json({
+        success: true,
+        data: apiKey,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Create API key error:', error);
+      res.status(500).json({ message: 'Failed to create API key' });
+    }
+  });
+
+  // List user's API keys
+  app.get("/api/api-keys", authenticateUser, async (req, res) => {
+    try {
+      const apiKeys = await ApiKeyManager.listUserApiKeys(req.user!.id);
+      
+      res.json({
+        success: true,
+        data: apiKeys,
+        count: apiKeys.length,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('List API keys error:', error);
+      res.status(500).json({ message: 'Failed to list API keys' });
+    }
+  });
+
+  // List tenant API keys (Admin+ only)
+  app.get("/api/admin/api-keys", authenticateUser, requireRole(['SuperAdmin', 'Owner', 'Admin']), async (req, res) => {
+    try {
+      const tenantId = req.user!.role === 'SuperAdmin' ? req.query.tenantId as string || req.user!.tenantId! : req.user!.tenantId!;
+      
+      if (!tenantId) {
+        return res.status(400).json({ message: 'Tenant ID is required' });
+      }
+
+      const apiKeys = await ApiKeyManager.listTenantApiKeys(tenantId);
+      
+      res.json({
+        success: true,
+        data: apiKeys,
+        count: apiKeys.length,
+        tenantId,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('List tenant API keys error:', error);
+      res.status(500).json({ message: 'Failed to list tenant API keys' });
+    }
+  });
+
+  // Update API key
+  app.patch("/api/api-keys/:keyId", authenticateUser, async (req, res) => {
+    try {
+      const { keyId } = req.params;
+      const { name, scopes, isActive, expiresAt } = req.body;
+
+      // Get the API key to check ownership
+      const existingKey = await storage.getApiKey(keyId);
+      if (!existingKey) {
+        return res.status(404).json({ message: 'API key not found' });
+      }
+
+      // Check ownership (users can only modify their own keys, unless SuperAdmin)
+      if (req.user!.role !== 'SuperAdmin' && existingKey.userId !== req.user!.id) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+
+      const updates: any = {};
+      
+      if (name !== undefined) {
+        if (!name || name.length < 3 || name.length > 100) {
+          return res.status(400).json({ message: 'API key name must be 3-100 characters long' });
+        }
+        updates.name = name;
+      }
+
+      if (scopes !== undefined) {
+        const availableScopes = ApiKeyManager.getAvailableScopes().map(s => s.scope);
+        if (Array.isArray(scopes)) {
+          const invalidScopes = scopes.filter(scope => !availableScopes.includes(scope));
+          if (invalidScopes.length > 0) {
+            return res.status(400).json({ 
+              message: `Invalid scopes: ${invalidScopes.join(', ')}`,
+              availableScopes 
+            });
+          }
+        }
+        updates.scopes = scopes;
+      }
+
+      if (isActive !== undefined) {
+        updates.isActive = Boolean(isActive);
+      }
+
+      if (expiresAt !== undefined) {
+        if (expiresAt === null) {
+          updates.expiresAt = null;
+        } else {
+          const expiration = new Date(expiresAt);
+          if (isNaN(expiration.getTime())) {
+            return res.status(400).json({ message: 'Invalid expiration date format' });
+          }
+          if (expiration <= new Date()) {
+            return res.status(400).json({ message: 'Expiration date must be in the future' });
+          }
+          updates.expiresAt = expiration;
+        }
+      }
+
+      const updatedKey = await ApiKeyManager.updateApiKey(keyId, updates);
+      
+      // Remove sensitive data from response
+      const { keyHash, ...safeKey } = updatedKey;
+      
+      res.json({
+        success: true,
+        data: safeKey,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Update API key error:', error);
+      res.status(500).json({ message: 'Failed to update API key' });
+    }
+  });
+
+  // Delete API key
+  app.delete("/api/api-keys/:keyId", authenticateUser, async (req, res) => {
+    try {
+      const { keyId } = req.params;
+
+      // Get the API key to check ownership
+      const existingKey = await storage.getApiKey(keyId);
+      if (!existingKey) {
+        return res.status(404).json({ message: 'API key not found' });
+      }
+
+      // Check ownership (users can only delete their own keys, unless SuperAdmin)
+      if (req.user!.role !== 'SuperAdmin' && existingKey.userId !== req.user!.id) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+
+      await ApiKeyManager.deleteApiKey(keyId);
+      
+      res.json({
+        success: true,
+        message: 'API key deleted successfully',
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Delete API key error:', error);
+      res.status(500).json({ message: 'Failed to delete API key' });
+    }
+  });
+
+  // Get API key statistics (Admin+ only)
+  app.get("/api/admin/api-keys/stats", authenticateUser, requireRole(['SuperAdmin', 'Owner', 'Admin']), async (req, res) => {
+    try {
+      const tenantId = req.user!.role === 'SuperAdmin' ? req.query.tenantId as string || req.user!.tenantId! : req.user!.tenantId!;
+      
+      if (!tenantId) {
+        return res.status(400).json({ message: 'Tenant ID is required' });
+      }
+
+      const stats = await ApiKeyManager.getApiKeyStats(tenantId);
+      
+      res.json({
+        success: true,
+        data: stats,
+        tenantId,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('API key stats error:', error);
+      res.status(500).json({ message: 'Failed to fetch API key statistics' });
+    }
+  });
+
+  // Get available scopes
+  app.get("/api/api-keys/scopes", authenticateUser, async (req, res) => {
+    try {
+      const scopes = ApiKeyManager.getAvailableScopes();
+      
+      res.json({
+        success: true,
+        data: scopes,
+        count: scopes.length,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Get scopes error:', error);
+      res.status(500).json({ message: 'Failed to fetch available scopes' });
     }
   });
 
