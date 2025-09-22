@@ -85,6 +85,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(req.user);
   });
 
+  // Pricing plans endpoint
+  app.get("/api/pricing-plans", async (req, res) => {
+    res.json(PRICING_PLANS);
+  });
+
   // Dashboard routes
   app.get("/api/dashboard/stats", authenticateUser, async (req, res) => {
     try {

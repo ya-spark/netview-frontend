@@ -20,62 +20,90 @@ const hasStripeConfig = !!import.meta.env.VITE_STRIPE_PUBLIC_KEY;
 if (hasStripeConfig) {
   stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 } else {
-  console.warn('Stripe public key not found. Billing functionality disabled in development mode.');
+  console.info('💳 Stripe not configured - billing features disabled in development mode. To enable Stripe, add VITE_STRIPE_PUBLIC_KEY to your environment.');
 }
 
 interface PricingPlan {
   name: string;
-  credits: number;
-  price: number;
+  price: number | null;
+  displayPrice: string;
   period: string;
+  billingModel: string;
   features: string[];
+  limitations?: string[];
+  startupCredit?: number;
+  defaultTopUpAmount?: number;
+  lowBalanceThreshold?: number;
+  autoTopUpConfigurable?: boolean;
+  contactSales?: boolean;
   popular?: boolean;
 }
 
-const PRICING_PLANS: Record<string, PricingPlan> = {
-  FREE: {
-    name: 'Free',
-    credits: 1000,
-    price: 0,
-    period: '/month',
-    features: [
-      'Basic uptime monitoring',
-      'Email notifications',
-      '1 custom gateway',
-      'Basic reporting',
-    ],
-    popular: false,
-  },
-  PAID: {
-    name: 'Paid',
-    credits: 10000,
-    price: 29,
-    period: '/month',
-    features: [
-      'Advanced monitoring (API, Security, Browser)',
-      'SMS & Email notifications',
-      'Unlimited custom gateways',
-      'Advanced analytics',
-      'AI-powered probe generation',
-      'Priority support',
-    ],
-    popular: true,
-  },
-  ENTERPRISE: {
-    name: 'Enterprise',
-    credits: 100000,
-    price: 199,
-    period: '/month',
-    features: [
-      'Everything in Paid',
-      'Custom integrations',
-      'Advanced role management',
-      'SLA guarantees',
-      'Dedicated account manager',
-      'Custom contracts',
-    ],
-    popular: false,
-  },
+// Fetch pricing plans from server to ensure consistency
+const fetchPricingPlans = async (): Promise<Record<string, PricingPlan>> => {
+  try {
+    const response = await apiRequest('GET', '/api/pricing-plans');
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to fetch pricing plans:', error);
+    // Fallback to default plans if server is unavailable
+    return {
+      FREE: {
+        name: 'Free',
+        price: 0,
+        displayPrice: '$0',
+        period: '/month',
+        billingModel: 'free',
+        startupCredit: 5,
+        features: [
+          'Basic uptime monitoring probes',
+          'Basic reporting', 
+          '5 users in organization',
+          'AI powered probe creation',
+        ],
+        limitations: [
+          'All probes stop after startup credit is used',
+          'No email notifications',
+          'No custom gateway',
+        ]
+      },
+      PAID: {
+        name: 'Paid',
+        price: null,
+        displayPrice: 'Pay as you go',
+        period: '',
+        billingModel: 'payg',
+        defaultTopUpAmount: 20,
+        lowBalanceThreshold: 5,
+        autoTopUpConfigurable: true,
+        features: [
+          'Pay as you go billing',
+          'Email notifications',
+          '3 custom gateways',
+          'Advanced analytics (coming soon)',
+          'Stripe billing',
+          'Basic email support',
+          'Configurable auto top-up',
+        ]
+      },
+      ENTERPRISE: {
+        name: 'Enterprise',
+        price: null,
+        displayPrice: 'Contact Sales',
+        period: '',
+        billingModel: 'enterprise',
+        contactSales: true,
+        features: [
+          'Priority support',
+          'Higher custom gateway count',
+          '50 users in organization', 
+          'Custom integrations',
+          'SLA guarantees',
+          'Dedicated account manager',
+        ]
+      },
+    };
+  }
 };
 
 const SubscriptionForm = ({ plan, onSuccess }: { plan: string; onSuccess: () => void }) => {
@@ -126,7 +154,7 @@ const SubscriptionForm = ({ plan, onSuccess }: { plan: string; onSuccess: () => 
         className="w-full"
         data-testid="button-confirm-payment"
       >
-        {isProcessing ? 'Processing...' : `Subscribe to ${PRICING_PLANS[plan as keyof typeof PRICING_PLANS].name}`}
+        {isProcessing ? 'Processing...' : `Subscribe to Plan`}
       </Button>
     </form>
   );
@@ -134,6 +162,12 @@ const SubscriptionForm = ({ plan, onSuccess }: { plan: string; onSuccess: () => 
 
 export default function Billing() {
   const { user } = useAuth();
+  
+  // Fetch pricing plans from server
+  const { data: pricingPlans, isLoading: plansLoading } = useQuery({
+    queryKey: ['/api/pricing-plans'],
+    queryFn: fetchPricingPlans,
+  });
   const { toast } = useToast();
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -184,9 +218,27 @@ export default function Billing() {
   };
 
   const currentPlan = tenant?.billingTier || 'Free';
-  const creditsUsed = tenant?.creditsUsed || 0;
-  const creditsLimit = tenant?.creditsLimit || 1000;
-  const usagePercentage = (creditsUsed / creditsLimit) * 100;
+  const balance = tenant?.balance || 0;
+  
+  if (plansLoading) {
+    return (
+      <Layout>
+        <div className="h-screen flex items-center justify-center">
+          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" aria-label="Loading"/>
+        </div>
+      </Layout>
+    );
+  }
+  
+  if (!pricingPlans) {
+    return (
+      <Layout>
+        <div className="text-center py-8">
+          <p>Unable to load pricing plans. Please try again later.</p>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -216,13 +268,13 @@ export default function Billing() {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Monthly Cost</span>
                   <span className="font-medium" data-testid="text-monthly-cost">
-                    ${PRICING_PLANS[currentPlan.toUpperCase() as keyof typeof PRICING_PLANS]?.price || 0}
+                    {pricingPlans[currentPlan.toUpperCase()]?.displayPrice || '$0'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Credits Limit</span>
-                  <span className="font-medium" data-testid="text-credits-limit">
-                    {creditsLimit.toLocaleString()}
+                  <span className="text-sm text-muted-foreground">Account Balance</span>
+                  <span className="font-medium" data-testid="text-account-balance">
+                    ${balance.toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -240,20 +292,19 @@ export default function Billing() {
               <div className="space-y-4">
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-muted-foreground">Credits Used</span>
-                    <span className="font-medium" data-testid="text-credits-used">
-                      {creditsUsed.toLocaleString()} / {creditsLimit.toLocaleString()}
+                    <span className="text-sm text-muted-foreground">Account Balance</span>
+                    <span className="font-medium" data-testid="text-account-balance-usage">
+                      ${balance.toFixed(2)}
                     </span>
                   </div>
-                  <Progress value={usagePercentage} className="h-2" />
                   <p className="text-xs text-muted-foreground mt-1">
-                    {usagePercentage.toFixed(1)}% used
+                    {currentPlan === 'Free' ? 'Startup credit remaining' : 'Available for monitoring services'}
                   </p>
                 </div>
-                {usagePercentage > 80 && (
+                {balance < 5 && currentPlan !== 'Free' && (
                   <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                     <p className="text-sm text-amber-700">
-                      You're approaching your credit limit. Consider upgrading your plan.
+                      Low balance. Consider topping up to avoid service interruption.
                     </p>
                   </div>
                 )}
@@ -279,7 +330,7 @@ export default function Billing() {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Amount</span>
                   <span className="font-medium" data-testid="text-next-amount">
-                    ${PRICING_PLANS[currentPlan.toUpperCase() as keyof typeof PRICING_PLANS]?.price || 0}
+                    {pricingPlans[currentPlan.toUpperCase()]?.displayPrice || 'N/A'}
                   </span>
                 </div>
                 {currentPlan !== 'Free' && (
@@ -299,7 +350,7 @@ export default function Billing() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {Object.entries(PRICING_PLANS).map(([key, plan]) => (
+              {Object.entries(pricingPlans).map(([key, plan]) => (
                 <Card 
                   key={key} 
                   className={`relative ${plan.popular ? 'border-primary shadow-lg' : ''} ${
@@ -321,12 +372,19 @@ export default function Billing() {
                     <div className="text-center mb-6">
                       <h3 className="text-xl font-semibold text-foreground mb-2">{plan.name}</h3>
                       <div className="flex items-baseline justify-center">
-                        <span className="text-3xl font-bold text-foreground">${plan.price}</span>
+                        <span className="text-3xl font-bold text-foreground">{plan.displayPrice}</span>
                         <span className="text-muted-foreground ml-1">{plan.period}</span>
                       </div>
-                      <p className="text-sm text-muted-foreground mt-2">
-                        {plan.credits.toLocaleString()} credits
-                      </p>
+                      {plan.startupCredit && (
+                        <p className="text-sm text-muted-foreground mt-2">
+                          ${plan.startupCredit} startup credit
+                        </p>
+                      )}
+                      {plan.billingModel === 'payg' && (
+                        <p className="text-sm text-muted-foreground mt-2">
+                          Auto top-up: ${plan.defaultTopUpAmount} when balance &lt; ${plan.lowBalanceThreshold}
+                        </p>
+                      )}
                     </div>
 
                     <ul className="space-y-3 mb-6">
@@ -406,13 +464,13 @@ export default function Billing() {
               <div className="space-y-4">
                 <div className="text-center p-4 bg-muted/50 rounded-lg">
                   <h4 className="font-medium text-foreground">
-                    {PRICING_PLANS[selectedPlan as keyof typeof PRICING_PLANS].name} Plan
+                    {pricingPlans[selectedPlan]?.name || 'Selected'} Plan
                   </h4>
                   <p className="text-2xl font-bold text-primary">
-                    ${PRICING_PLANS[selectedPlan as keyof typeof PRICING_PLANS].price}/month
+                    {pricingPlans[selectedPlan]?.displayPrice || 'N/A'}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {PRICING_PLANS[selectedPlan as keyof typeof PRICING_PLANS].credits.toLocaleString()} credits included
+                    {pricingPlans[selectedPlan]?.billingModel === 'payg' ? 'Pay-as-you-go billing' : pricingPlans[selectedPlan]?.billingModel === 'free' ? `$${pricingPlans[selectedPlan]?.startupCredit} startup credit` : 'Custom pricing'}
                   </p>
                 </div>
                 

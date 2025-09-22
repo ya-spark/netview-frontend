@@ -9,7 +9,7 @@ if (process.env.STRIPE_SECRET_KEY) {
   });
   stripeInitialized = true;
 } else {
-  console.warn('Stripe secret key not found. Running in development mode without Stripe integration.');
+  console.info('💳 Stripe not configured - payment processing disabled in development mode. To enable Stripe, add STRIPE_SECRET_KEY to your environment.');
 }
 
 export { stripe };
