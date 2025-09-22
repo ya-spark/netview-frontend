@@ -162,6 +162,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getProbesByTenant(tenantId: string): Promise<Probe[]> {
+    if (tenantId === 'ALL_TENANTS') {
+      // Return all probes if requested (for Core gateways)
+      return await db.select().from(probes);
+    }
     return await db.select().from(probes).where(eq(probes.tenantId, tenantId));
   }
 

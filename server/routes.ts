@@ -319,6 +319,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.createProbeResult({
           ...result,
           gatewayId: gateway.id,
+          // Convert checkedAt string to Date object if needed
+          checkedAt: result.checkedAt ? new Date(result.checkedAt) : new Date(),
         });
       }
 
@@ -347,7 +349,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let probes;
       if (gateway.type === 'Core') {
         // Core gateways can execute probes from all tenants
-        probes = await storage.getProbesByTenant('');
+        probes = await storage.getProbesByTenant('ALL_TENANTS');
       } else {
         // Custom gateways only execute probes from their tenant
         probes = await storage.getProbesByTenant(gateway.tenantId!);
