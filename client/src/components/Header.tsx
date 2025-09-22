@@ -60,74 +60,76 @@ export function Header() {
           ))}
         </nav>
 
-        {/* User Menu */}
-        <div className="flex items-center space-x-4">
-          {/* Notifications */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative"
-            data-testid="button-notifications"
-          >
-            <Bell className="h-5 w-5" />
-            {notificationCount > 0 && (
-              <Badge 
-                variant="destructive" 
-                className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs p-0"
-              >
-                {notificationCount}
-              </Badge>
-            )}
-          </Button>
+        {/* User Menu - Only show when logged in */}
+        {user && (
+          <div className="flex items-center space-x-4">
+            {/* Notifications */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative"
+              data-testid="button-notifications"
+            >
+              <Bell className="h-5 w-5" />
+              {notificationCount > 0 && (
+                <Badge 
+                  variant="destructive" 
+                  className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs p-0"
+                >
+                  {notificationCount}
+                </Badge>
+              )}
+            </Button>
 
-          {/* User Profile */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <div className="flex items-center space-x-3 cursor-pointer" data-testid="dropdown-user-menu">
-                <div className="text-right hidden sm:block">
-                  <div className="text-sm font-medium text-foreground" data-testid="text-user-name">
-                    {user?.firstName} {user?.lastName}
+            {/* User Profile */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <div className="flex items-center space-x-3 cursor-pointer" data-testid="dropdown-user-menu">
+                  <div className="text-right hidden sm:block">
+                    <div className="text-sm font-medium text-foreground" data-testid="text-user-name">
+                      {user.firstName} {user.lastName}
+                    </div>
+                    <div className="text-xs text-muted-foreground" data-testid="text-user-role">
+                      {user.role}
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground" data-testid="text-user-role">
-                    {user?.role}
-                  </div>
+                  <Avatar>
+                    <AvatarFallback className="bg-primary text-primary-foreground">
+                      {getInitials(user.firstName, user.lastName)}
+                    </AvatarFallback>
+                  </Avatar>
                 </div>
-                <Avatar>
-                  <AvatarFallback className="bg-primary text-primary-foreground">
-                    {user ? getInitials(user.firstName, user.lastName) : 'U'}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem asChild>
-                <Link href="/settings" className="flex items-center">
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/billing" className="flex items-center">
-                  <CreditCard className="mr-2 h-4 w-4" />
-                  <span>Billing</span>
-                </Link>
-              </DropdownMenuItem>
-              {(user?.role === 'SuperAdmin' || user?.role === 'Owner' || user?.role === 'Admin') && (
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuItem asChild>
-                  <Link href="/collaborators" className="flex items-center">
-                    <Users className="mr-2 h-4 w-4" />
-                    <span>Collaborators</span>
+                  <Link href="/settings" className="flex items-center">
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Settings</span>
                   </Link>
                 </DropdownMenuItem>
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSignOut} data-testid="button-sign-out">
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Sign Out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+                <DropdownMenuItem asChild>
+                  <Link href="/billing" className="flex items-center">
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    <span>Billing</span>
+                  </Link>
+                </DropdownMenuItem>
+                {(user.role === 'SuperAdmin' || user.role === 'Owner' || user.role === 'Admin') && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/collaborators" className="flex items-center">
+                      <Users className="mr-2 h-4 w-4" />
+                      <span>Collaborators</span>
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut} data-testid="button-sign-out">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Sign Out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
       </div>
     </header>
   );
