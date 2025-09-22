@@ -1,0 +1,151 @@
+Project Overview:
+Build NetView, a multi-tenant SaaS platform for website, API, security, and browser monitoring. The platform has three main modules:
+
+Front-end: React SPA.
+
+Back-end: Node.js + Express + PostgreSQL.
+
+Core Gateway: Python + Flask, executes probes and syncs results.
+
+All modules should be deployable and production-ready. Use .env for all environment variables (Firebase keys, Stripe keys, DB credentials, contact email, etc.).
+
+Front-end Requirements
+
+React SPA with responsive design for desktop & mobile.
+
+Pages: Landing, Dashboard, Manage, Monitor, Reports, User Menu (Settings, Billing, Collaborators, Sign Out).
+
+Landing Page: marketing content (similar to Atatus).
+
+Dashboard: summary metrics — probes, alerts, credit, uptime/downtime.
+
+Manage Page:
+
+Tabs: Probes, Notification Groups, Gateways.
+
+Probes: create manually or upload code; minimal summary view, click to edit.
+
+Filters/search box + advanced filter icon.
+
+Monitor Page: top summary, probe status (green/red), click for historical metrics/logs.
+
+Reports Page: interactive charts, filters, analytics.
+
+Footer: only email from .env (contact@yaseenmd.com
+) + LinkedIn.
+
+Icons/logos auto-generated where needed.
+
+Back-end Requirements
+
+Node.js + Express, PostgreSQL multi-tenant database.
+
+Tables:
+
+Users (first name, last name, email, company, region, active/restricted country user)
+
+Roles: SuperAdmin, Owner, Admin, Editor, Helpdesk, Viewer
+
+Tenants, Probes, Gateways, Notification Groups, Billing
+
+Role-based access:
+
+SuperAdmin: manage all tenants & SuperAdmins, view all probes
+
+Owner: full tenant control
+
+Admin: manage tenant (cannot edit Owner)
+
+Editor: CRUD probes
+
+Helpdesk: read-only probes
+
+Viewer: basic view only
+
+Default SuperAdmins: Yaseen.gem@gmail.com, Asia.Yaseentech@gmail.com, contact@yaseenmd.com (auto-created in code)
+
+Authentication: Firebase (Google OAuth + email/password)
+
+Probes API:
+
+CRUD, multi-gateway assignment, AI-assisted creation, upload code auto-probe
+
+Billing API:
+
+Stripe integration
+
+Credit threshold & top-up configurable
+
+Gateway API:
+
+SuperAdmin: manage Core Gateways
+
+Admin: add/remove custom gateways
+
+Environment variables in .env.
+
+Core Gateway (Python + Flask)
+
+Executes probes assigned by back-end.
+
+Stores probe results locally; syncs with back-end every ~10s.
+
+Gateways maintain heartbeat (online/offline status).
+
+Types:
+
+Core Gateway: system default
+
+Custom Gateway: user-created via tenant Admin
+
+Probe execution:
+
+Uptime: TCP, HTTP, HTTPS, SMTP, DNS
+
+API: response code, authentication, response body validation
+
+Security: integrity checks (detect content tampering)
+
+Browser: headless browser checks page & links, performance metrics
+
+All probes: measure response time.
+
+Deployable via VM; instructions included for custom gateway deployment.
+
+AI Features
+
+Auto-create probes from uploaded code using LLM.
+
+Suggest probes based on API/URL.
+
+Auto-categorize probes: Uptime, API, Security, Browser.
+
+Smart duplication/copy of probes.
+
+Additional Features
+
+Multi-gateway support for each probe.
+
+Notification groups: email/SMS, configurable thresholds.
+
+Credit-based billing: Free, Paid, Enterprise tiers.
+
+Restricted country users for GDPR regions.
+
+Documentation system for users/admins.
+
+Fully responsive design; mobile-first UX.
+
+Environment Variables (.env)
+
+Firebase credentials
+
+Stripe API keys
+
+PostgreSQL credentials
+
+Contact email
+
+LinkedIn URL
+
+Other secrets for AI features and gateways
