@@ -1,5 +1,18 @@
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApp } from "firebase/app";
 import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "firebase/auth";
+
+// Create mock auth object for development/error cases
+function createMockAuth() {
+  return {
+    currentUser: null,
+    signOut: () => Promise.resolve(),
+    onAuthStateChanged: (callback: any) => {
+      // Immediately call callback with null user
+      callback(null);
+      return () => {}; // Unsubscribe function
+    },
+  };
+}
 
 // Check if Firebase credentials are available
 const hasFirebaseConfig = import.meta.env.VITE_FIREBASE_API_KEY && 
@@ -14,24 +27,31 @@ if (hasFirebaseConfig) {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
     authDomain: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`,
     projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-    storageBucket: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebasestorage.app`,
+    storageBucket: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.appspot.com`,
     appId: import.meta.env.VITE_FIREBASE_APP_ID,
   };
 
-  app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
+  try {
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+  } catch (error: any) {
+    // If it's a duplicate app error, get the existing app
+    if (error.code === 'app/duplicate-app') {
+      try {
+        app = getApp();
+        auth = getAuth(app);
+      } catch (getAppError) {
+        console.error('Failed to get existing Firebase app:', getAppError);
+        auth = createMockAuth();
+      }
+    } else {
+      console.error('Firebase initialization failed:', error);
+      auth = createMockAuth();
+    }
+  }
 } else {
   console.warn('Firebase configuration not found. Authentication will be disabled in development mode.');
-  // Create mock auth object for development
-  auth = {
-    currentUser: null,
-    signOut: () => Promise.resolve(),
-    onAuthStateChanged: (callback: any) => {
-      // Immediately call callback with null user
-      callback(null);
-      return () => {}; // Unsubscribe function
-    },
-  };
+  auth = createMockAuth();
 }
 
 export { auth };
