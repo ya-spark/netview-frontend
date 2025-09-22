@@ -7,6 +7,7 @@ import { generateProbeFromCode, suggestProbeImprovements } from "./services/anth
 import { insertUserSchema, insertTenantSchema, insertProbeSchema, insertGatewaySchema, insertNotificationGroupSchema } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { getApiStats } from "./middleware/api-interceptor";
+import { sendNotification, sendToGroup, getNotificationStats, getNotificationLogs } from "./services/notification-manager";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize default SuperAdmins
@@ -369,6 +370,139 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('API stats error:', error);
       res.status(500).json({ message: 'Failed to fetch API statistics' });
+    }
+  });
+
+  // Notification management endpoints
+  
+  // Send test notification (Admin+ only)
+  app.post("/api/admin/notifications/send", authenticateUser, requireRole(['SuperAdmin', 'Owner', 'Admin']), async (req, res) => {
+    try {
+      const { type, recipient, subject, message, priority = 'medium' } = req.body;
+      
+      if (!type || !recipient || !message) {
+        return res.status(400).json({ message: 'Missing required fields: type, recipient, message' });
+      }
+
+      if (!['email', 'sms', 'webhook'].includes(type)) {
+        return res.status(400).json({ message: 'Invalid notification type. Must be email, sms, or webhook' });
+      }
+
+      // Basic validation
+      if (message.length > 1000) {
+        return res.status(400).json({ message: 'Message too long (max 1000 characters)' });
+      }
+      if (subject && subject.length > 200) {
+        return res.status(400).json({ message: 'Subject too long (max 200 characters)' });
+      }
+      if (!['low', 'medium', 'high', 'critical'].includes(priority)) {
+        return res.status(400).json({ message: 'Invalid priority. Must be low, medium, high, or critical' });
+      }
+
+      const notificationPayload = {
+        id: randomUUID(),
+        type,
+        recipient,
+        subject,
+        message,
+        metadata: {
+          tenantId: req.user!.tenantId || 'system',
+          priority,
+        }
+      };
+
+      const result = await sendNotification(notificationPayload);
+      res.json({
+        success: true,
+        data: result,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Send notification error:', error);
+      res.status(500).json({ message: 'Failed to send notification' });
+    }
+  });
+
+  // Get notification statistics (Admin+ only)
+  app.get("/api/admin/notifications/stats", authenticateUser, requireRole(['SuperAdmin', 'Owner', 'Admin']), async (req, res) => {
+    try {
+      const stats = getNotificationStats();
+      res.json({
+        success: true,
+        data: stats,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Notification stats error:', error);
+      res.status(500).json({ message: 'Failed to fetch notification statistics' });
+    }
+  });
+
+  // Get notification logs (Admin+ only)
+  app.get("/api/admin/notifications/logs", authenticateUser, requireRole(['SuperAdmin', 'Owner', 'Admin']), async (req, res) => {
+    try {
+      const { type, status, since, limit = 100 } = req.query;
+      
+      const filters: any = {};
+      if (req.user!.role !== 'SuperAdmin' && req.user!.tenantId) {
+        filters.tenantId = req.user!.tenantId; // Non-SuperAdmins see only their tenant's notifications
+      }
+      if (type) filters.type = type as string;
+      if (status) filters.status = status as string;
+      if (since) filters.since = parseInt(since as string, 10);
+      filters.limit = Math.min(parseInt(limit as string, 10), 1000); // Max 1000 logs
+
+      const logs = getNotificationLogs(filters);
+      res.json({
+        success: true,
+        data: logs,
+        count: logs.length,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Notification logs error:', error);
+      res.status(500).json({ message: 'Failed to fetch notification logs' });
+    }
+  });
+
+  // Send notification to group (used internally by alert system) - Admin+ only for security
+  app.post("/api/notifications/send-to-group", authenticateUser, requireRole(['SuperAdmin', 'Owner', 'Admin']), async (req, res) => {
+    try {
+      const { groupId, subject, message, priority = 'medium', probeId, alertId } = req.body;
+      
+      if (!groupId || !message) {
+        return res.status(400).json({ message: 'Missing required fields: groupId, message' });
+      }
+
+      // Get the notification group
+      const groups = await storage.getNotificationGroupsByTenant(req.user!.tenantId!);
+      const group = groups.find(g => g.id === groupId);
+      if (!group) {
+        return res.status(404).json({ message: 'Notification group not found' });
+      }
+
+      // Check if user has access to this group
+      if (req.user!.role !== 'SuperAdmin' && group.tenantId !== req.user!.tenantId) {
+        return res.status(403).json({ message: 'Access denied to this notification group' });
+      }
+
+      const metadata = {
+        tenantId: group.tenantId,
+        probeId,
+        alertId,
+        priority
+      };
+
+      const results = await sendToGroup(group, subject || 'Alert Notification', message, metadata);
+      res.json({
+        success: true,
+        data: results,
+        count: results.length,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Send to group error:', error);
+      res.status(500).json({ message: 'Failed to send notifications to group' });
     }
   });
 
