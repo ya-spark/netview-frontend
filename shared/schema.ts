@@ -119,6 +119,23 @@ export const alerts = pgTable("alerts", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// API Keys table (for user API access)
+export const apiKeys = pgTable("api_keys", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  tenantId: uuid("tenant_id").references(() => tenants.id).notNull(),
+  name: varchar("name", { length: 255 }).notNull(), // User-friendly name
+  keyPrefix: varchar("key_prefix", { length: 20 }).notNull(), // First 8 chars for display
+  keyHash: varchar("key_hash", { length: 255 }).notNull().unique(), // SHA-256 hash of full key
+  scopes: text("scopes").array().default([]), // Array of permission scopes
+  lastUsed: timestamp("last_used"),
+  usageCount: integer("usage_count").default(0),
+  isActive: boolean("is_active").default(true),
+  expiresAt: timestamp("expires_at"), // Optional expiration
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   tenant: one(tenants, {
@@ -199,6 +216,17 @@ export const alertsRelations = relations(alerts, ({ one }) => ({
   }),
 }));
 
+export const apiKeysRelations = relations(apiKeys, ({ one }) => ({
+  user: one(users, {
+    fields: [apiKeys.userId],
+    references: [users.id],
+  }),
+  tenant: one(tenants, {
+    fields: [apiKeys.tenantId],
+    references: [tenants.id],
+  }),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -239,6 +267,15 @@ export const insertAlertSchema = createInsertSchema(alerts).omit({
   createdAt: true,
 });
 
+export const insertApiKeySchema = createInsertSchema(apiKeys).omit({
+  id: true,
+  keyHash: true,
+  lastUsed: true,
+  usageCount: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -254,3 +291,5 @@ export type ProbeResult = typeof probeResults.$inferSelect;
 export type InsertProbeResult = z.infer<typeof insertProbeResultSchema>;
 export type Alert = typeof alerts.$inferSelect;
 export type InsertAlert = z.infer<typeof insertAlertSchema>;
+export type ApiKey = typeof apiKeys.$inferSelect;
+export type InsertApiKey = z.infer<typeof insertApiKeySchema>;

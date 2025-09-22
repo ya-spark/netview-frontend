@@ -1,9 +1,10 @@
 import { 
-  users, tenants, probes, gateways, notificationGroups, probeResults, alerts, probeGateways,
+  users, tenants, probes, gateways, notificationGroups, probeResults, alerts, probeGateways, apiKeys,
   type User, type InsertUser, type Tenant, type InsertTenant, 
   type Probe, type InsertProbe, type Gateway, type InsertGateway,
   type NotificationGroup, type InsertNotificationGroup,
-  type ProbeResult, type InsertProbeResult, type Alert, type InsertAlert
+  type ProbeResult, type InsertProbeResult, type Alert, type InsertAlert,
+  type ApiKey, type InsertApiKey
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, gte, lte } from "drizzle-orm";
@@ -67,6 +68,17 @@ export interface IStorage {
     overallUptime: number;
     creditsUsed: number;
   }>;
+
+  // API Keys
+  getApiKey(id: string): Promise<ApiKey | undefined>;
+  getApiKeyByHash(keyHash: string): Promise<ApiKey | undefined>;
+  getUserApiKeys(userId: string): Promise<ApiKey[]>;
+  getTenantApiKeys(tenantId: string): Promise<ApiKey[]>;
+  createApiKey(apiKey: InsertApiKey & { keyHash: string }): Promise<ApiKey>;
+  updateApiKey(id: string, updates: Partial<Omit<InsertApiKey, 'userId' | 'tenantId'>>): Promise<ApiKey>;
+  updateApiKeyUsage(id: string): Promise<void>;
+  deactivateApiKey(id: string): Promise<void>;
+  deleteApiKey(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
