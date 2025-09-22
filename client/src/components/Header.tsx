@@ -12,12 +12,22 @@ export function Header() {
   const { user, signOut } = useAuth();
   const [notificationCount] = useState(3);
 
-  const navigation = [
+  // Different navigation based on login status
+  const loggedInNavigation = [
     { name: 'Dashboard', href: '/dashboard', current: location === '/dashboard' },
     { name: 'Manage', href: '/manage', current: location === '/manage' },
     { name: 'Monitor', href: '/monitor', current: location === '/monitor' },
     { name: 'Reports', href: '/reports', current: location === '/reports' },
   ];
+
+  const publicNavigation = [
+    { name: 'Products', href: '#products', current: false },
+    { name: 'Pricing', href: '#pricing', current: false },
+    { name: 'Docs', href: '#docs', current: false },
+    { name: 'Login', href: '/login', current: location === '/login' },
+  ];
+
+  const navigation = user ? loggedInNavigation : publicNavigation;
 
   const getInitials = (firstName: string, lastName: string) => {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
@@ -32,7 +42,7 @@ export function Header() {
       <div className="flex items-center justify-between px-6 py-4">
         {/* Logo */}
         <div className="flex items-center space-x-4">
-          <Link href="/dashboard">
+          <Link href={user ? "/dashboard" : "/"}>
             <div className="flex items-center space-x-2 cursor-pointer">
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                 <span className="text-primary-foreground font-bold text-lg">N</span>
@@ -60,8 +70,8 @@ export function Header() {
           ))}
         </nav>
 
-        {/* User Menu - Only show when logged in */}
-        {user && (
+        {/* Right side - User Menu or Sign up button */}
+        {user ? (
           <div className="flex items-center space-x-4">
             {/* Notifications */}
             <Button
@@ -113,7 +123,7 @@ export function Header() {
                     <span>Billing</span>
                   </Link>
                 </DropdownMenuItem>
-                {(user.role === 'SuperAdmin' || user.role === 'Owner' || user.role === 'Admin') && (
+                {(user?.role === 'SuperAdmin' || user?.role === 'Owner' || user?.role === 'Admin') && (
                   <DropdownMenuItem asChild>
                     <Link href="/collaborators" className="flex items-center">
                       <Users className="mr-2 h-4 w-4" />
@@ -128,6 +138,12 @@ export function Header() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+          </div>
+        ) : (
+          <div className="flex items-center space-x-4">
+            <Button asChild data-testid="button-sign-up">
+              <Link href="/login">Sign Up</Link>
+            </Button>
           </div>
         )}
       </div>
