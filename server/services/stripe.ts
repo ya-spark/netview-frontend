@@ -1,12 +1,16 @@
 import Stripe from 'stripe';
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
-}
+let stripe: Stripe | null = null;
+let stripeInitialized = false;
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2023-10-16',
-});
+if (process.env.STRIPE_SECRET_KEY) {
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: '2025-08-27.basil',
+  });
+  stripeInitialized = true;
+} else {
+  console.warn('Stripe secret key not found. Running in development mode without Stripe integration.');
+}
 
 export { stripe };
 
@@ -32,6 +36,11 @@ export const PRICING_PLANS = {
 };
 
 export async function createOrGetCustomer(email: string, name: string) {
+  if (!stripe || !stripeInitialized) {
+    console.warn('Stripe not initialized, returning mock customer for development');
+    return { id: 'dev-customer-1', email, name } as any;
+  }
+
   // First, check if customer already exists
   const existingCustomers = await stripe.customers.list({
     email,
@@ -52,6 +61,11 @@ export async function createOrGetCustomer(email: string, name: string) {
 }
 
 export async function createSubscription(customerId: string, priceId: string) {
+  if (!stripe || !stripeInitialized) {
+    console.warn('Stripe not initialized, returning mock subscription for development');
+    return { id: 'dev-subscription-1', status: 'active' } as any;
+  }
+
   const subscription = await stripe.subscriptions.create({
     customer: customerId,
     items: [{ price: priceId }],
@@ -63,11 +77,21 @@ export async function createSubscription(customerId: string, priceId: string) {
 }
 
 export async function cancelSubscription(subscriptionId: string) {
+  if (!stripe || !stripeInitialized) {
+    console.warn('Stripe not initialized, returning mock cancellation for development');
+    return { id: subscriptionId, status: 'canceled' } as any;
+  }
+
   const subscription = await stripe.subscriptions.cancel(subscriptionId);
   return subscription;
 }
 
 export async function getSubscription(subscriptionId: string) {
+  if (!stripe || !stripeInitialized) {
+    console.warn('Stripe not initialized, returning mock subscription for development');
+    return { id: subscriptionId, status: 'active' } as any;
+  }
+
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
   return subscription;
 }

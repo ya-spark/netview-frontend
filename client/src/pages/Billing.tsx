@@ -12,13 +12,27 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { CreditCard, Check, Star, Download, Calendar, DollarSign } from 'lucide-react';
+import type { Tenant } from '@shared/schema';
 
-if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
-  throw new Error('Missing required Stripe key: VITE_STRIPE_PUBLIC_KEY');
+let stripePromise: Promise<any> | null = null;
+const hasStripeConfig = !!import.meta.env.VITE_STRIPE_PUBLIC_KEY;
+
+if (hasStripeConfig) {
+  stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+} else {
+  console.warn('Stripe public key not found. Billing functionality disabled in development mode.');
 }
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 
-const PRICING_PLANS = {
+interface PricingPlan {
+  name: string;
+  credits: number;
+  price: number;
+  period: string;
+  features: string[];
+  popular?: boolean;
+}
+
+const PRICING_PLANS: Record<string, PricingPlan> = {
   FREE: {
     name: 'Free',
     credits: 1000,
@@ -30,6 +44,7 @@ const PRICING_PLANS = {
       '1 custom gateway',
       'Basic reporting',
     ],
+    popular: false,
   },
   PAID: {
     name: 'Paid',
@@ -59,6 +74,7 @@ const PRICING_PLANS = {
       'Dedicated account manager',
       'Custom contracts',
     ],
+    popular: false,
   },
 };
 
@@ -122,7 +138,7 @@ export default function Billing() {
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
 
-  const { data: tenant } = useQuery({
+  const { data: tenant } = useQuery<Tenant>({
     queryKey: ['/api/tenant', user?.tenantId],
     enabled: !!user?.tenantId,
   });

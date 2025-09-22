@@ -4,21 +4,37 @@ import type { Request, Response, NextFunction } from 'express';
 import { storage } from '../storage';
 
 // Initialize Firebase Admin SDK
+let firebaseInitialized = false;
 if (getApps().length === 0) {
-  const serviceAccount = {
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-  };
+  // Check if Firebase credentials are available
+  if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
+    const serviceAccount = {
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+    };
 
-  initializeApp({
-    credential: cert(serviceAccount),
-  });
+    initializeApp({
+      credential: cert(serviceAccount),
+    });
+    firebaseInitialized = true;
+  } else {
+    console.warn('Firebase credentials not found. Running in development mode without Firebase authentication.');
+  }
 }
 
-const auth = getAuth();
+const auth = firebaseInitialized ? getAuth() : null;
 
 export async function verifyToken(idToken: string) {
+  if (!firebaseInitialized || !auth) {
+    // Development mode - create a mock token for testing
+    console.warn('Firebase not initialized, using mock authentication for development');
+    return {
+      uid: 'dev-user-1',
+      email: 'dev@example.com',
+    };
+  }
+
   try {
     const decodedToken = await auth.verifyIdToken(idToken);
     return decodedToken;

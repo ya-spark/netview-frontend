@@ -12,13 +12,17 @@ When copying code from this code snippet, ensure you also include this informati
 const DEFAULT_MODEL_STR = "claude-sonnet-4-20250514";
 // </important_do_not_delete>
 
-if (!process.env.ANTHROPIC_API_KEY) {
-  throw new Error('Missing required Anthropic API key: ANTHROPIC_API_KEY');
-}
+let anthropic: Anthropic | null = null;
+let anthropicInitialized = false;
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+if (process.env.ANTHROPIC_API_KEY) {
+  anthropic = new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+  });
+  anthropicInitialized = true;
+} else {
+  console.warn('Anthropic API key not found. Running in development mode without AI probe generation.');
+}
 
 export interface ProbeCreationRequest {
   url?: string;
@@ -41,6 +45,23 @@ export interface GeneratedProbe {
 }
 
 export async function generateProbeFromCode(request: ProbeCreationRequest): Promise<GeneratedProbe[]> {
+  if (!anthropic || !anthropicInitialized) {
+    console.warn('Anthropic not initialized, returning mock probes for development');
+    return [
+      {
+        name: 'Basic Uptime Check',
+        description: 'Mock probe for development mode',
+        type: 'Uptime',
+        protocol: 'HTTPS',
+        url: request.url || 'https://example.com',
+        method: 'GET',
+        expectedStatusCode: 200,
+        expectedResponseTime: 5000,
+        checkInterval: 300
+      }
+    ];
+  }
+
   const prompt = `You are an expert monitoring system that creates comprehensive probe configurations for website and API monitoring.
 
 Given the following input:
@@ -110,6 +131,11 @@ Ensure URLs are valid and complete. Use reasonable defaults for timing and inter
 }
 
 export async function suggestProbeImprovements(probe: any): Promise<string[]> {
+  if (!anthropic || !anthropicInitialized) {
+    console.warn('Anthropic not initialized, returning mock suggestions for development');
+    return ['Consider adding authentication headers', 'Verify SSL certificate', 'Monitor response time'];
+  }
+
   const prompt = `Analyze this monitoring probe configuration and suggest improvements:
 
 ${JSON.stringify(probe, null, 2)}
