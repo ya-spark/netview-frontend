@@ -34,39 +34,45 @@ export default function Landing() {
       name: 'Free',
       price: '$0',
       period: '/month',
-      credits: '1,000 credits',
+      startupCredit: '$5 startup credit',
       features: [
-        'Basic uptime monitoring',
-        'Email notifications',
-        '1 custom gateway',
+        'Basic uptime monitoring probes',
         'Basic reporting',
+        '5 users in organization',
+        'AI powered probe creation',
       ],
+      limitations: [
+        'All probes stop after startup credit is used',
+        'No email notifications',
+        'No custom gateway',
+      ]
     },
     {
       name: 'Paid',
-      price: '$29',
-      period: '/month',
-      credits: '10,000 credits',
+      price: 'Pay as you go',
+      period: '',
+      topUpInfo: 'Auto top-up when balance goes below $5 (configurable)',
       features: [
-        'Advanced monitoring (API, Security, Browser)',
-        'SMS & Email notifications',
-        'Unlimited custom gateways',
-        'Advanced analytics',
-        'AI-powered probe generation',
-        'Stripe billing integration',
+        'Pay as you go billing',
+        'Email notifications',
+        '3 custom gateways',
+        'Advanced analytics (coming soon)',
+        'Stripe billing',
+        'Basic email support',
+        'Configurable auto top-up',
       ],
       popular: true,
     },
     {
       name: 'Enterprise',
-      price: '$199',
-      period: '/month',
-      credits: '100,000 credits',
+      price: 'Contact Sales',
+      period: '',
+      contactSales: true,
       features: [
-        'Everything in Paid',
         'Priority support',
+        'Higher custom gateway count',
+        '50 users in organization',
         'Custom integrations',
-        'Advanced role management',
         'SLA guarantees',
         'Dedicated account manager',
       ],
@@ -158,7 +164,12 @@ export default function Landing() {
                         <span className="text-3xl font-bold text-foreground">{plan.price}</span>
                         <span className="text-muted-foreground ml-1">{plan.period}</span>
                       </div>
-                      <p className="text-sm text-muted-foreground mt-2">{plan.credits}</p>
+                      {plan.startupCredit && (
+                        <p className="text-sm text-muted-foreground mt-2">{plan.startupCredit}</p>
+                      )}
+                      {plan.topUpInfo && (
+                        <p className="text-sm text-muted-foreground mt-2">{plan.topUpInfo}</p>
+                      )}
                     </div>
 
                     <ul className="space-y-3 mb-6">
@@ -168,16 +179,33 @@ export default function Landing() {
                           <span className="text-foreground">{feature}</span>
                         </li>
                       ))}
+                      {plan.limitations && plan.limitations.map((limitation, limitationIndex) => (
+                        <li key={`limitation-${limitationIndex}`} className="flex items-center text-sm">
+                          <span className="h-4 w-4 text-muted-foreground mr-3 flex-shrink-0">×</span>
+                          <span className="text-muted-foreground">{limitation}</span>
+                        </li>
+                      ))}
                     </ul>
 
-                    <Button 
-                      className="w-full" 
-                      variant={plan.popular ? "default" : "outline"}
-                      asChild
-                      data-testid={`button-select-${plan.name.toLowerCase()}`}
-                    >
-                      <Link href="/login">Get Started</Link>
-                    </Button>
+                    {plan.contactSales ? (
+                      <Button 
+                        className="w-full" 
+                        variant={plan.popular ? "default" : "outline"}
+                        asChild
+                        data-testid={`button-select-${plan.name.toLowerCase()}`}
+                      >
+                        <Link href="#contact">Contact Sales</Link>
+                      </Button>
+                    ) : (
+                      <Button 
+                        className="w-full" 
+                        variant={plan.popular ? "default" : "outline"}
+                        asChild
+                        data-testid={`button-select-${plan.name.toLowerCase()}`}
+                      >
+                        <Link href="/login">Get Started</Link>
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
               ))}
