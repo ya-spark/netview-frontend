@@ -3,6 +3,17 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
+  SidebarContent,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent,
+  Sidebar as SidebarWrapper,
+} from '@/components/ui/sidebar';
+import { 
   BarChart3, Settings, Eye, Activity, Shield, Bell, 
   Server, Users, AlertTriangle, Map, FileText, 
   Filter, Search, Bookmark, FileBarChart 
@@ -323,10 +334,23 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="w-64 bg-card border-r border-border hidden lg:block">
-      <div className="p-6">
-        {getSidebarContent()}
-      </div>
-    </aside>
+    <SidebarWrapper>
+      <SidebarContent>
+        <SidebarHeader>
+          <div className="p-2">
+            <h2 className="text-lg font-semibold text-foreground">
+              {location.startsWith('/dashboard') && 'Dashboard'}
+              {location.startsWith('/manage') && 'Manage'}
+              {location.startsWith('/monitor') && 'Monitor'}
+              {location.startsWith('/reports') && 'Reports'}
+              {!location.startsWith('/dashboard') && !location.startsWith('/manage') && !location.startsWith('/monitor') && !location.startsWith('/reports') && 'Dashboard'}
+            </h2>
+          </div>
+        </SidebarHeader>
+        <div className="p-6">
+          {getSidebarContent()}
+        </div>
+      </SidebarContent>
+    </SidebarWrapper>
   );
 }

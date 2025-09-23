@@ -10,13 +10,15 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Settings, CreditCard, Users, LogOut } from "lucide-react";
+import { useSidebar } from "@/components/ui/sidebar";
+import { Bell, Settings, CreditCard, Users, LogOut, Menu } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 export function Header() {
   const [location] = useLocation();
   const { user, signOut } = useAuth();
   const [notificationCount] = useState(3);
+  const { toggleSidebar, isMobile } = useSidebar();
 
   // Different navigation based on login status
   const loggedInNavigation = [
@@ -49,8 +51,21 @@ export function Header() {
   return (
     <header className="bg-card border-b border-border sticky top-0 z-50 shadow-sm">
       <div className="flex items-center justify-between px-6 py-4">
-        {/* Logo */}
+        {/* Logo and Mobile Menu */}
         <div className="flex items-center space-x-4">
+          {/* Mobile Sidebar Trigger */}
+          {user && isMobile && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleSidebar}
+              className="lg:hidden"
+              data-testid="button-mobile-menu"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+          )}
+          
           <Link href={user ? "/dashboard" : "/"}>
             <div className="flex items-center space-x-2 cursor-pointer">
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
