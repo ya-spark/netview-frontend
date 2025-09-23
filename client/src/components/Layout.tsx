@@ -18,8 +18,8 @@ export function Layout({ children, showSidebar = true }: LayoutProps) {
         <Header />
         <div className="flex min-h-screen pt-20">
           {showSidebar && user && <Sidebar />}
-          <main className="flex-1">
-            <div className="container mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <main className="flex-1 w-full">
+            <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
               {children}
             </div>
           </main>
