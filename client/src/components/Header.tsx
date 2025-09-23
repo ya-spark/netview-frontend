@@ -21,9 +21,9 @@ export function Header() {
   ];
 
   const publicNavigation = [
-    { name: 'Products', href: '#products', current: false },
+    { name: 'Features', href: '#features', current: false },
     { name: 'Pricing', href: '#pricing', current: false },
-    { name: 'Docs', href: '#docs', current: false },
+    { name: 'Docs', href: '/docs', current: false },
   ];
 
   const navigation = user ? loggedInNavigation : publicNavigation;
