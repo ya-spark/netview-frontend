@@ -82,7 +82,7 @@ export default function Dashboard() {
         </div>
 
         {/* Metrics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -134,23 +134,6 @@ export default function Dashboard() {
                 </div>
                 <div className="w-12 h-12 bg-secondary/10 rounded-lg flex items-center justify-center">
                   <CheckCircle className="w-6 h-6 text-secondary" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Credits Used</p>
-                  <p className="text-2xl font-bold text-foreground" data-testid="text-credits-used">
-                    {stats?.creditsUsed || 0}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">of 2,000 this month</p>
-                </div>
-                <div className="w-12 h-12 bg-accent rounded-lg flex items-center justify-center">
-                  <DollarSign className="w-6 h-6 text-muted-foreground" />
                 </div>
               </div>
             </CardContent>

@@ -1,11 +1,17 @@
-import { useState } from 'react';
-import { Link, useLocation } from 'wouter';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { Badge } from '@/components/ui/badge';
-import { Bell, Settings, CreditCard, Users, LogOut } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useState } from "react";
+import { Link, useLocation } from "wouter";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
+import { Bell, Settings, CreditCard, Users, LogOut } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function Header() {
   const [location] = useLocation();
@@ -14,16 +20,20 @@ export function Header() {
 
   // Different navigation based on login status
   const loggedInNavigation = [
-    { name: 'Dashboard', href: '/dashboard', current: location === '/dashboard' },
-    { name: 'Manage', href: '/manage', current: location === '/manage' },
-    { name: 'Monitor', href: '/monitor', current: location === '/monitor' },
-    { name: 'Reports', href: '/reports', current: location === '/reports' },
+    {
+      name: "Dashboard",
+      href: "/dashboard",
+      current: location === "/dashboard",
+    },
+    { name: "Manage", href: "/manage", current: location === "/manage" },
+    { name: "Monitor", href: "/monitor", current: location === "/monitor" },
+    { name: "Reports", href: "/reports", current: location === "/reports" },
   ];
 
   const publicNavigation = [
-    { name: 'Features', href: '#features', current: false },
-    { name: 'Pricing', href: '#pricing', current: false },
-    { name: 'Docs', href: '/docs', current: false },
+    { name: "Features", href: "#features", current: false },
+    { name: "Pricing", href: "#pricing", current: false },
+    { name: "Docs", href: "#docs", current: false },
   ];
 
   const navigation = user ? loggedInNavigation : publicNavigation;
@@ -44,7 +54,9 @@ export function Header() {
           <Link href={user ? "/dashboard" : "/"}>
             <div className="flex items-center space-x-2 cursor-pointer">
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-lg">N</span>
+                <span className="text-primary-foreground font-bold text-lg">
+                  N
+                </span>
               </div>
               <span className="text-xl font-bold text-foreground">NetView</span>
             </div>
@@ -58,8 +70,8 @@ export function Header() {
               <span
                 className={`${
                   item.current
-                    ? 'text-primary font-medium border-b-2 border-primary pb-1'
-                    : 'text-muted-foreground hover:text-foreground transition-colors'
+                    ? "text-primary font-medium border-b-2 border-primary pb-1"
+                    : "text-muted-foreground hover:text-foreground transition-colors"
                 } cursor-pointer`}
                 data-testid={`nav-${item.name.toLowerCase()}`}
               >
@@ -81,8 +93,8 @@ export function Header() {
             >
               <Bell className="h-5 w-5" />
               {notificationCount > 0 && (
-                <Badge 
-                  variant="destructive" 
+                <Badge
+                  variant="destructive"
                   className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs p-0"
                 >
                   {notificationCount}
@@ -93,12 +105,21 @@ export function Header() {
             {/* User Profile */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <div className="flex items-center space-x-3 cursor-pointer" data-testid="dropdown-user-menu">
+                <div
+                  className="flex items-center space-x-3 cursor-pointer"
+                  data-testid="dropdown-user-menu"
+                >
                   <div className="text-right hidden sm:block">
-                    <div className="text-sm font-medium text-foreground" data-testid="text-user-name">
+                    <div
+                      className="text-sm font-medium text-foreground"
+                      data-testid="text-user-name"
+                    >
                       {user.firstName} {user.lastName}
                     </div>
-                    <div className="text-xs text-muted-foreground" data-testid="text-user-role">
+                    <div
+                      className="text-xs text-muted-foreground"
+                      data-testid="text-user-role"
+                    >
                       {user.role}
                     </div>
                   </div>
@@ -122,7 +143,9 @@ export function Header() {
                     <span>Billing</span>
                   </Link>
                 </DropdownMenuItem>
-                {(user?.role === 'SuperAdmin' || user?.role === 'Owner' || user?.role === 'Admin') && (
+                {(user?.role === "SuperAdmin" ||
+                  user?.role === "Owner" ||
+                  user?.role === "Admin") && (
                   <DropdownMenuItem asChild>
                     <Link href="/collaborators" className="flex items-center">
                       <Users className="mr-2 h-4 w-4" />
@@ -131,7 +154,10 @@ export function Header() {
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut} data-testid="button-sign-out">
+                <DropdownMenuItem
+                  onClick={handleSignOut}
+                  data-testid="button-sign-out"
+                >
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Sign Out</span>
                 </DropdownMenuItem>
