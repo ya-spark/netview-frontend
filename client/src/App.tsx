@@ -6,6 +6,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Landing from "@/pages/Landing";
 import Login from "@/pages/Login";
+import Features from "@/pages/Features";
+import Pricing from "@/pages/Pricing";
+import Docs from "@/pages/docs/index";
 import Dashboard from "@/pages/Dashboard";
 import Manage from "@/pages/Manage";
 import Monitor from "@/pages/Monitor";
@@ -63,6 +66,18 @@ function Router() {
         <PublicRoute>
           <Login />
         </PublicRoute>
+      </Route>
+      
+      <Route path="/features">
+        <Features />
+      </Route>
+      
+      <Route path="/pricing">
+        <Pricing />
+      </Route>
+      
+      <Route path="/docs">
+        <Docs />
       </Route>
       
       <Route path="/dashboard">

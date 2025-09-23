@@ -31,9 +31,9 @@ export function Header() {
   ];
 
   const publicNavigation = [
-    { name: "Features", href: "#features", current: false },
-    { name: "Pricing", href: "#pricing", current: false },
-    { name: "Docs", href: "#docs", current: false },
+    { name: "Features", href: "/features", current: location === "/features" },
+    { name: "Pricing", href: "/pricing", current: location === "/pricing" },
+    { name: "Docs", href: "/docs", current: location === "/docs" },
   ];
 
   const navigation = user ? loggedInNavigation : publicNavigation;
@@ -166,6 +166,9 @@ export function Header() {
           </div>
         ) : (
           <div className="flex items-center space-x-4">
+            <Button asChild variant="ghost" data-testid="button-demo">
+              <Link href="/demo">Demo</Link>
+            </Button>
             <Button asChild variant="outline" data-testid="button-login">
               <Link href="/login">Login</Link>
             </Button>
