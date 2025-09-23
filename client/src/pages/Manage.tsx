@@ -234,9 +234,9 @@ export default function Manage() {
               <div className="flex items-center space-x-2">
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button variant="outline" data-testid="button-ai-generate">
+                    <Button variant="outline" disabled data-testid="button-ai-generate">
                       <Bot className="w-4 h-4 mr-2" />
-                      AI Generate
+                      AI Generate (Coming Soon)
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-2xl">
