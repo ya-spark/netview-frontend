@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -51,6 +51,10 @@ export default function Manage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiCode, setAiCode] = useState('');
+  
+  // Get current hash from URL to determine which section to show
+  const [location] = useLocation();
+  const hash = location.includes('#') ? location.split('#')[1] : 'probes';
 
   const { data: probes, refetch: refetchProbes } = useQuery({
     queryKey: ['/api/probes'],
@@ -179,10 +183,10 @@ export default function Manage() {
     generateProbesMutation.mutate(data);
   };
 
-  const filteredProbes = probes?.filter((probe: any) =>
+  const filteredProbes = Array.isArray(probes) ? probes.filter((probe: any) =>
     probe.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     probe.url?.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+  ) : [];
 
   const getTypeBadge = (type: string) => {
     const colors = {
@@ -207,14 +211,9 @@ export default function Manage() {
           <p className="text-muted-foreground">Configure probes, notification groups, and gateways</p>
         </div>
 
-        <Tabs defaultValue="probes" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="probes" data-testid="tab-probes">Probes</TabsTrigger>
-            <TabsTrigger value="notifications" data-testid="tab-notifications">Notification Groups</TabsTrigger>
-            <TabsTrigger value="gateways" data-testid="tab-gateways">Gateways</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="probes" className="space-y-6">
+        {/* Show content based on URL hash */}
+        {hash === 'probes' && (
+          <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div className="relative">
@@ -446,9 +445,11 @@ export default function Manage() {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
-
-          <TabsContent value="notifications" className="space-y-6">
+          </div>
+        )}
+        
+        {hash === 'notifications' && (
+          <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-medium">Notification Groups</h3>
               <Dialog>
@@ -527,7 +528,7 @@ export default function Manage() {
 
             <Card>
               <CardContent className="p-6">
-                {notificationGroups?.length === 0 ? (
+                {!Array.isArray(notificationGroups) || notificationGroups.length === 0 ? (
                   <div className="text-center py-8">
                     <Settings className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-foreground mb-2">No notification groups</h3>
@@ -535,7 +536,7 @@ export default function Manage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {notificationGroups?.map((group: any) => (
+                    {Array.isArray(notificationGroups) && notificationGroups.map((group: any) => (
                       <div key={group.id} className="flex items-center justify-between p-4 border border-border rounded-lg" data-testid={`notification-item-${group.id}`}>
                         <div>
                           <div className="font-medium text-foreground">{group.name}</div>
@@ -558,9 +559,11 @@ export default function Manage() {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
-
-          <TabsContent value="gateways" className="space-y-6">
+          </div>
+        )}
+        
+        {hash === 'gateways' && (
+          <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-medium">Gateways</h3>
               {(user?.role === 'SuperAdmin' || user?.role === 'Owner' || user?.role === 'Admin') && (
@@ -628,7 +631,7 @@ export default function Manage() {
 
             <Card>
               <CardContent className="p-6">
-                {gateways?.length === 0 ? (
+                {!Array.isArray(gateways) || gateways.length === 0 ? (
                   <div className="text-center py-8">
                     <Globe className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-foreground mb-2">No gateways available</h3>
@@ -636,7 +639,7 @@ export default function Manage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {gateways?.map((gateway: any) => (
+                    {Array.isArray(gateways) && gateways.map((gateway: any) => (
                       <div key={gateway.id} className="flex items-center justify-between p-4 border border-border rounded-lg" data-testid={`gateway-item-${gateway.id}`}>
                         <div className="flex items-center space-x-4">
                           <div className={`w-3 h-3 rounded-full ${gateway.isOnline ? 'bg-secondary' : 'bg-destructive'}`} />
@@ -667,8 +670,8 @@ export default function Manage() {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
+          </div>
+        )}
       </div>
     </Layout>
   );
