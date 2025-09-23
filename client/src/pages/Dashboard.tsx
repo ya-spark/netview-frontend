@@ -27,10 +27,10 @@ export default function Dashboard() {
     refetchProbes();
   };
 
-  const filteredProbes = probes?.filter((probe: any) =>
+  const filteredProbes = (probes as any[] || []).filter((probe: any) =>
     probe.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     probe.url?.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+  );
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -89,7 +89,7 @@ export default function Dashboard() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Total Probes</p>
                   <p className="text-2xl font-bold text-foreground" data-testid="text-total-probes">
-                    {stats?.totalProbes || 0}
+                    {(stats as any)?.totalProbes || 0}
                   </p>
                   <p className="text-xs text-secondary mt-1">
                     <span className="inline-flex items-center">
@@ -111,7 +111,7 @@ export default function Dashboard() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Active Alerts</p>
                   <p className="text-2xl font-bold text-destructive" data-testid="text-active-alerts">
-                    {stats?.activeAlerts || 0}
+                    {(stats as any)?.activeAlerts || 0}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">Requires attention</p>
                 </div>
@@ -128,7 +128,7 @@ export default function Dashboard() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Overall Uptime</p>
                   <p className="text-2xl font-bold text-secondary" data-testid="text-uptime">
-                    {stats?.overallUptime ? `${stats.overallUptime}%` : '100%'}
+                    {(stats as any)?.overallUptime ? `${(stats as any).overallUptime}%` : '100%'}
                   </p>
                   <p className="text-xs text-secondary mt-1">Last 30 days</p>
                 </div>

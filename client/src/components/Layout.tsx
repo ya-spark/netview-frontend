@@ -19,7 +19,7 @@ export function Layout({ children, showSidebar = true }: LayoutProps) {
         <div className="flex min-h-screen pt-20">
           {showSidebar && user && <Sidebar />}
           <main className="flex-1 w-full">
-            <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="w-full mx-auto px-4 sm:px-6 lg:px-8" style={{ maxWidth: '900px' }}>
               {children}
             </div>
           </main>

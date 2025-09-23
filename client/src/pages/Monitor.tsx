@@ -34,14 +34,14 @@ export default function Monitor() {
     { id: '4', status: 'Up', responseTime: 189, timestamp: new Date(Date.now() - 10 * 60 * 1000) },
   ];
 
-  const filteredProbes = probes?.filter((probe: any) => {
+  const filteredProbes = (probes as any[] || []).filter((probe: any) => {
     const matchesSearch = probe.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          probe.url?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || probe.status === statusFilter;
     const matchesType = typeFilter === 'all' || probe.type === typeFilter;
     
     return matchesSearch && matchesStatus && matchesType;
-  }) || [];
+  });
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -101,7 +101,7 @@ export default function Monitor() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Total Probes</p>
                   <p className="text-2xl font-bold text-foreground" data-testid="text-total-probes">
-                    {stats?.totalProbes || 0}
+                    {(stats as any)?.totalProbes || 0}
                   </p>
                 </div>
                 <Activity className="w-8 h-8 text-primary" />
