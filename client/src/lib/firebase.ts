@@ -1,5 +1,5 @@
 import { initializeApp, getApp } from "firebase/app";
-import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "firebase/auth";
+import { getAuth, signInWithRedirect, getRedirectResult, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "firebase/auth";
 
 // Create mock auth object for development/error cases
 function createMockAuth() {
@@ -58,12 +58,28 @@ export { auth };
 
 const googleProvider = new GoogleAuthProvider();
 
-export const signInWithGoogle = () => {
+export const signInWithGoogle = async () => {
   if (!hasFirebaseConfig) {
     console.warn('Firebase not configured, Google sign-in disabled in development mode');
     return Promise.reject(new Error('Firebase not configured'));
   }
-  signInWithRedirect(auth, googleProvider);
+  
+  console.log('🚀 Starting Google sign-in with popup...');
+  console.log('🌐 Current domain:', window.location.origin);
+  console.log('🔧 Firebase auth domain:', auth.config?.authDomain);
+  
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    console.log('✅ Google sign-in successful:', {
+      uid: result.user.uid,
+      email: result.user.email,
+      displayName: result.user.displayName
+    });
+    return result;
+  } catch (error) {
+    console.error('❌ Error during signInWithPopup:', error);
+    throw error;
+  }
 };
 
 export const signInWithEmail = (email: string, password: string) => {
@@ -93,5 +109,7 @@ export const handleRedirectResult = () => {
   if (!hasFirebaseConfig) {
     return Promise.resolve(null);
   }
-  return getRedirectResult(auth);
+  // Since we're using popup instead of redirect, this always returns null
+  console.log('📱 Using popup authentication - no redirect result to handle');
+  return Promise.resolve(null);
 };

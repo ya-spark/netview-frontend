@@ -27,9 +27,9 @@ export default function Login() {
         console.log('🔄 Login: Redirect result:', result ? 'Success' : 'No redirect');
         if (result) {
           console.log('🔄 Login: Redirect result details:', {
-            uid: result.user?.uid,
-            email: result.user?.email,
-            displayName: result.user?.displayName
+            uid: result.user?.uid || 'unknown',
+            email: result.user?.email || 'unknown',
+            displayName: result.user?.displayName || 'unknown'
           });
           toast({
             title: "Welcome to NetView!",
@@ -62,8 +62,23 @@ export default function Login() {
     }
   }, [user, firebaseUser, loading, setLocation]);
 
-  const handleGoogleSignIn = () => {
-    signInWithGoogle();
+  const handleGoogleSignIn = async () => {
+    console.log('🖱️ Login: Google sign-in button clicked');
+    try {
+      setLoading(true);
+      const result = await signInWithGoogle();
+      console.log('✅ Login: Google sign-in completed successfully');
+      // The AuthContext will handle the user state update automatically
+    } catch (error: any) {
+      console.error('❌ Login: Google sign-in failed:', error);
+      toast({
+        title: "Sign-in Error",
+        description: error.message || "Failed to sign in with Google",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
