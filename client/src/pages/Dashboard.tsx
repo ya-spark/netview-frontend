@@ -62,7 +62,7 @@ export default function Dashboard() {
 
   return (
     <Layout>
-      <div className="py-6">
+      <div className="p-6 overflow-y-auto">
         {/* Page Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">

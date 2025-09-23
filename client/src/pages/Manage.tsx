@@ -205,7 +205,7 @@ export default function Manage() {
 
   return (
     <Layout>
-      <div className="py-6">
+      <div className="p-6 overflow-y-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2" data-testid="text-page-title">Manage</h1>
           <p className="text-muted-foreground">Configure probes, notification groups, and gateways</p>

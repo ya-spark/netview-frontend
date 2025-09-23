@@ -86,7 +86,7 @@ export default function Monitor() {
 
   return (
     <Layout>
-      <div className="py-6">
+      <div className="p-6 overflow-y-auto">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2" data-testid="text-page-title">Monitor</h1>
