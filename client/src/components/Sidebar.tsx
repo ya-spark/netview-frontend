@@ -196,7 +196,7 @@ function ManageSidebar() {
       current: hash === "probes" || (location === "/manage" && hash === ""),
     },
     {
-      name: "Notifications",
+      name: "Notification Groups",
       href: "/manage#notifications",
       icon: Bell,
       current: hash === "notifications",
