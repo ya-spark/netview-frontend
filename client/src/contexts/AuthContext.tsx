@@ -20,31 +20,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log('🔥 Firebase auth state changed:', {
+        uid: firebaseUser?.uid,
+        email: firebaseUser?.email,
+        displayName: firebaseUser?.displayName,
+        isSignedIn: !!firebaseUser
+      });
+      
       setFirebaseUser(firebaseUser);
       
       if (firebaseUser) {
         try {
+          console.log('🔑 Getting Firebase ID token...');
           // Get ID token and register/login user
           const idToken = await firebaseUser.getIdToken();
+          console.log('✅ Got Firebase ID token, length:', idToken.length);
           
           // Try to get existing user first
+          console.log('📞 Calling /api/auth/me...');
           const response = await fetch('/api/auth/me', {
             headers: {
               'Authorization': `Bearer ${idToken}`,
             },
           });
 
+          console.log('📞 /api/auth/me response:', response.status, response.statusText);
+
           if (response.ok) {
             const userData = await response.json();
+            console.log('👤 Existing user found:', { id: userData.id, email: userData.email, role: userData.role });
             setUser(userData);
           } else {
             // Register new user
+            console.log('📝 Registering new user...');
             const registrationData = {
               firebaseUid: firebaseUser.uid,
               email: firebaseUser.email!,
               firstName: firebaseUser.displayName?.split(' ')[0] || 'User',
               lastName: firebaseUser.displayName?.split(' ').slice(1).join(' ') || '',
             };
+
+            console.log('📝 Registration data:', registrationData);
 
             // Make registration request with Authorization header
             const registerResponse = await fetch('/api/auth/register', {
@@ -56,21 +72,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               body: JSON.stringify(registrationData),
             });
 
+            console.log('📝 Registration response:', registerResponse.status, registerResponse.statusText);
+
             if (!registerResponse.ok) {
+              const errorText = await registerResponse.text();
+              console.error('❌ Registration failed:', errorText);
               throw new Error('Registration failed');
             }
 
             const userData = await registerResponse.json();
+            console.log('✅ New user registered:', { id: userData.id, email: userData.email, role: userData.role });
             setUser(userData);
           }
         } catch (error) {
-          console.error('Authentication error:', error);
+          console.error('❌ Authentication error:', error);
           setUser(null);
         }
       } else {
+        console.log('🚪 User signed out');
         setUser(null);
       }
       
+      console.log('⏱️ Setting loading to false');
       setLoading(false);
     });
 

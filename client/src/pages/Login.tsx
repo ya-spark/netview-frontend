@@ -21,9 +21,16 @@ export default function Login() {
 
   useEffect(() => {
     // Handle OAuth redirect result
+    console.log('🔄 Login: Checking for redirect result...');
     handleRedirectResult()
       .then((result) => {
+        console.log('🔄 Login: Redirect result:', result ? 'Success' : 'No redirect');
         if (result) {
+          console.log('🔄 Login: Redirect result details:', {
+            uid: result.user?.uid,
+            email: result.user?.email,
+            displayName: result.user?.displayName
+          });
           toast({
             title: "Welcome to NetView!",
             description: "You have successfully signed in.",
@@ -31,6 +38,7 @@ export default function Login() {
         }
       })
       .catch((error) => {
+        console.error('❌ Login: Redirect error:', error);
         toast({
           title: "Sign-in Error",
           description: error.message,
@@ -41,10 +49,18 @@ export default function Login() {
 
   useEffect(() => {
     // Redirect to dashboard if user is authenticated
+    console.log('🚪 Login: Auth state changed:', {
+      hasUser: !!user,
+      hasFirebaseUser: !!firebaseUser,
+      loading,
+      userDetails: user ? { id: user.id, email: user.email, role: user.role } : null
+    });
+    
     if (user) {
+      console.log('✅ Login: User authenticated, redirecting to dashboard...');
       setLocation('/dashboard');
     }
-  }, [user, setLocation]);
+  }, [user, firebaseUser, loading, setLocation]);
 
   const handleGoogleSignIn = () => {
     signInWithGoogle();
