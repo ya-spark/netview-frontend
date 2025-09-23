@@ -255,10 +255,6 @@ export default function Reports() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="chart-placeholder mb-6">
-                Uptime Chart - {format(dateRange.from, 'MMM dd')} to {format(dateRange.to, 'MMM dd, yyyy')}
-              </div>
-              
               {/* Enhanced Analytics Section */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="bg-muted/50 rounded-lg p-4">
