@@ -102,7 +102,7 @@ export default function Reports() {
 
   return (
     <Layout>
-      <div className="p-6 overflow-y-auto">
+      <div className="py-6">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">

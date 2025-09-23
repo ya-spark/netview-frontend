@@ -467,7 +467,7 @@ export function Sidebar() {
   };
 
   return (
-    <SidebarWrapper>
+    <SidebarWrapper variant="inset" collapsible="icon">
       <SidebarContent>
         <SidebarHeader>
           <div className="p-2">
