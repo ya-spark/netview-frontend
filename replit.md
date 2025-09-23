@@ -50,6 +50,13 @@ Preferred communication style: Simple, everyday language.
 - **Session Management**: Secure session handling with httpOnly cookies
 - **Development Mode**: Mock authentication for local development without Firebase
 
+#### Authentication Flow & Token Management
+- **Google Sign-In Flow**: Uses Firebase `signInWithRedirect` for seamless OAuth integration
+- **Token Injection**: Query client automatically includes Firebase ID tokens in all API request headers
+- **Protected Routes**: All queries gated with `enabled: !!user` to prevent unauthenticated requests
+- **Session Persistence**: Firebase handles token refresh and session management across page reloads
+- **Backend Verification**: Express middleware validates Firebase tokens on protected endpoints
+
 ### Real-time Features
 - **Monitoring**: Continuous probe execution through gateway network
 - **Notifications**: Multi-channel notification system (email, SMS, webhooks)
