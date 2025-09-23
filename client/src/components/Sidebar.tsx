@@ -230,7 +230,7 @@ function ManageSidebar() {
   return (
     <div className="space-y-6">
       <nav className="space-y-1">
-        <div className="text-sm font-medium text-foreground mb-3">Manage</div>
+        <div className="text-sm font-medium text-foreground mb-3">Configuration</div>
         {manageNavigation.map((item) => {
           const Icon = item.icon;
           return (
@@ -454,7 +454,7 @@ export function Sidebar() {
   const getSidebarContent = () => {
     if (location.startsWith("/dashboard")) {
       return <DashboardSidebar />;
-    } else if (location.startsWith("/manage")) {
+    } else if (location.startsWith("/manage") || location === "/billing" || location === "/collaborators") {
       return <ManageSidebar />;
     } else if (location.startsWith("/monitor")) {
       return <MonitorSidebar />;
@@ -473,13 +473,15 @@ export function Sidebar() {
           <div className="p-2">
             <h2 className="text-lg font-semibold text-foreground">
               {location.startsWith("/dashboard") && "Dashboard"}
-              {location.startsWith("/manage") && "Manage"}
+              {(location.startsWith("/manage") || location === "/billing" || location === "/collaborators") && "Configuration"}
               {location.startsWith("/monitor") && "Monitor"}
               {location.startsWith("/reports") && "Reports"}
               {!location.startsWith("/dashboard") &&
                 !location.startsWith("/manage") &&
                 !location.startsWith("/monitor") &&
                 !location.startsWith("/reports") &&
+                location !== "/billing" &&
+                location !== "/collaborators" &&
                 "Dashboard"}
             </h2>
           </div>
