@@ -152,22 +152,6 @@ export function Header() {
                     <span>Settings</span>
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/billing" className="flex items-center">
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    <span>Billing</span>
-                  </Link>
-                </DropdownMenuItem>
-                {(user?.role === "SuperAdmin" ||
-                  user?.role === "Owner" ||
-                  user?.role === "Admin") && (
-                  <DropdownMenuItem asChild>
-                    <Link href="/collaborators" className="flex items-center">
-                      <Users className="mr-2 h-4 w-4" />
-                      <span>Collaborators</span>
-                    </Link>
-                  </DropdownMenuItem>
-                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={handleSignOut}

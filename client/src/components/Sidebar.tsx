@@ -29,6 +29,7 @@ import {
   Search,
   Bookmark,
   FileBarChart,
+  CreditCard,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
@@ -186,6 +187,7 @@ function DashboardSidebar() {
 // Manage Sidebar Component
 function ManageSidebar() {
   const [location] = useLocation();
+  const { user } = useAuth();
   const hash = location.includes("#") ? location.split("#")[1] : "";
 
   const manageNavigation = [
@@ -206,6 +208,22 @@ function ManageSidebar() {
       href: "/manage#gateways",
       icon: Server,
       current: hash === "gateways",
+    },
+  ];
+
+  const adminNavigation = [
+    {
+      name: "Billing",
+      href: "/billing",
+      icon: CreditCard,
+      current: location === "/billing",
+    },
+    {
+      name: "Collaborators",
+      href: "/collaborators",
+      icon: Users,
+      current: location === "/collaborators",
+      requiresAdminRole: true,
     },
   ];
 
@@ -233,6 +251,34 @@ function ManageSidebar() {
           );
         })}
       </nav>
+
+      {/* Admin Navigation */}
+      <div className="border-t border-border pt-4">
+        <div className="text-sm font-medium text-foreground mb-3">Account</div>
+        <nav className="space-y-1">
+          {adminNavigation
+            .filter(item => !item.requiresAdminRole || (user?.role === "SuperAdmin" || user?.role === "Owner" || user?.role === "Admin"))
+            .map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link key={item.name} href={item.href}>
+                  <Button
+                    variant={item.current ? "default" : "ghost"}
+                    className={`w-full justify-start ${
+                      item.current
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    }`}
+                    data-testid={`nav-account-${item.name.toLowerCase().replace(/\s+/g, "-")}`}
+                  >
+                    <Icon className="mr-3 h-4 w-4" />
+                    {item.name}
+                  </Button>
+                </Link>
+              );
+            })}
+        </nav>
+      </div>
     </div>
   );
 }
