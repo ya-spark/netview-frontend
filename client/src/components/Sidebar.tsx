@@ -198,16 +198,16 @@ function ManageSidebar() {
       current: hash === "probes" || (location === "/manage" && hash === ""),
     },
     {
-      name: "Notification Groups",
-      href: "/manage#notifications",
-      icon: Bell,
-      current: hash === "notifications",
-    },
-    {
       name: "Gateways",
       href: "/manage#gateways",
       icon: Server,
       current: hash === "gateways",
+    },
+    {
+      name: "Notification Groups",
+      href: "/manage#notifications",
+      icon: Bell,
+      current: hash === "notifications",
     },
   ];
 
@@ -230,7 +230,9 @@ function ManageSidebar() {
   return (
     <div className="space-y-6">
       <nav className="space-y-1">
-        <div className="text-sm font-medium text-foreground mb-3">Configuration</div>
+        <div className="text-sm font-medium text-foreground mb-3">
+          Configuration
+        </div>
         {manageNavigation.map((item) => {
           const Icon = item.icon;
           return (
@@ -257,7 +259,13 @@ function ManageSidebar() {
         <div className="text-sm font-medium text-foreground mb-3">Account</div>
         <nav className="space-y-1">
           {adminNavigation
-            .filter(item => !item.requiresAdminRole || (user?.role === "SuperAdmin" || user?.role === "Owner" || user?.role === "Admin"))
+            .filter(
+              (item) =>
+                !item.requiresAdminRole ||
+                user?.role === "SuperAdmin" ||
+                user?.role === "Owner" ||
+                user?.role === "Admin",
+            )
             .map((item) => {
               const Icon = item.icon;
               return (
@@ -454,7 +462,11 @@ export function Sidebar() {
   const getSidebarContent = () => {
     if (location.startsWith("/dashboard")) {
       return <DashboardSidebar />;
-    } else if (location.startsWith("/manage") || location === "/billing" || location === "/collaborators") {
+    } else if (
+      location.startsWith("/manage") ||
+      location === "/billing" ||
+      location === "/collaborators"
+    ) {
       return <ManageSidebar />;
     } else if (location.startsWith("/monitor")) {
       return <MonitorSidebar />;
@@ -473,7 +485,10 @@ export function Sidebar() {
           <div className="p-2">
             <h2 className="text-lg font-semibold text-foreground">
               {location.startsWith("/dashboard") && "Dashboard"}
-              {(location.startsWith("/manage") || location === "/billing" || location === "/collaborators") && "Configuration"}
+              {(location.startsWith("/manage") ||
+                location === "/billing" ||
+                location === "/collaborators") &&
+                "Configuration"}
               {location.startsWith("/monitor") && "Monitor"}
               {location.startsWith("/reports") && "Reports"}
               {!location.startsWith("/dashboard") &&
