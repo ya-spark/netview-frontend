@@ -153,44 +153,48 @@ export default function Monitor() {
         </div>
 
         {/* Filters */}
-        <div className="flex items-center space-x-4 mb-6">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search probes..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-              data-testid="input-search"
-            />
-          </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-32" data-testid="select-status-filter">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="Up">Up</SelectItem>
-              <SelectItem value="Down">Down</SelectItem>
-              <SelectItem value="Warning">Warning</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-32" data-testid="select-type-filter">
-              <SelectValue placeholder="Type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="Uptime">Uptime</SelectItem>
-              <SelectItem value="API">API</SelectItem>
-              <SelectItem value="Security">Security</SelectItem>
-              <SelectItem value="Browser">Browser</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline" size="icon" data-testid="button-advanced-filter">
-            <Filter className="w-4 h-4" />
-          </Button>
-        </div>
+        <Card className="mb-6">
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-4">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search probes..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                  data-testid="input-search"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-32" data-testid="select-status-filter">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="Up">Up</SelectItem>
+                  <SelectItem value="Down">Down</SelectItem>
+                  <SelectItem value="Warning">Warning</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="w-32" data-testid="select-type-filter">
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="Uptime">Uptime</SelectItem>
+                  <SelectItem value="API">API</SelectItem>
+                  <SelectItem value="Security">Security</SelectItem>
+                  <SelectItem value="Browser">Browser</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button variant="outline" size="icon" data-testid="button-advanced-filter">
+                <Filter className="w-4 h-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Probe List */}
         <div className="space-y-4">

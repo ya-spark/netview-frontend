@@ -214,194 +214,198 @@ export default function Manage() {
         {/* Show content based on URL hash */}
         {hash === 'probes' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="relative">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Search probes..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 w-64"
-                    data-testid="input-search-probes"
-                  />
-                </div>
-                <Button variant="outline" size="icon" data-testid="button-filter-probes">
-                  <Filter className="w-4 h-4" />
-                </Button>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" disabled data-testid="button-ai-generate">
-                      <Bot className="w-4 h-4 mr-2" />
-                      AI Generate (Coming Soon)
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                      <DialogTitle>AI-Powered Probe Generation</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="ai-url">URL to Monitor</Label>
-                        <Input
-                          id="ai-url"
-                          placeholder="https://example.com/api"
-                          value={aiPrompt}
-                          onChange={(e) => setAiPrompt(e.target.value)}
-                          data-testid="input-ai-url"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="ai-code">Or paste code to analyze</Label>
-                        <Textarea
-                          id="ai-code"
-                          placeholder="Paste your API code here..."
-                          value={aiCode}
-                          onChange={(e) => setAiCode(e.target.value)}
-                          rows={6}
-                          data-testid="textarea-ai-code"
-                        />
-                      </div>
-                      <Button 
-                        onClick={handleGenerateProbes}
-                        disabled={generateProbesMutation.isPending || (!aiPrompt && !aiCode)}
-                        className="w-full"
-                        data-testid="button-generate-probes"
-                      >
-                        {generateProbesMutation.isPending ? 'Generating...' : 'Generate Probes'}
-                      </Button>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="relative">
+                      <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        placeholder="Search probes..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10 w-64"
+                        data-testid="input-search-probes"
+                      />
                     </div>
-                  </DialogContent>
-                </Dialog>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button data-testid="button-create-probe">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create Probe
+                    <Button variant="outline" size="icon" data-testid="button-filter-probes">
+                      <Filter className="w-4 h-4" />
                     </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                      <DialogTitle>Create New Probe</DialogTitle>
-                    </DialogHeader>
-                    <Form {...probeForm}>
-                      <form onSubmit={probeForm.handleSubmit((data) => createProbeMutation.mutate(data))} className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <FormField
-                            control={probeForm.control}
-                            name="name"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Name</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="My API Probe" {...field} data-testid="input-probe-name" />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={probeForm.control}
-                            name="type"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Type</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                  <FormControl>
-                                    <SelectTrigger data-testid="select-probe-type">
-                                      <SelectValue placeholder="Select type" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    <SelectItem value="Uptime">Uptime</SelectItem>
-                                    <SelectItem value="API">API</SelectItem>
-                                    <SelectItem value="Security">Security</SelectItem>
-                                    <SelectItem value="Browser">Browser</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <FormField
-                          control={probeForm.control}
-                          name="url"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>URL</FormLabel>
-                              <FormControl>
-                                <Input placeholder="https://api.example.com/health" {...field} data-testid="input-probe-url" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={probeForm.control}
-                          name="description"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Description</FormLabel>
-                              <FormControl>
-                                <Textarea placeholder="Description of what this probe monitors" {...field} data-testid="textarea-probe-description" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <div className="grid grid-cols-3 gap-4">
-                          <FormField
-                            control={probeForm.control}
-                            name="expectedStatusCode"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Expected Status</FormLabel>
-                                <FormControl>
-                                  <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} data-testid="input-expected-status" />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={probeForm.control}
-                            name="expectedResponseTime"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Timeout (ms)</FormLabel>
-                                <FormControl>
-                                  <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} data-testid="input-timeout" />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={probeForm.control}
-                            name="checkInterval"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Interval (sec)</FormLabel>
-                                <FormControl>
-                                  <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} data-testid="input-interval" />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <Button type="submit" disabled={createProbeMutation.isPending} className="w-full" data-testid="button-save-probe">
-                          {createProbeMutation.isPending ? 'Creating...' : 'Create Probe'}
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" disabled data-testid="button-ai-generate">
+                          <Bot className="w-4 h-4 mr-2" />
+                          AI Generate (Coming Soon)
                         </Button>
-                      </form>
-                    </Form>
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </div>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-2xl">
+                        <DialogHeader>
+                          <DialogTitle>AI-Powered Probe Generation</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <div>
+                            <Label htmlFor="ai-url">URL to Monitor</Label>
+                            <Input
+                              id="ai-url"
+                              placeholder="https://example.com/api"
+                              value={aiPrompt}
+                              onChange={(e) => setAiPrompt(e.target.value)}
+                              data-testid="input-ai-url"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="ai-code">Or paste code to analyze</Label>
+                            <Textarea
+                              id="ai-code"
+                              placeholder="Paste your API code here..."
+                              value={aiCode}
+                              onChange={(e) => setAiCode(e.target.value)}
+                              rows={6}
+                              data-testid="textarea-ai-code"
+                            />
+                          </div>
+                          <Button 
+                            onClick={handleGenerateProbes}
+                            disabled={generateProbesMutation.isPending || (!aiPrompt && !aiCode)}
+                            className="w-full"
+                            data-testid="button-generate-probes"
+                          >
+                            {generateProbesMutation.isPending ? 'Generating...' : 'Generate Probes'}
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button data-testid="button-create-probe">
+                          <Plus className="w-4 h-4 mr-2" />
+                          Create Probe
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-2xl">
+                        <DialogHeader>
+                          <DialogTitle>Create New Probe</DialogTitle>
+                        </DialogHeader>
+                        <Form {...probeForm}>
+                          <form onSubmit={probeForm.handleSubmit((data) => createProbeMutation.mutate(data))} className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <FormField
+                                control={probeForm.control}
+                                name="name"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Name</FormLabel>
+                                    <FormControl>
+                                      <Input placeholder="My API Probe" {...field} data-testid="input-probe-name" />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={probeForm.control}
+                                name="type"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Type</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                      <FormControl>
+                                        <SelectTrigger data-testid="select-probe-type">
+                                          <SelectValue placeholder="Select type" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        <SelectItem value="Uptime">Uptime</SelectItem>
+                                        <SelectItem value="API">API</SelectItem>
+                                        <SelectItem value="Security">Security</SelectItem>
+                                        <SelectItem value="Browser">Browser</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                            <FormField
+                              control={probeForm.control}
+                              name="url"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>URL</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="https://api.example.com/health" {...field} data-testid="input-probe-url" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={probeForm.control}
+                              name="description"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Description</FormLabel>
+                                  <FormControl>
+                                    <Textarea placeholder="Description of what this probe monitors" {...field} data-testid="textarea-probe-description" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <div className="grid grid-cols-3 gap-4">
+                              <FormField
+                                control={probeForm.control}
+                                name="expectedStatusCode"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Expected Status</FormLabel>
+                                    <FormControl>
+                                      <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} data-testid="input-expected-status" />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={probeForm.control}
+                                name="expectedResponseTime"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Timeout (ms)</FormLabel>
+                                    <FormControl>
+                                      <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} data-testid="input-timeout" />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={probeForm.control}
+                                name="checkInterval"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Interval (sec)</FormLabel>
+                                    <FormControl>
+                                      <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} data-testid="input-interval" />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                            <Button type="submit" disabled={createProbeMutation.isPending} className="w-full" data-testid="button-save-probe">
+                              {createProbeMutation.isPending ? 'Creating...' : 'Create Probe'}
+                            </Button>
+                          </form>
+                        </Form>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
             <Card>
               <CardHeader>
