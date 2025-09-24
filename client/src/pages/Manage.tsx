@@ -34,8 +34,6 @@ const probeSchema = z.object({
 const notificationGroupSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   emails: z.string().min(1, 'At least one email is required'),
-  smsNumbers: z.string().optional(),
-  webhookUrl: z.string().url().optional().or(z.literal('')),
   alertThreshold: z.number().default(1),
 });
 
@@ -71,6 +69,66 @@ export default function Manage() {
     enabled: !!user,
   });
 
+  // Sample dummy data for gateways
+  const sampleGateways = [
+    {
+      id: 'gw-1',
+      name: 'US East Gateway',
+      location: 'New York, USA',
+      ipAddress: '198.51.100.10',
+      status: 'active',
+      lastHeartbeat: new Date(Date.now() - 2 * 60 * 1000).toISOString(), // 2 minutes ago
+      probeCount: 12
+    },
+    {
+      id: 'gw-2', 
+      name: 'EU West Gateway',
+      location: 'London, UK',
+      ipAddress: '203.0.113.25',
+      status: 'active',
+      lastHeartbeat: new Date(Date.now() - 1 * 60 * 1000).toISOString(), // 1 minute ago
+      probeCount: 8
+    },
+    {
+      id: 'gw-3',
+      name: 'Asia Pacific Gateway',
+      location: 'Singapore',
+      ipAddress: '192.0.2.45',
+      status: 'inactive',
+      lastHeartbeat: new Date(Date.now() - 15 * 60 * 1000).toISOString(), // 15 minutes ago
+      probeCount: 6
+    }
+  ];
+
+  // Sample dummy data for notification groups
+  const sampleNotificationGroups = [
+    {
+      id: 'ng-1',
+      name: 'DevOps Team',
+      emails: ['admin@company.com', 'devops@company.com', 'oncall@company.com'],
+      alertThreshold: 1,
+      memberCount: 3
+    },
+    {
+      id: 'ng-2',
+      name: 'Security Team',
+      emails: ['security@company.com', 'security-lead@company.com'],
+      alertThreshold: 2,
+      memberCount: 2
+    },
+    {
+      id: 'ng-3',
+      name: 'Management',
+      emails: ['cto@company.com', 'manager@company.com'],
+      alertThreshold: 3,
+      memberCount: 2
+    }
+  ];
+
+  // Use dummy data if API data is not available
+  const displayGateways = gateways && Array.isArray(gateways) && gateways.length > 0 ? gateways : sampleGateways;
+  const displayNotificationGroups = notificationGroups && Array.isArray(notificationGroups) && notificationGroups.length > 0 ? notificationGroups : sampleNotificationGroups;
+
   const probeForm = useForm<z.infer<typeof probeSchema>>({
     resolver: zodResolver(probeSchema),
     defaultValues: {
@@ -91,8 +149,6 @@ export default function Manage() {
     defaultValues: {
       name: '',
       emails: '',
-      smsNumbers: '',
-      webhookUrl: '',
       alertThreshold: 1,
     },
   });
