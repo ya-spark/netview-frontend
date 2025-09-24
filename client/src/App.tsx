@@ -15,6 +15,7 @@ import Monitor from "@/pages/Monitor";
 import Reports from "@/pages/Reports";
 import Settings from "@/pages/Settings";
 import Billing from "@/pages/Billing";
+import Collaborators from "@/pages/Collaborators";
 import NotFound from "@/pages/not-found";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -113,6 +114,12 @@ function Router() {
       <Route path="/billing">
         <ProtectedRoute>
           <Billing />
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/collaborators">
+        <ProtectedRoute>
+          <Collaborators />
         </ProtectedRoute>
       </Route>
       
