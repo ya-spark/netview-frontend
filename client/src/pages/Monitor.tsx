@@ -26,7 +26,9 @@ export default function Monitor() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.slice(1); // Remove the '#' prefix
-      setCurrentSection(hash || "overview");
+      const newSection = hash || "overview";
+      console.log('Hash changed:', hash, 'New section:', newSection);
+      setCurrentSection(newSection);
     };
 
     window.addEventListener('hashchange', handleHashChange);
@@ -923,6 +925,7 @@ export default function Monitor() {
 
   // Helper function to render section content
   const renderSectionContent = () => {
+    console.log('Rendering section:', currentSection);
     switch (currentSection) {
       case "overview":
         return renderOverviewSection();
@@ -937,6 +940,7 @@ export default function Monitor() {
       case "map":
         return renderMapSection();
       default:
+        console.log('Default case triggered for section:', currentSection);
         return renderOverviewSection();
     }
   };

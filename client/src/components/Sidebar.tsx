@@ -340,21 +340,27 @@ function MonitorSidebar() {
         <div className="text-sm font-medium text-foreground mb-3">Monitor</div>
         {monitorNavigation.map((item) => {
           const Icon = item.icon;
+          const handleClick = () => {
+            // Extract hash from href and set it directly
+            const hashPart = item.href.split('#')[1];
+            window.location.hash = hashPart || '';
+          };
+          
           return (
-            <Link key={item.name} href={item.href}>
-              <Button
-                variant={item.current ? "default" : "ghost"}
-                className={`w-full justify-start ${
-                  item.current
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                }`}
-                data-testid={`nav-monitor-${item.name.toLowerCase().replace(/\s+/g, "-")}`}
-              >
-                <Icon className="mr-3 h-4 w-4" />
-                {item.name}
-              </Button>
-            </Link>
+            <Button
+              key={item.name}
+              onClick={handleClick}
+              variant={item.current ? "default" : "ghost"}
+              className={`w-full justify-start ${
+                item.current
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              }`}
+              data-testid={`nav-monitor-${item.name.toLowerCase().replace(/\s+/g, "-")}`}
+            >
+              <Icon className="mr-3 h-4 w-4" />
+              {item.name}
+            </Button>
           );
         })}
       </nav>
