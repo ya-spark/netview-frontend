@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { Layout } from '@/components/Layout';
@@ -49,10 +49,30 @@ export default function Manage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiCode, setAiCode] = useState('');
+  const [currentHash, setCurrentHash] = useState(() => {
+    // Get initial hash from URL
+    return window.location.hash ? window.location.hash.substring(1) : 'probes';
+  });
   
-  // Get current hash from URL to determine which section to show
+  // Listen for hash changes
+  useEffect(() => {
+    const handleHashChange = () => {
+      const newHash = window.location.hash ? window.location.hash.substring(1) : 'probes';
+      setCurrentHash(newHash);
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    
+    // Also listen for initial load in case hash is set
+    handleHashChange();
+
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+    };
+  }, []);
+  
   const [location] = useLocation();
-  const hash = location.includes('#') ? location.split('#')[1] : 'probes';
+  const hash = currentHash;
 
   const { data: probes, refetch: refetchProbes } = useQuery({
     queryKey: ['/api/probes'],
