@@ -199,7 +199,7 @@ function ManageSidebar() {
       name: "Probes",
       hash: "probes",
       icon: Activity,
-      current: hash === "probes" || (location === "/manage" && hash === ""),
+      current: hash === "probes",
     },
     {
       name: "Gateways",
