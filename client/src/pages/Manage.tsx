@@ -198,12 +198,10 @@ export default function Manage() {
   const createNotificationGroupMutation = useMutation({
     mutationFn: async (data: z.infer<typeof notificationGroupSchema>) => {
       const emailArray = data.emails.split(',').map(email => email.trim());
-      const smsArray = data.smsNumbers ? data.smsNumbers.split(',').map(num => num.trim()) : [];
       
       const response = await apiRequest('POST', '/api/notification-groups', {
         ...data,
         emails: emailArray,
-        smsNumbers: smsArray,
       });
       return response.json();
     },
@@ -553,19 +551,6 @@ export default function Manage() {
                       />
                       <FormField
                         control={notificationForm.control}
-                        name="smsNumbers"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>SMS Numbers (Optional)</FormLabel>
-                            <FormControl>
-                              <Textarea placeholder="+1234567890, +0987654321" {...field} data-testid="textarea-sms" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={notificationForm.control}
                         name="alertThreshold"
                         render={({ field }) => (
                           <FormItem>
@@ -588,7 +573,7 @@ export default function Manage() {
 
             <Card>
               <CardContent className="p-6">
-                {!Array.isArray(notificationGroups) || notificationGroups.length === 0 ? (
+                {!Array.isArray(displayNotificationGroups) || displayNotificationGroups.length === 0 ? (
                   <div className="text-center py-8">
                     <Settings className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-foreground mb-2">No notification groups</h3>
@@ -596,12 +581,12 @@ export default function Manage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {Array.isArray(notificationGroups) && notificationGroups.map((group: any) => (
+                    {displayNotificationGroups.map((group: any) => (
                       <div key={group.id} className="flex items-center justify-between p-4 border border-border rounded-lg" data-testid={`notification-item-${group.id}`}>
                         <div>
                           <div className="font-medium text-foreground">{group.name}</div>
                           <div className="text-sm text-muted-foreground">
-                            {group.emails?.length || 0} emails, {group.smsNumbers?.length || 0} SMS
+                            {group.emails?.length || 0} members
                           </div>
                           <div className="text-xs text-muted-foreground">Threshold: {group.alertThreshold} failures</div>
                         </div>
@@ -691,7 +676,7 @@ export default function Manage() {
 
             <Card>
               <CardContent className="p-6">
-                {!Array.isArray(gateways) || gateways.length === 0 ? (
+                {!Array.isArray(displayGateways) || displayGateways.length === 0 ? (
                   <div className="text-center py-8">
                     <Globe className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-foreground mb-2">No gateways available</h3>
@@ -699,10 +684,10 @@ export default function Manage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {Array.isArray(gateways) && gateways.map((gateway: any) => (
+                    {displayGateways.map((gateway: any) => (
                       <div key={gateway.id} className="flex items-center justify-between p-4 border border-border rounded-lg" data-testid={`gateway-item-${gateway.id}`}>
                         <div className="flex items-center space-x-4">
-                          <div className={`w-3 h-3 rounded-full ${gateway.isOnline ? 'bg-secondary' : 'bg-destructive'}`} />
+                          <div className={`w-3 h-3 rounded-full ${gateway.status === 'active' ? 'bg-secondary' : 'bg-destructive'}`} />
                           <div>
                             <div className="font-medium text-foreground">{gateway.name}</div>
                             <div className="text-sm text-muted-foreground">{gateway.location}</div>
@@ -712,11 +697,11 @@ export default function Manage() {
                           </div>
                         </div>
                         <div className="flex items-center space-x-3">
-                          <Badge variant={gateway.type === 'Core' ? "default" : "secondary"}>
-                            {gateway.type}
+                          <Badge variant="outline">
+                            {gateway.probeCount} probes
                           </Badge>
-                          <Badge variant={gateway.isOnline ? "secondary" : "destructive"}>
-                            {gateway.isOnline ? 'Online' : 'Offline'}
+                          <Badge variant={gateway.status === 'active' ? "secondary" : "destructive"}>
+                            {gateway.status === 'active' ? 'Online' : 'Offline'}
                           </Badge>
                           {gateway.lastHeartbeat && (
                             <span className="text-xs text-muted-foreground">
