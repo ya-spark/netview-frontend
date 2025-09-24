@@ -190,22 +190,26 @@ function ManageSidebar() {
   const { user } = useAuth();
   const hash = location.includes("#") ? location.split("#")[1] : "";
 
+  const handleHashNavigation = (hashValue: string) => {
+    window.location.hash = hashValue;
+  };
+
   const manageNavigation = [
     {
       name: "Probes",
-      href: "/manage#probes",
+      hash: "probes",
       icon: Activity,
       current: hash === "probes" || (location === "/manage" && hash === ""),
     },
     {
       name: "Gateways",
-      href: "/manage#gateways",
+      hash: "gateways",
       icon: Server,
       current: hash === "gateways",
     },
     {
       name: "Notification Groups",
-      href: "/manage#notifications",
+      hash: "notifications",
       icon: Bell,
       current: hash === "notifications",
     },
@@ -236,20 +240,20 @@ function ManageSidebar() {
         {manageNavigation.map((item) => {
           const Icon = item.icon;
           return (
-            <Link key={item.name} href={item.href}>
-              <Button
-                variant={item.current ? "default" : "ghost"}
-                className={`w-full justify-start ${
-                  item.current
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                }`}
-                data-testid={`nav-manage-${item.name.toLowerCase().replace(/\s+/g, "-")}`}
-              >
-                <Icon className="mr-3 h-4 w-4" />
-                {item.name}
-              </Button>
-            </Link>
+            <Button
+              key={item.name}
+              variant={item.current ? "default" : "ghost"}
+              className={`w-full justify-start ${
+                item.current
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              }`}
+              onClick={() => handleHashNavigation(item.hash)}
+              data-testid={`nav-manage-${item.name.toLowerCase().replace(/\s+/g, "-")}`}
+            >
+              <Icon className="mr-3 h-4 w-4" />
+              {item.name}
+            </Button>
           );
         })}
       </nav>
