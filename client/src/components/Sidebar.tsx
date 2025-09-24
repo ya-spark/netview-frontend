@@ -317,13 +317,13 @@ function MonitorSidebar() {
       name: "Probes",
       href: "/monitor#probes",
       icon: Activity,
-      current: hash === "alerts",
+      current: hash === "probes",
     },
     {
       name: "Gateways",
       href: "/monitor#gateways",
       icon: Server,
-      current: hash === "alerts",
+      current: hash === "gateways",
     },
     { name: "Map", href: "/monitor#map", icon: Map, current: hash === "map" },
     {
