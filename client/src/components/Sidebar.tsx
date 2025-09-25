@@ -39,6 +39,65 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 
+// Main Navigation Component for authenticated users
+function MainNavigation() {
+  const [location] = useLocation();
+
+  const mainNavigation = [
+    {
+      name: "Dashboard",
+      href: "/dashboard",
+      icon: BarChart3,
+      current: location === "/dashboard",
+    },
+    {
+      name: "Manage",
+      href: "/manage",
+      icon: Settings,
+      current: location === "/manage",
+    },
+    {
+      name: "Monitor",
+      href: "/monitor",
+      icon: Eye,
+      current: location === "/monitor",
+    },
+    {
+      name: "Reports",
+      href: "/reports",
+      icon: FileBarChart,
+      current: location === "/reports",
+    },
+  ];
+
+  return (
+    <nav className="space-y-1 mb-6">
+      <div className="text-sm font-medium text-foreground mb-3">
+        Main Navigation
+      </div>
+      {mainNavigation.map((item) => {
+        const Icon = item.icon;
+        return (
+          <Link key={item.name} href={item.href}>
+            <Button
+              variant={item.current ? "default" : "ghost"}
+              className={`w-full justify-start ${
+                item.current
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              }`}
+              data-testid={`nav-main-${item.name.toLowerCase()}`}
+            >
+              <Icon className="mr-3 h-4 w-4" />
+              {item.name}
+            </Button>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
 // Dashboard Sidebar Component
 function DashboardSidebar() {
   const { user } = useAuth();
@@ -77,6 +136,9 @@ function DashboardSidebar() {
 
   return (
     <div className="space-y-6">
+      {/* Main Navigation */}
+      <MainNavigation />
+      
       {/* Quick Overview */}
       <Card className="bg-accent">
         <CardContent className="p-4">
@@ -238,6 +300,9 @@ function ManageSidebar() {
 
   return (
     <div className="space-y-6">
+      {/* Main Navigation */}
+      <MainNavigation />
+      
       <nav className="space-y-1">
         <div className="text-sm font-medium text-foreground mb-3">
           Configuration
@@ -341,6 +406,9 @@ function MonitorSidebar() {
 
   return (
     <div className="space-y-6">
+      {/* Main Navigation */}
+      <MainNavigation />
+      
       <nav className="space-y-1">
         <div className="text-sm font-medium text-foreground mb-3">Monitor</div>
         {monitorNavigation.map((item) => {
@@ -397,6 +465,9 @@ function ReportsSidebar() {
 
   return (
     <div className="space-y-6">
+      {/* Main Navigation */}
+      <MainNavigation />
+      
       {/* Report Types */}
       <nav className="space-y-1">
         <div className="text-sm font-medium text-foreground mb-3">
