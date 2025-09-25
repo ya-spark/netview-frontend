@@ -862,11 +862,6 @@ export default function Monitor() {
                         </div>
                       </div>
                     </div>
-                    
-                    {/* Response Time Chart Placeholder */}
-                    <div className="chart-placeholder">
-                      Response Time Chart (Last 24 hours)
-                    </div>
                   </TabsContent>
 
                   <TabsContent value="history" className="space-y-4">
