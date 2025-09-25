@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, Filter, Eye, Activity, AlertTriangle, CheckCircle, Clock, TrendingUp, Bell, Server, MapPin, FileText, Plus, Settings, Construction } from 'lucide-react';
+import { Search, Filter, Eye, Activity, AlertTriangle, CheckCircle, Clock, TrendingUp, Bell, Server, MapPin, FileText, Plus, Settings, Construction, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function Monitor() {
@@ -21,6 +21,19 @@ export default function Monitor() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+
+  const toggleCardExpansion = (probeId: string) => {
+    setExpandedCards(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(probeId)) {
+        newSet.delete(probeId);
+      } else {
+        newSet.add(probeId);
+      }
+      return newSet;
+    });
+  };
 
   // Listen for hash changes
   useEffect(() => {
