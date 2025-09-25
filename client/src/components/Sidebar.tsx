@@ -30,6 +30,11 @@ import {
   Bookmark,
   FileBarChart,
   CreditCard,
+  FileQuestion,
+  DollarSign,
+  Play,
+  LogIn,
+  UserPlus,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
@@ -463,13 +468,123 @@ function ReportsSidebar() {
   );
 }
 
+// Public Sidebar Component for non-logged-in users
+function PublicSidebar() {
+  const [location] = useLocation();
+
+  const publicNavigation = [
+    {
+      name: "Features",
+      href: "/features",
+      icon: FileQuestion,
+      current: location === "/features",
+    },
+    {
+      name: "Pricing",
+      href: "/pricing",
+      icon: DollarSign,
+      current: location === "/pricing",
+    },
+    {
+      name: "Docs",
+      href: "/docs",
+      icon: FileText,
+      current: location === "/docs",
+    },
+  ];
+
+  const publicActions = [
+    {
+      name: "Demo",
+      href: "/demo",
+      icon: Play,
+      variant: "ghost" as const,
+      current: location === "/demo",
+    },
+    {
+      name: "Login",
+      href: "/login",
+      icon: LogIn,
+      variant: "outline" as const,
+      current: location === "/login",
+    },
+    {
+      name: "Sign Up",
+      href: "/signup",
+      icon: UserPlus,
+      variant: "default" as const,
+      current: location === "/signup",
+    },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Main Navigation */}
+      <nav className="space-y-1">
+        <div className="text-sm font-medium text-foreground mb-3">
+          Explore
+        </div>
+        {publicNavigation.map((item) => {
+          const Icon = item.icon;
+          return (
+            <Link key={item.name} href={item.href}>
+              <Button
+                variant={item.current ? "default" : "ghost"}
+                className={`w-full justify-start ${
+                  item.current
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                }`}
+                data-testid={`nav-public-${item.name.toLowerCase()}`}
+              >
+                <Icon className="mr-3 h-4 w-4" />
+                {item.name}
+              </Button>
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Action Buttons */}
+      <div className="border-t border-border pt-4">
+        <div className="text-sm font-medium text-foreground mb-3">
+          Get Started
+        </div>
+        <div className="space-y-2">
+          {publicActions.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link key={item.name} href={item.href}>
+                <Button
+                  variant={item.variant}
+                  className="w-full justify-start"
+                  data-testid={`button-public-${item.name.toLowerCase().replace(/\s+/g, "-")}`}
+                >
+                  <Icon className="mr-3 h-4 w-4" />
+                  {item.name}
+                </Button>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Main Sidebar Component
 export function Sidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
 
-  // Determine which sidebar content to show based on current route
+  // Determine which sidebar content to show based on authentication and current route
   const getSidebarContent = () => {
+    // Show public sidebar for non-logged-in users
+    if (!user) {
+      return <PublicSidebar />;
+    }
+
+    // Show appropriate sidebar content for logged-in users
     if (location.startsWith("/dashboard")) {
       return <DashboardSidebar />;
     } else if (
@@ -494,14 +609,15 @@ export function Sidebar() {
         <SidebarHeader>
           <div className="p-2">
             <h2 className="text-lg font-semibold text-foreground">
-              {location.startsWith("/dashboard") && "Dashboard"}
-              {(location.startsWith("/manage") ||
+              {!user && "Menu"}
+              {user && location.startsWith("/dashboard") && "Dashboard"}
+              {user && (location.startsWith("/manage") ||
                 location === "/billing" ||
                 location === "/collaborators") &&
                 "Configuration"}
-              {location.startsWith("/monitor") && "Monitor"}
-              {location.startsWith("/reports") && "Reports"}
-              {!location.startsWith("/dashboard") &&
+              {user && location.startsWith("/monitor") && "Monitor"}
+              {user && location.startsWith("/reports") && "Reports"}
+              {user && !location.startsWith("/dashboard") &&
                 !location.startsWith("/manage") &&
                 !location.startsWith("/monitor") &&
                 !location.startsWith("/reports") &&

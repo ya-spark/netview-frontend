@@ -57,7 +57,7 @@ export function Header() {
             {/* Left side - Logo and Mobile Menu */}
             <div className="flex items-center space-x-4">
               {/* Mobile Sidebar Trigger */}
-              {user && isMobile && (
+              {isMobile && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -181,27 +181,6 @@ export function Header() {
             )}
           </div>
           
-          {/* Mobile Navigation Row */}
-          <div className="md:hidden mt-3 border-t border-border pt-3">
-            <nav className="flex items-center justify-center space-x-1">
-              {navigation.map((item) => (
-                <Link key={item.name} href={item.href}>
-                  <Button
-                    variant={item.current ? "default" : "ghost"}
-                    size="sm"
-                    className={`${
-                      item.current
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:text-foreground"
-                    } px-3 py-1 text-xs font-medium`}
-                    data-testid={`nav-mobile-${item.name.toLowerCase()}`}
-                  >
-                    {item.name}
-                  </Button>
-                </Link>
-              ))}
-            </nav>
-          </div>
         </div>
       </div>
     </header>
