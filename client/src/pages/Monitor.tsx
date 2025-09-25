@@ -816,116 +816,134 @@ export default function Monitor() {
             </CardContent>
           </Card>
         ) : (
-          filteredProbes.map((probe: any) => (
-            <Card key={probe.id} className="hover:shadow-md transition-shadow" data-testid={`probe-monitor-${probe.id}`}>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-4">
-                    {getStatusIcon(probe.status || 'Up')}
-                    <div>
-                      <h3 className="text-lg font-semibold text-foreground" data-testid={`text-probe-name-${probe.id}`}>
-                        {probe.name}
-                      </h3>
-                      <p className="text-sm text-muted-foreground" data-testid={`text-probe-url-${probe.id}`}>
-                        {probe.url}
-                      </p>
+          filteredProbes.map((probe: any) => {
+            const isExpanded = expandedCards.has(probe.id);
+            return (
+              <Card key={probe.id} className="hover:shadow-md transition-shadow" data-testid={`probe-monitor-${probe.id}`}>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      {getStatusIcon(probe.status || 'Up')}
+                      <div>
+                        <h3 className="text-lg font-semibold text-foreground" data-testid={`text-probe-name-${probe.id}`}>
+                          {probe.name}
+                        </h3>
+                        <p className="text-sm text-muted-foreground" data-testid={`text-probe-url-${probe.id}`}>
+                          {probe.url}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      {getTypeBadge(probe.type)}
+                      {getStatusBadge(probe.status || 'Up')}
+                      <div className="text-sm text-foreground font-medium">
+                        {probe.responseTime || 245}ms
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => toggleCardExpansion(probe.id)}
+                        data-testid={`button-toggle-details-${probe.id}`}
+                      >
+                        {isExpanded ? (
+                          <ChevronUp className="w-4 h-4" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4" />
+                        )}
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-3">
-                    {getTypeBadge(probe.type)}
-                    {getStatusBadge(probe.status || 'Up')}
-                    <Button variant="outline" size="sm" data-testid={`button-view-details-${probe.id}`}>
-                      <Eye className="w-4 h-4 mr-2" />
-                      View Details
-                    </Button>
-                  </div>
-                </div>
 
-                <Tabs defaultValue="overview" className="space-y-4">
-                  <TabsList>
-                    <TabsTrigger value="overview">Overview</TabsTrigger>
-                    <TabsTrigger value="history">History</TabsTrigger>
-                    <TabsTrigger value="logs">Logs</TabsTrigger>
-                  </TabsList>
+                  {isExpanded && (
+                    <div className="mt-6">
+                      <Tabs defaultValue="overview" className="space-y-4">
+                        <TabsList>
+                          <TabsTrigger value="overview">Overview</TabsTrigger>
+                          <TabsTrigger value="history">History</TabsTrigger>
+                          <TabsTrigger value="logs">Logs</TabsTrigger>
+                        </TabsList>
 
-                  <TabsContent value="overview" className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      <div className="bg-muted/50 rounded-lg p-4">
-                        <div className="text-sm text-muted-foreground">Response Time</div>
-                        <div className="text-xl font-semibold text-foreground">
-                          {probe.responseTime || 245}ms
-                        </div>
-                      </div>
-                      <div className="bg-muted/50 rounded-lg p-4">
-                        <div className="text-sm text-muted-foreground">Uptime (24h)</div>
-                        <div className="text-xl font-semibold text-secondary">
-                          {probe.uptime || '99.8%'}
-                        </div>
-                      </div>
-                      <div className="bg-muted/50 rounded-lg p-4">
-                        <div className="text-sm text-muted-foreground">Check Interval</div>
-                        <div className="text-xl font-semibold text-foreground">
-                          {probe.checkInterval}s
-                        </div>
-                      </div>
-                      <div className="bg-muted/50 rounded-lg p-4">
-                        <div className="text-sm text-muted-foreground">Last Check</div>
-                        <div className="text-xl font-semibold text-foreground">
-                          {probe.lastCheck ? new Date(probe.lastCheck).toLocaleTimeString() : '2 min ago'}
-                        </div>
-                      </div>
+                        <TabsContent value="overview" className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div className="bg-muted/50 rounded-lg p-4">
+                              <div className="text-sm text-muted-foreground">Response Time</div>
+                              <div className="text-xl font-semibold text-foreground">
+                                {probe.responseTime || 245}ms
+                              </div>
+                            </div>
+                            <div className="bg-muted/50 rounded-lg p-4">
+                              <div className="text-sm text-muted-foreground">Uptime (24h)</div>
+                              <div className="text-xl font-semibold text-secondary">
+                                {probe.uptime || '99.8%'}
+                              </div>
+                            </div>
+                            <div className="bg-muted/50 rounded-lg p-4">
+                              <div className="text-sm text-muted-foreground">Check Interval</div>
+                              <div className="text-xl font-semibold text-foreground">
+                                {probe.checkInterval}s
+                              </div>
+                            </div>
+                            <div className="bg-muted/50 rounded-lg p-4">
+                              <div className="text-sm text-muted-foreground">Last Check</div>
+                              <div className="text-xl font-semibold text-foreground">
+                                {probe.lastCheck ? new Date(probe.lastCheck).toLocaleTimeString() : '2 min ago'}
+                              </div>
+                            </div>
+                          </div>
+                        </TabsContent>
+
+                        <TabsContent value="history" className="space-y-4">
+                          <div className="overflow-x-auto">
+                            <table className="w-full">
+                              <thead>
+                                <tr className="border-b border-border">
+                                  <th className="text-left py-2 px-4 font-medium text-muted-foreground">Timestamp</th>
+                                  <th className="text-left py-2 px-4 font-medium text-muted-foreground">Status</th>
+                                  <th className="text-left py-2 px-4 font-medium text-muted-foreground">Response Time</th>
+                                  <th className="text-left py-2 px-4 font-medium text-muted-foreground">Status Code</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {mockProbeResults.map((result, index) => (
+                                  <tr key={index} className="border-b border-border">
+                                    <td className="py-2 px-4 text-sm text-foreground">
+                                      {result.timestamp.toLocaleString()}
+                                    </td>
+                                    <td className="py-2 px-4">
+                                      {getStatusBadge(result.status)}
+                                    </td>
+                                    <td className="py-2 px-4 text-sm text-foreground">
+                                      {result.responseTime > 0 ? `${result.responseTime}ms` : '-'}
+                                    </td>
+                                    <td className="py-2 px-4 text-sm text-foreground">
+                                      {result.status === 'Up' ? '200' : '500'}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </TabsContent>
+
+                        <TabsContent value="logs" className="space-y-4">
+                          <div className="bg-muted/50 rounded-lg p-4 font-mono text-sm">
+                            <div className="space-y-2">
+                              <div className="text-muted-foreground">[2024-01-15 10:30:00] INFO: Probe execution started</div>
+                              <div className="text-secondary">[2024-01-15 10:30:01] SUCCESS: HTTP 200 OK - Response time: 245ms</div>
+                              <div className="text-muted-foreground">[2024-01-15 10:25:00] INFO: Probe execution started</div>
+                              <div className="text-destructive">[2024-01-15 10:25:01] ERROR: Connection timeout after 5000ms</div>
+                              <div className="text-muted-foreground">[2024-01-15 10:20:00] INFO: Probe execution started</div>
+                              <div className="text-secondary">[2024-01-15 10:20:01] SUCCESS: HTTP 200 OK - Response time: 189ms</div>
+                            </div>
+                          </div>
+                        </TabsContent>
+                      </Tabs>
                     </div>
-                  </TabsContent>
-
-                  <TabsContent value="history" className="space-y-4">
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="border-b border-border">
-                            <th className="text-left py-2 px-4 font-medium text-muted-foreground">Timestamp</th>
-                            <th className="text-left py-2 px-4 font-medium text-muted-foreground">Status</th>
-                            <th className="text-left py-2 px-4 font-medium text-muted-foreground">Response Time</th>
-                            <th className="text-left py-2 px-4 font-medium text-muted-foreground">Status Code</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {mockProbeResults.map((result, index) => (
-                            <tr key={index} className="border-b border-border">
-                              <td className="py-2 px-4 text-sm text-foreground">
-                                {result.timestamp.toLocaleString()}
-                              </td>
-                              <td className="py-2 px-4">
-                                {getStatusBadge(result.status)}
-                              </td>
-                              <td className="py-2 px-4 text-sm text-foreground">
-                                {result.responseTime > 0 ? `${result.responseTime}ms` : '-'}
-                              </td>
-                              <td className="py-2 px-4 text-sm text-foreground">
-                                {result.status === 'Up' ? '200' : '500'}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="logs" className="space-y-4">
-                    <div className="bg-muted/50 rounded-lg p-4 font-mono text-sm">
-                      <div className="space-y-2">
-                        <div className="text-muted-foreground">[2024-01-15 10:30:00] INFO: Probe execution started</div>
-                        <div className="text-secondary">[2024-01-15 10:30:01] SUCCESS: HTTP 200 OK - Response time: 245ms</div>
-                        <div className="text-muted-foreground">[2024-01-15 10:25:00] INFO: Probe execution started</div>
-                        <div className="text-destructive">[2024-01-15 10:25:01] ERROR: Connection timeout after 5000ms</div>
-                        <div className="text-muted-foreground">[2024-01-15 10:20:00] INFO: Probe execution started</div>
-                        <div className="text-secondary">[2024-01-15 10:20:01] SUCCESS: HTTP 200 OK - Response time: 189ms</div>
-                      </div>
-                    </div>
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
-          ))
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })
         )}
       </div>
     </>
