@@ -186,17 +186,17 @@ export default function Monitor() {
   const renderCriticalAlertsSection = () => (
     <>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
           <h2 className="text-xl font-semibold text-foreground" data-testid="text-alerts-title">Critical Alerts</h2>
           <p className="text-muted-foreground">Monitor and manage system alerts</p>
         </div>
-        <div className="flex space-x-2">
-          <Button variant="outline" data-testid="button-alert-settings">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button variant="outline" data-testid="button-alert-settings" className="w-full sm:w-auto">
             <Settings className="w-4 h-4 mr-2" />
             Settings
           </Button>
-          <Button data-testid="button-create-alert">
+          <Button data-testid="button-create-alert" className="w-full sm:w-auto">
             <Plus className="w-4 h-4 mr-2" />
             Create Alert
           </Button>
@@ -270,11 +270,11 @@ export default function Monitor() {
         <CardContent>
           <div className="space-y-4">
             {mockAlerts.map((alert) => (
-              <div key={alert.id} className="flex items-center justify-between p-4 border rounded-lg" data-testid={`alert-${alert.id}`}>
-                <div className="flex items-center space-x-4">
-                  <AlertTriangle className={`w-5 h-5 ${alert.severity === 'critical' ? 'text-destructive' : 'text-amber-500'}`} />
-                  <div>
-                    <h4 className="font-medium text-foreground" data-testid={`text-alert-title-${alert.id}`}>
+              <div key={alert.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border rounded-lg gap-4" data-testid={`alert-${alert.id}`}>
+                <div className="flex items-center space-x-4 min-w-0 flex-1">
+                  <AlertTriangle className={`w-5 h-5 flex-shrink-0 ${alert.severity === 'critical' ? 'text-destructive' : 'text-amber-500'}`} />
+                  <div className="min-w-0 flex-1">
+                    <h4 className="font-medium text-foreground truncate" data-testid={`text-alert-title-${alert.id}`}>
                       {alert.title}
                     </h4>
                     <p className="text-sm text-muted-foreground">
@@ -282,10 +282,12 @@ export default function Monitor() {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-3">
-                  {getSeverityBadge(alert.severity)}
-                  {getAlertStatusBadge(alert.status)}
-                  <Button variant="outline" size="sm" data-testid={`button-alert-details-${alert.id}`}>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
+                  <div className="flex flex-wrap gap-1">
+                    {getSeverityBadge(alert.severity)}
+                    {getAlertStatusBadge(alert.status)}
+                  </div>
+                  <Button variant="outline" size="sm" data-testid={`button-alert-details-${alert.id}`} className="w-full sm:w-auto">
                     View Details
                   </Button>
                 </div>
@@ -300,12 +302,12 @@ export default function Monitor() {
   const renderProbesSection = () => (
     <>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
           <h2 className="text-xl font-semibold text-foreground" data-testid="text-probes-title">Probes</h2>
           <p className="text-muted-foreground">Manage and configure monitoring probes</p>
         </div>
-        <Button data-testid="button-create-probe">
+        <Button data-testid="button-create-probe" className="w-full sm:w-auto">
           <Plus className="w-4 h-4 mr-2" />
           Create Probe
         </Button>
@@ -373,40 +375,42 @@ export default function Monitor() {
       {/* Filters */}
       <Card className="mb-6">
         <CardContent className="p-4">
-          <div className="flex items-center space-x-4">
-            <div className="relative flex-1 max-w-sm">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+            <div className="relative flex-1 sm:max-w-sm">
               <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search probes..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 w-full"
                 data-testid="input-search-probes"
               />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-32" data-testid="select-status-filter">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="Up">Up</SelectItem>
-                <SelectItem value="Down">Down</SelectItem>
-                <SelectItem value="Warning">Warning</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-32" data-testid="select-type-filter">
-                <SelectValue placeholder="Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="Uptime">Uptime</SelectItem>
-                <SelectItem value="API">API</SelectItem>
-                <SelectItem value="Security">Security</SelectItem>
-                <SelectItem value="Browser">Browser</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-32" data-testid="select-status-filter">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="Up">Up</SelectItem>
+                  <SelectItem value="Down">Down</SelectItem>
+                  <SelectItem value="Warning">Warning</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="w-full sm:w-32" data-testid="select-type-filter">
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="Uptime">Uptime</SelectItem>
+                  <SelectItem value="API">API</SelectItem>
+                  <SelectItem value="Security">Security</SelectItem>
+                  <SelectItem value="Browser">Browser</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -418,10 +422,10 @@ export default function Monitor() {
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[600px]">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Name</th>
+                  <th className="text-left py-3 px-2 sm:px-4 font-medium text-muted-foreground">Name</th>
                   <th className="text-left py-3 px-4 font-medium text-muted-foreground">URL</th>
                   <th className="text-left py-3 px-4 font-medium text-muted-foreground">Type</th>
                   <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
@@ -894,10 +898,10 @@ export default function Monitor() {
 
                         <TabsContent value="history" className="space-y-4">
                           <div className="overflow-x-auto">
-                            <table className="w-full">
+                            <table className="w-full min-w-[500px]">
                               <thead>
                                 <tr className="border-b border-border">
-                                  <th className="text-left py-2 px-4 font-medium text-muted-foreground">Timestamp</th>
+                                  <th className="text-left py-2 px-2 sm:px-4 font-medium text-muted-foreground">Timestamp</th>
                                   <th className="text-left py-2 px-4 font-medium text-muted-foreground">Status</th>
                                   <th className="text-left py-2 px-4 font-medium text-muted-foreground">Response Time</th>
                                   <th className="text-left py-2 px-4 font-medium text-muted-foreground">Status Code</th>
@@ -973,10 +977,10 @@ export default function Monitor() {
 
   return (
     <Layout>
-      <div className="p-6 overflow-y-auto">
+      <div className="p-4 sm:p-6 overflow-y-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2" data-testid="text-page-title">Monitor</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2" data-testid="text-page-title">Monitor</h1>
           <p className="text-muted-foreground">Real-time monitoring and historical data for your probes</p>
         </div>
 
