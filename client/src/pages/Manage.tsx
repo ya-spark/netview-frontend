@@ -279,9 +279,9 @@ export default function Manage() {
 
   return (
     <Layout>
-      <div className="p-6 overflow-y-auto">
+      <div className="p-4 sm:p-6 overflow-y-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2" data-testid="text-page-title">Manage</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2" data-testid="text-page-title">Manage</h1>
           <p className="text-muted-foreground">Configure probes, notification groups, and gateways</p>
         </div>
 
@@ -290,26 +290,26 @@ export default function Manage() {
           <div className="space-y-6">
             <Card>
               <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="relative">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                    <div className="relative flex-1 sm:flex-none">
                       <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
                       <Input
                         placeholder="Search probes..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10 w-64"
+                        className="pl-10 w-full sm:w-64"
                         data-testid="input-search-probes"
                       />
                     </div>
-                    <Button variant="outline" size="icon" data-testid="button-filter-probes">
+                    <Button variant="outline" size="icon" data-testid="button-filter-probes" className="w-10 h-10 sm:h-auto">
                       <Filter className="w-4 h-4" />
                     </Button>
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                     <Dialog>
                       <DialogTrigger asChild>
-                        <Button variant="outline" disabled data-testid="button-ai-generate">
+                        <Button variant="outline" disabled data-testid="button-ai-generate" className="w-full sm:w-auto">
                           <Bot className="w-4 h-4 mr-2" />
                           AI Generate (Coming Soon)
                         </Button>
@@ -353,7 +353,7 @@ export default function Manage() {
                     </Dialog>
                     <Dialog>
                       <DialogTrigger asChild>
-                        <Button data-testid="button-create-probe">
+                        <Button data-testid="button-create-probe" className="w-full sm:w-auto">
                           <Plus className="w-4 h-4 mr-2" />
                           Create Probe
                         </Button>
@@ -364,7 +364,7 @@ export default function Manage() {
                         </DialogHeader>
                         <Form {...probeForm}>
                           <form onSubmit={probeForm.handleSubmit((data) => createProbeMutation.mutate(data))} className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <FormField
                                 control={probeForm.control}
                                 name="name"
@@ -428,7 +428,7 @@ export default function Manage() {
                                 </FormItem>
                               )}
                             />
-                            <div className="grid grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                               <FormField
                                 control={probeForm.control}
                                 name="expectedStatusCode"
@@ -495,20 +495,22 @@ export default function Manage() {
                 ) : (
                   <div className="space-y-4">
                     {filteredProbes.map((probe: any) => (
-                      <div key={probe.id} className="flex items-center justify-between p-4 border border-border rounded-lg" data-testid={`probe-item-${probe.id}`}>
-                        <div className="flex items-center space-x-4">
-                          <div className={`w-3 h-3 rounded-full ${probe.isActive ? 'bg-secondary' : 'bg-muted'}`} />
-                          <div>
-                            <div className="font-medium text-foreground">{probe.name}</div>
-                            <div className="text-sm text-muted-foreground">{probe.url}</div>
+                      <div key={probe.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-border rounded-lg gap-4" data-testid={`probe-item-${probe.id}`}>
+                        <div className="flex items-center space-x-4 min-w-0 flex-1">
+                          <div className={`w-3 h-3 rounded-full flex-shrink-0 ${probe.isActive ? 'bg-secondary' : 'bg-muted'}`} />
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium text-foreground truncate">{probe.name}</div>
+                            <div className="text-sm text-muted-foreground truncate">{probe.url}</div>
                             <div className="text-xs text-muted-foreground mt-1">{probe.description}</div>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-3">
-                          {getTypeBadge(probe.type)}
-                          <Badge variant="outline">{probe.protocol}</Badge>
-                          <Badge variant="outline">{probe.checkInterval}s</Badge>
-                          <div className="flex items-center space-x-1">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
+                          <div className="flex flex-wrap gap-1">
+                            {getTypeBadge(probe.type)}
+                            <Badge variant="outline">{probe.protocol}</Badge>
+                            <Badge variant="outline">{probe.checkInterval}s</Badge>
+                          </div>
+                          <div className="flex items-center gap-1">
                             <Button variant="ghost" size="sm" data-testid={`button-edit-probe-${probe.id}`}>
                               <Edit className="w-4 h-4" />
                             </Button>
@@ -528,11 +530,11 @@ export default function Manage() {
         
         {hash === 'notifications' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <h3 className="text-lg font-medium">Notification Groups</h3>
               <Dialog>
                 <DialogTrigger asChild>
-                  <Button data-testid="button-create-notification">
+                  <Button data-testid="button-create-notification" className="w-full sm:w-auto">
                     <Plus className="w-4 h-4 mr-2" />
                     Create Group
                   </Button>
@@ -602,15 +604,15 @@ export default function Manage() {
                 ) : (
                   <div className="space-y-4">
                     {displayNotificationGroups.map((group: any) => (
-                      <div key={group.id} className="flex items-center justify-between p-4 border border-border rounded-lg" data-testid={`notification-item-${group.id}`}>
-                        <div>
+                      <div key={group.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-border rounded-lg gap-4" data-testid={`notification-item-${group.id}`}>
+                        <div className="min-w-0 flex-1">
                           <div className="font-medium text-foreground">{group.name}</div>
                           <div className="text-sm text-muted-foreground">
                             {group.emails?.length || 0} members
                           </div>
                           <div className="text-xs text-muted-foreground">Threshold: {group.alertThreshold} failures</div>
                         </div>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center gap-2">
                           <Badge variant={group.isActive ? "secondary" : "outline"}>
                             {group.isActive ? 'Active' : 'Inactive'}
                           </Badge>
@@ -629,12 +631,12 @@ export default function Manage() {
         
         {hash === 'gateways' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <h3 className="text-lg font-medium">Gateways</h3>
               {(user?.role === 'SuperAdmin' || user?.role === 'Owner' || user?.role === 'Admin') && (
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button data-testid="button-create-gateway">
+                    <Button data-testid="button-create-gateway" className="w-full sm:w-auto">
                       <Plus className="w-4 h-4 mr-2" />
                       Add Gateway
                     </Button>
@@ -705,24 +707,26 @@ export default function Manage() {
                 ) : (
                   <div className="space-y-4">
                     {displayGateways.map((gateway: any) => (
-                      <div key={gateway.id} className="flex items-center justify-between p-4 border border-border rounded-lg" data-testid={`gateway-item-${gateway.id}`}>
-                        <div className="flex items-center space-x-4">
-                          <div className={`w-3 h-3 rounded-full ${gateway.status === 'active' ? 'bg-secondary' : 'bg-destructive'}`} />
-                          <div>
-                            <div className="font-medium text-foreground">{gateway.name}</div>
-                            <div className="text-sm text-muted-foreground">{gateway.location}</div>
+                      <div key={gateway.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-border rounded-lg gap-4" data-testid={`gateway-item-${gateway.id}`}>
+                        <div className="flex items-center space-x-4 min-w-0 flex-1">
+                          <div className={`w-3 h-3 rounded-full flex-shrink-0 ${gateway.status === 'active' ? 'bg-secondary' : 'bg-destructive'}`} />
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium text-foreground truncate">{gateway.name}</div>
+                            <div className="text-sm text-muted-foreground truncate">{gateway.location}</div>
                             {gateway.ipAddress && (
                               <div className="text-xs text-muted-foreground">{gateway.ipAddress}</div>
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center space-x-3">
-                          <Badge variant="outline">
-                            {gateway.probeCount} probes
-                          </Badge>
-                          <Badge variant={gateway.status === 'active' ? "secondary" : "destructive"}>
-                            {gateway.status === 'active' ? 'Online' : 'Offline'}
-                          </Badge>
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
+                          <div className="flex flex-wrap gap-1">
+                            <Badge variant="outline">
+                              {gateway.probeCount} probes
+                            </Badge>
+                            <Badge variant={gateway.status === 'active' ? "secondary" : "destructive"}>
+                              {gateway.status === 'active' ? 'Online' : 'Offline'}
+                            </Badge>
+                          </div>
                           {gateway.lastHeartbeat && (
                             <span className="text-xs text-muted-foreground">
                               Last seen: {new Date(gateway.lastHeartbeat).toLocaleString()}
