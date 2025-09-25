@@ -67,7 +67,7 @@ export default function Dashboard() {
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground" data-testid="text-page-title">Dashboard</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2" data-testid="text-page-title">Dashboard</h1>
               <p className="text-muted-foreground mt-1 sm:hidden">Monitor your websites, APIs, and services in real-time</p>
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
