@@ -62,23 +62,26 @@ export default function Dashboard() {
 
   return (
     <Layout>
-      <div className="p-6 overflow-y-auto">
+      <div className="p-4 sm:p-6 overflow-y-auto">
         {/* Page Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <h1 className="text-3xl font-bold text-foreground" data-testid="text-page-title">Dashboard</h1>
-            <div className="flex items-center space-x-3">
-              <Button variant="outline" onClick={handleRefresh} data-testid="button-refresh">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground" data-testid="text-page-title">Dashboard</h1>
+              <p className="text-muted-foreground mt-1 sm:hidden">Monitor your websites, APIs, and services in real-time</p>
+            </div>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+              <Button variant="outline" onClick={handleRefresh} data-testid="button-refresh" className="w-full sm:w-auto">
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Refresh
               </Button>
-              <Button data-testid="button-new-probe">
+              <Button data-testid="button-new-probe" className="w-full sm:w-auto">
                 <Plus className="w-4 h-4 mr-2" />
                 New Probe
               </Button>
             </div>
           </div>
-          <p className="text-muted-foreground">Monitor your websites, APIs, and services in real-time</p>
+          <p className="text-muted-foreground hidden sm:block">Monitor your websites, APIs, and services in real-time</p>
         </div>
 
         {/* Metrics Cards */}
@@ -143,20 +146,20 @@ export default function Dashboard() {
         {/* Probe Status Table */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <CardTitle>Probe Status</CardTitle>
-              <div className="flex items-center space-x-3">
-                <div className="relative">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <div className="relative flex-1 sm:flex-none">
                   <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
                   <Input
                     placeholder="Search probes..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 w-64"
+                    className="pl-10 w-full sm:w-64"
                     data-testid="input-search"
                   />
                 </div>
-                <Button variant="outline" size="icon" data-testid="button-filter">
+                <Button variant="outline" size="icon" data-testid="button-filter" className="w-10 h-10 sm:h-auto">
                   <Filter className="w-4 h-4" />
                 </Button>
               </div>
@@ -164,15 +167,15 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[600px]">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Probe</th>
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Type</th>
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Response Time</th>
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Last Check</th>
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Actions</th>
+                    <th className="text-left py-3 px-2 sm:px-4 font-medium text-muted-foreground">Probe</th>
+                    <th className="text-left py-3 px-2 sm:px-4 font-medium text-muted-foreground hidden sm:table-cell">Type</th>
+                    <th className="text-left py-3 px-2 sm:px-4 font-medium text-muted-foreground">Status</th>
+                    <th className="text-left py-3 px-2 sm:px-4 font-medium text-muted-foreground hidden md:table-cell">Response Time</th>
+                    <th className="text-left py-3 px-2 sm:px-4 font-medium text-muted-foreground hidden lg:table-cell">Last Check</th>
+                    <th className="text-left py-3 px-2 sm:px-4 font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -185,40 +188,43 @@ export default function Dashboard() {
                   ) : (
                     filteredProbes.map((probe: any) => (
                       <tr key={probe.id} className="border-b border-border hover:bg-muted/20 transition-colors">
-                        <td className="py-4 px-4">
+                        <td className="py-4 px-2 sm:px-4">
                           <div className="flex items-center">
                             <div className={`w-2 h-2 rounded-full mr-3 ${
                               probe.status === 'Up' ? 'bg-secondary' : 
                               probe.status === 'Down' ? 'bg-destructive' : 'bg-amber-500'
                             }`} />
-                            <div>
-                              <div className="text-sm font-medium text-foreground" data-testid={`text-probe-name-${probe.id}`}>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-sm font-medium text-foreground truncate" data-testid={`text-probe-name-${probe.id}`}>
                                 {probe.name}
                               </div>
-                              <div className="text-sm text-muted-foreground" data-testid={`text-probe-url-${probe.id}`}>
+                              <div className="text-sm text-muted-foreground truncate" data-testid={`text-probe-url-${probe.id}`}>
                                 {probe.url}
+                              </div>
+                              <div className="sm:hidden mt-1">
+                                {getTypeBadge(probe.type)}
                               </div>
                             </div>
                           </div>
                         </td>
-                        <td className="py-4 px-4">
+                        <td className="py-4 px-2 sm:px-4 hidden sm:table-cell">
                           {getTypeBadge(probe.type)}
                         </td>
-                        <td className="py-4 px-4">
+                        <td className="py-4 px-2 sm:px-4">
                           {getStatusBadge(probe.status || 'Up')}
                         </td>
-                        <td className="py-4 px-4 text-sm text-foreground">
+                        <td className="py-4 px-2 sm:px-4 text-sm text-foreground hidden md:table-cell">
                           {probe.responseTime ? `${probe.responseTime}ms` : '-'}
                         </td>
-                        <td className="py-4 px-4 text-sm text-muted-foreground">
+                        <td className="py-4 px-2 sm:px-4 text-sm text-muted-foreground hidden lg:table-cell">
                           {probe.lastCheck ? new Date(probe.lastCheck).toLocaleString() : 'Never'}
                         </td>
-                        <td className="py-4 px-4">
-                          <div className="flex items-center space-x-2">
-                            <Button variant="ghost" size="sm" data-testid={`button-edit-${probe.id}`}>
+                        <td className="py-4 px-2 sm:px-4">
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1 sm:gap-2">
+                            <Button variant="ghost" size="sm" data-testid={`button-edit-${probe.id}`} className="text-xs sm:text-sm">
                               Edit
                             </Button>
-                            <Button variant="ghost" size="sm" data-testid={`button-view-${probe.id}`}>
+                            <Button variant="ghost" size="sm" data-testid={`button-view-${probe.id}`} className="text-xs sm:text-sm">
                               View
                             </Button>
                           </div>
