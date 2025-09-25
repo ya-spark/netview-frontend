@@ -51,74 +51,56 @@ export function Header() {
   return (
     <header className="bg-card border-b border-border sticky top-0 z-50 shadow-sm">
       <div className="w-full">
-        <div className="flex items-center justify-between px-6 py-4 mx-auto lg:max-w-6xl">
-          {/* Logo and Mobile Menu */}
-          <div className="flex items-center space-x-4">
-            {/* Mobile Sidebar Trigger */}
-            {user && isMobile && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={toggleSidebar}
-                className="lg:hidden"
-                data-testid="button-mobile-menu"
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
-            )}
-            
-            <Link href={user ? "/dashboard" : "/"}>
-              <div className="flex items-center space-x-2 cursor-pointer">
-                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                  <span className="text-primary-foreground font-bold text-lg">
-                    N
-                  </span>
-                </div>
-                <span className="text-xl font-bold text-foreground">NetView</span>
-              </div>
-            </Link>
-          </div>
-
-          {/* Navigation - Desktop */}
-          <nav className="hidden md:flex items-center space-x-8">
-            {navigation.map((item) => (
-              <Link key={item.name} href={item.href}>
-                <span
-                  className={`${
-                    item.current
-                      ? "text-primary font-medium border-b-2 border-primary pb-1"
-                      : "text-muted-foreground hover:text-foreground transition-colors"
-                  } cursor-pointer`}
-                  data-testid={`nav-${item.name.toLowerCase()}`}
-                >
-                  {item.name}
-                </span>
-              </Link>
-            ))}
-          </nav>
-
-          {/* Navigation - Mobile */}
-          <nav className="md:hidden flex items-center space-x-1">
-            {navigation.map((item) => (
-              <Link key={item.name} href={item.href}>
+        <div className="px-6 py-4 mx-auto lg:max-w-6xl">
+          {/* Top Row - Logo, Desktop Navigation, User Menu */}
+          <div className="flex items-center justify-between">
+            {/* Left side - Logo and Mobile Menu */}
+            <div className="flex items-center space-x-4">
+              {/* Mobile Sidebar Trigger */}
+              {user && isMobile && (
                 <Button
-                  variant={item.current ? "default" : "ghost"}
-                  size="sm"
-                  className={`${
-                    item.current
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  } px-2 py-1 text-xs font-medium`}
-                  data-testid={`nav-mobile-${item.name.toLowerCase()}`}
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleSidebar}
+                  className="lg:hidden"
+                  data-testid="button-mobile-menu"
                 >
-                  {item.name}
+                  <Menu className="h-5 w-5" />
                 </Button>
+              )}
+              
+              <Link href={user ? "/dashboard" : "/"}>
+                <div className="flex items-center space-x-2 cursor-pointer">
+                  <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                    <span className="text-primary-foreground font-bold text-lg">
+                      N
+                    </span>
+                  </div>
+                  <span className="text-xl font-bold text-foreground hidden sm:block">NetView</span>
+                </div>
               </Link>
-            ))}
-          </nav>
+            </div>
 
-          {/* Right side - User Menu or Sign up button */}
-          {user ? (
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex items-center space-x-8">
+              {navigation.map((item) => (
+                <Link key={item.name} href={item.href}>
+                  <span
+                    className={`${
+                      item.current
+                        ? "text-primary font-medium border-b-2 border-primary pb-1"
+                        : "text-muted-foreground hover:text-foreground transition-colors"
+                    } cursor-pointer`}
+                    data-testid={`nav-${item.name.toLowerCase()}`}
+                  >
+                    {item.name}
+                  </span>
+                </Link>
+              ))}
+            </nav>
+
+            {/* Right side - User Menu or Sign up button */}
+            {user ? (
             <div className="flex items-center space-x-4">
               {/* Notifications */}
               <Button
@@ -184,19 +166,42 @@ export function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-          ) : (
-            <div className="flex items-center space-x-4">
-              <Button asChild variant="ghost" data-testid="button-demo">
-                <Link href="/demo">Demo</Link>
-              </Button>
-              <Button asChild variant="outline" data-testid="button-login">
-                <Link href="/login">Login</Link>
-              </Button>
-              <Button asChild data-testid="button-sign-up">
-                <Link href="/signup">Sign Up</Link>
-              </Button>
-            </div>
-          )}
+            ) : (
+              <div className="flex items-center space-x-4">
+                <Button asChild variant="ghost" data-testid="button-demo">
+                  <Link href="/demo">Demo</Link>
+                </Button>
+                <Button asChild variant="outline" data-testid="button-login">
+                  <Link href="/login">Login</Link>
+                </Button>
+                <Button asChild data-testid="button-sign-up">
+                  <Link href="/signup">Sign Up</Link>
+                </Button>
+              </div>
+            )}
+          </div>
+          
+          {/* Mobile Navigation Row */}
+          <div className="md:hidden mt-3 border-t border-border pt-3">
+            <nav className="flex items-center justify-center space-x-1">
+              {navigation.map((item) => (
+                <Link key={item.name} href={item.href}>
+                  <Button
+                    variant={item.current ? "default" : "ghost"}
+                    size="sm"
+                    className={`${
+                      item.current
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    } px-3 py-1 text-xs font-medium`}
+                    data-testid={`nav-mobile-${item.name.toLowerCase()}`}
+                  >
+                    {item.name}
+                  </Button>
+                </Link>
+              ))}
+            </nav>
+          </div>
         </div>
       </div>
     </header>
