@@ -79,7 +79,7 @@ export function Header() {
             </Link>
           </div>
 
-          {/* Navigation */}
+          {/* Navigation - Desktop */}
           <nav className="hidden md:flex items-center space-x-8">
             {navigation.map((item) => (
               <Link key={item.name} href={item.href}>
@@ -93,6 +93,26 @@ export function Header() {
                 >
                   {item.name}
                 </span>
+              </Link>
+            ))}
+          </nav>
+
+          {/* Navigation - Mobile */}
+          <nav className="md:hidden flex items-center space-x-1">
+            {navigation.map((item) => (
+              <Link key={item.name} href={item.href}>
+                <Button
+                  variant={item.current ? "default" : "ghost"}
+                  size="sm"
+                  className={`${
+                    item.current
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  } px-2 py-1 text-xs font-medium`}
+                  data-testid={`nav-mobile-${item.name.toLowerCase()}`}
+                >
+                  {item.name}
+                </Button>
               </Link>
             ))}
           </nav>
