@@ -13,11 +13,11 @@ export function Layout({ children, showSidebar = true }: LayoutProps) {
 
   return (
     <SidebarProvider defaultOpen={true}>
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background flex flex-col">
         <Header />
-        <div className="flex">
+        <div className="flex flex-1 overflow-hidden">
           {showSidebar && <Sidebar />}
-          <main className="flex-1 w-full min-w-0">
+          <main className="flex-1 w-full min-w-0 overflow-auto">
             {children}
           </main>
         </div>
