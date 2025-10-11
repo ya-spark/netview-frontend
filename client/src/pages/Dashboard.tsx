@@ -62,15 +62,15 @@ export default function Dashboard() {
 
   return (
     <Layout>
-      <div className="p-4 sm:p-6 overflow-y-auto">
+      <div className="p-3 sm:p-4 lg:p-6 overflow-y-auto">
         {/* Page Header */}
-        <div className="mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2" data-testid="text-page-title">Dashboard</h1>
-              <p className="text-muted-foreground mt-1 sm:hidden">Monitor your websites, APIs, and services in real-time</p>
+        <div className="mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-2">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground mb-1 sm:mb-2" data-testid="text-page-title">Dashboard</h1>
+              <p className="text-sm sm:text-base text-muted-foreground mt-1 sm:hidden">Monitor your websites, APIs, and services in real-time</p>
             </div>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 flex-shrink-0">
               <Button variant="outline" onClick={handleRefresh} data-testid="button-refresh" className="w-full sm:w-auto">
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Refresh
@@ -85,13 +85,13 @@ export default function Dashboard() {
         </div>
 
         {/* Metrics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
           <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Probes</p>
-                  <p className="text-2xl font-bold text-foreground" data-testid="text-total-probes">
+            <CardContent className="p-4 sm:p-5 lg:p-6">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Probes</p>
+                  <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground mt-1" data-testid="text-total-probes">
                     {(stats as any)?.totalProbes || 0}
                   </p>
                   <p className="text-xs text-secondary mt-1">
@@ -101,42 +101,42 @@ export default function Dashboard() {
                     </span>
                   </p>
                 </div>
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                  <BarChart3 className="w-6 h-6 text-primary" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <BarChart3 className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Active Alerts</p>
-                  <p className="text-2xl font-bold text-destructive" data-testid="text-active-alerts">
+            <CardContent className="p-4 sm:p-5 lg:p-6">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs sm:text-sm font-medium text-muted-foreground">Active Alerts</p>
+                  <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-destructive mt-1" data-testid="text-active-alerts">
                     {(stats as any)?.activeAlerts || 0}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">Requires attention</p>
                 </div>
-                <div className="w-12 h-12 bg-destructive/10 rounded-lg flex items-center justify-center">
-                  <AlertTriangle className="w-6 h-6 text-destructive" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-destructive/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-destructive" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Overall Uptime</p>
-                  <p className="text-2xl font-bold text-secondary" data-testid="text-uptime">
+            <CardContent className="p-4 sm:p-5 lg:p-6">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs sm:text-sm font-medium text-muted-foreground">Overall Uptime</p>
+                  <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-secondary mt-1" data-testid="text-uptime">
                     {(stats as any)?.overallUptime ? `${(stats as any).overallUptime}%` : '100%'}
                   </p>
                   <p className="text-xs text-secondary mt-1">Last 30 days</p>
                 </div>
-                <div className="w-12 h-12 bg-secondary/10 rounded-lg flex items-center justify-center">
-                  <CheckCircle className="w-6 h-6 text-secondary" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-secondary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-secondary" />
                 </div>
               </div>
             </CardContent>
