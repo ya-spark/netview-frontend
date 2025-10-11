@@ -18,9 +18,7 @@ export function Layout({ children, showSidebar = true }: LayoutProps) {
         <div className="flex">
           {showSidebar && <Sidebar />}
           <main className="flex-1 w-full min-w-0">
-            <div className="w-full h-full px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-              {children}
-            </div>
+            {children}
           </main>
         </div>
       </div>
