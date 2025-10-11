@@ -20,7 +20,7 @@ import NotFound from "@/pages/not-found";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-  
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -28,17 +28,17 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  
+
   if (!user) {
     return <Redirect to="/login" />;
   }
-  
+
   return <>{children}</>;
 }
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-  
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -46,11 +46,11 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  
+
   if (user) {
     return <Redirect to="/dashboard" />;
   }
-  
+
   return <>{children}</>;
 }
 
@@ -62,67 +62,67 @@ function Router() {
           <Landing />
         </PublicRoute>
       </Route>
-      
+
       <Route path="/login">
         <PublicRoute>
           <Login />
         </PublicRoute>
       </Route>
-      
+
       <Route path="/features">
         <Features />
       </Route>
-      
+
       <Route path="/pricing">
         <Pricing />
       </Route>
-      
+
       <Route path="/docs">
         <Docs />
       </Route>
-      
+
       <Route path="/dashboard">
         <ProtectedRoute>
           <Dashboard />
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/manage">
         <ProtectedRoute>
           <Manage />
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/monitor">
         <ProtectedRoute>
           <Monitor />
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/reports">
         <ProtectedRoute>
           <Reports />
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/settings">
         <ProtectedRoute>
           <Settings />
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/billing">
         <ProtectedRoute>
           <Billing />
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/collaborators">
         <ProtectedRoute>
           <Collaborators />
         </ProtectedRoute>
       </Route>
-      
+
       <Route component={NotFound} />
     </Switch>
   );
@@ -134,7 +134,7 @@ function App() {
       <TooltipProvider>
         <AuthProvider>
           <Toaster />
-          <div className="w-full max-w-[900px] mx-auto">
+          <div className="w-full max-w-[1200px] mx-auto">
             <Router />
           </div>
         </AuthProvider>
