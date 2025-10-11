@@ -15,10 +15,10 @@ export function Layout({ children, showSidebar = true }: LayoutProps) {
     <SidebarProvider defaultOpen={true}>
       <div className="min-h-screen bg-background">
         <Header />
-        <div className="flex min-h-screen">
+        <div className="flex">
           {showSidebar && <Sidebar />}
-          <main className="flex-1 w-full">
-            <div className="w-full h-full px-4 sm:px-6 lg:px-8">
+          <main className="flex-1 w-full min-w-0">
+            <div className="w-full h-full px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
               {children}
             </div>
           </main>

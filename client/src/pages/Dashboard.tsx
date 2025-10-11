@@ -166,8 +166,8 @@ export default function Dashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[700px]">
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
+              <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
                     <th className="text-left py-3 px-2 sm:px-4 font-medium text-muted-foreground">Probe</th>
