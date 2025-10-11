@@ -145,10 +145,10 @@ export default function Dashboard() {
 
         {/* Probe Status Table */}
         <Card>
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <CardTitle>Probe Status</CardTitle>
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <CardHeader className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+              <CardTitle className="text-base sm:text-lg">Probe Status</CardTitle>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
                 <div className="relative flex-1 sm:flex-none">
                   <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -159,46 +159,47 @@ export default function Dashboard() {
                     data-testid="input-search"
                   />
                 </div>
-                <Button variant="outline" size="icon" data-testid="button-filter" className="w-10 h-10 sm:h-auto">
+                <Button variant="outline" size="icon" data-testid="button-filter" className="w-full sm:w-10 h-10 sm:h-auto">
                   <Filter className="w-4 h-4" />
+                  <span className="ml-2 sm:hidden">Filter</span>
                 </Button>
               </div>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto -mx-4 sm:mx-0">
+          <CardContent className="p-0 sm:p-6 sm:pt-0">
+            <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="text-left py-3 px-2 sm:px-4 font-medium text-muted-foreground">Probe</th>
-                    <th className="text-left py-3 px-2 sm:px-4 font-medium text-muted-foreground hidden sm:table-cell">Type</th>
-                    <th className="text-left py-3 px-2 sm:px-4 font-medium text-muted-foreground">Status</th>
-                    <th className="text-left py-3 px-2 sm:px-4 font-medium text-muted-foreground hidden md:table-cell">Response Time</th>
-                    <th className="text-left py-3 px-2 sm:px-4 font-medium text-muted-foreground hidden lg:table-cell">Last Check</th>
-                    <th className="text-left py-3 px-2 sm:px-4 font-medium text-muted-foreground">Actions</th>
+                    <th className="text-left py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm font-medium text-muted-foreground">Probe</th>
+                    <th className="text-left py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm font-medium text-muted-foreground hidden sm:table-cell">Type</th>
+                    <th className="text-left py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm font-medium text-muted-foreground">Status</th>
+                    <th className="text-left py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm font-medium text-muted-foreground hidden md:table-cell">Response Time</th>
+                    <th className="text-left py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm font-medium text-muted-foreground hidden lg:table-cell">Last Check</th>
+                    <th className="text-left py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredProbes.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="text-center py-8 text-muted-foreground">
+                      <td colSpan={6} className="text-center py-6 sm:py-8 px-3 text-sm sm:text-base text-muted-foreground">
                         No probes found. Create your first probe to start monitoring.
                       </td>
                     </tr>
                   ) : (
                     filteredProbes.map((probe: any) => (
                       <tr key={probe.id} className="border-b border-border hover:bg-muted/20 transition-colors">
-                        <td className="py-4 px-2 sm:px-4">
-                          <div className="flex items-center">
-                            <div className={`w-2 h-2 rounded-full mr-3 ${
+                        <td className="py-3 sm:py-4 px-3 sm:px-4">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
                               probe.status === 'Up' ? 'bg-secondary' : 
                               probe.status === 'Down' ? 'bg-destructive' : 'bg-amber-500'
                             }`} />
                             <div className="min-w-0 flex-1">
-                              <div className="text-sm font-medium text-foreground truncate" data-testid={`text-probe-name-${probe.id}`}>
+                              <div className="text-xs sm:text-sm font-medium text-foreground truncate" data-testid={`text-probe-name-${probe.id}`}>
                                 {probe.name}
                               </div>
-                              <div className="text-sm text-muted-foreground truncate" data-testid={`text-probe-url-${probe.id}`}>
+                              <div className="text-xs sm:text-sm text-muted-foreground truncate" data-testid={`text-probe-url-${probe.id}`}>
                                 {probe.url}
                               </div>
                               <div className="sm:hidden mt-1">
@@ -207,24 +208,24 @@ export default function Dashboard() {
                             </div>
                           </div>
                         </td>
-                        <td className="py-4 px-2 sm:px-4 hidden sm:table-cell">
+                        <td className="py-3 sm:py-4 px-3 sm:px-4 hidden sm:table-cell">
                           {getTypeBadge(probe.type)}
                         </td>
-                        <td className="py-4 px-2 sm:px-4">
+                        <td className="py-3 sm:py-4 px-3 sm:px-4">
                           {getStatusBadge(probe.status || 'Up')}
                         </td>
-                        <td className="py-4 px-2 sm:px-4 text-sm text-foreground hidden md:table-cell">
+                        <td className="py-3 sm:py-4 px-3 sm:px-4 text-xs sm:text-sm text-foreground hidden md:table-cell">
                           {probe.responseTime ? `${probe.responseTime}ms` : '-'}
                         </td>
-                        <td className="py-4 px-2 sm:px-4 text-sm text-muted-foreground hidden lg:table-cell">
+                        <td className="py-3 sm:py-4 px-3 sm:px-4 text-xs sm:text-sm text-muted-foreground hidden lg:table-cell">
                           {probe.lastCheck ? new Date(probe.lastCheck).toLocaleString() : 'Never'}
                         </td>
-                        <td className="py-4 px-2 sm:px-4">
+                        <td className="py-3 sm:py-4 px-3 sm:px-4">
                           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1 sm:gap-2">
-                            <Button variant="ghost" size="sm" data-testid={`button-edit-${probe.id}`} className="text-xs sm:text-sm">
+                            <Button variant="ghost" size="sm" data-testid={`button-edit-${probe.id}`} className="text-xs px-2 py-1 h-auto">
                               Edit
                             </Button>
-                            <Button variant="ghost" size="sm" data-testid={`button-view-${probe.id}`} className="text-xs sm:text-sm">
+                            <Button variant="ghost" size="sm" data-testid={`button-view-${probe.id}`} className="text-xs px-2 py-1 h-auto">
                               View
                             </Button>
                           </div>

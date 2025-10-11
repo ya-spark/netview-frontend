@@ -242,38 +242,38 @@ export default function Billing() {
 
   return (
     <Layout>
-      <div className="p-6 overflow-y-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2" data-testid="text-page-title">Billing</h1>
-          <p className="text-muted-foreground">Manage your subscription and billing information</p>
+      <div className="p-3 sm:p-4 lg:p-6 overflow-y-auto">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground mb-1 sm:mb-2" data-testid="text-page-title">Billing</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Manage your subscription and billing information</p>
         </div>
 
         {/* Current Plan Overview */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <CreditCard className="w-5 h-5" />
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <CreditCard className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span>Current Plan</span>
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 sm:p-6 sm:pt-0">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Plan</span>
+                  <span className="text-xs sm:text-sm text-muted-foreground">Plan</span>
                   <Badge variant={currentPlan === 'Free' ? 'outline' : 'default'} data-testid="badge-current-plan">
                     {currentPlan}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Monthly Cost</span>
-                  <span className="font-medium" data-testid="text-monthly-cost">
+                  <span className="text-xs sm:text-sm text-muted-foreground">Monthly Cost</span>
+                  <span className="text-sm sm:text-base font-medium" data-testid="text-monthly-cost">
                     {pricingPlans[currentPlan.toUpperCase()]?.displayPrice || '$0'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Account Balance</span>
-                  <span className="font-medium" data-testid="text-account-balance">
+                  <span className="text-xs sm:text-sm text-muted-foreground">Account Balance</span>
+                  <span className="text-sm sm:text-base font-medium" data-testid="text-account-balance">
                     ${balance.toFixed(2)}
                   </span>
                 </div>
@@ -282,18 +282,18 @@ export default function Billing() {
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <DollarSign className="w-5 h-5" />
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <DollarSign className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span>Usage This Month</span>
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
+            <CardContent className="p-4 sm:p-6 sm:pt-0">
+              <div className="space-y-3 sm:space-y-4">
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-muted-foreground">Account Balance</span>
-                    <span className="font-medium" data-testid="text-account-balance-usage">
+                    <span className="text-xs sm:text-sm text-muted-foreground">Account Balance</span>
+                    <span className="text-sm sm:text-base font-medium" data-testid="text-account-balance-usage">
                       ${balance.toFixed(2)}
                     </span>
                   </div>
@@ -302,8 +302,8 @@ export default function Billing() {
                   </p>
                 </div>
                 {balance < 5 && currentPlan !== 'Free' && (
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p className="text-sm text-amber-700">
+                  <div className="p-2 sm:p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-xs sm:text-sm text-amber-700">
                       Low balance. Consider topping up to avoid service interruption.
                     </p>
                   </div>
@@ -313,28 +313,28 @@ export default function Billing() {
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Calendar className="w-5 h-5" />
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span>Next Billing</span>
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 sm:p-6 sm:pt-0">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Next Charge</span>
-                  <span className="font-medium" data-testid="text-next-charge">
+                  <span className="text-xs sm:text-sm text-muted-foreground">Next Charge</span>
+                  <span className="text-sm sm:text-base font-medium" data-testid="text-next-charge">
                     {new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString()}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Amount</span>
-                  <span className="font-medium" data-testid="text-next-amount">
+                  <span className="text-xs sm:text-sm text-muted-foreground">Amount</span>
+                  <span className="text-sm sm:text-base font-medium" data-testid="text-next-amount">
                     {pricingPlans[currentPlan.toUpperCase()]?.displayPrice || 'N/A'}
                   </span>
                 </div>
                 {currentPlan !== 'Free' && (
-                  <Button variant="outline" size="sm" className="w-full mt-2" data-testid="button-manage-subscription">
+                  <Button variant="outline" size="sm" className="w-full mt-2 text-xs sm:text-sm" data-testid="button-manage-subscription">
                     Manage Subscription
                   </Button>
                 )}
@@ -345,11 +345,11 @@ export default function Billing() {
 
         {/* Pricing Plans */}
         <Card>
-          <CardHeader>
-            <CardTitle>Choose Your Plan</CardTitle>
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg">Choose Your Plan</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <CardContent className="p-4 sm:p-6 sm:pt-0">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
               {Object.entries(pricingPlans).map(([key, plan]) => (
                 <Card 
                   key={key} 
@@ -368,36 +368,36 @@ export default function Billing() {
                       Current Plan
                     </Badge>
                   )}
-                  <CardContent className="p-6">
-                    <div className="text-center mb-6">
-                      <h3 className="text-xl font-semibold text-foreground mb-2">{plan.name}</h3>
+                  <CardContent className="p-4 sm:p-5 lg:p-6">
+                    <div className="text-center mb-4 sm:mb-6">
+                      <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-2">{plan.name}</h3>
                       <div className="flex items-baseline justify-center">
-                        <span className="text-3xl font-bold text-foreground">{plan.displayPrice}</span>
-                        <span className="text-muted-foreground ml-1">{plan.period}</span>
+                        <span className="text-2xl sm:text-3xl font-bold text-foreground">{plan.displayPrice}</span>
+                        <span className="text-sm sm:text-base text-muted-foreground ml-1">{plan.period}</span>
                       </div>
                       {plan.startupCredit && (
-                        <p className="text-sm text-muted-foreground mt-2">
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-2">
                           ${plan.startupCredit} startup credit
                         </p>
                       )}
                       {plan.billingModel === 'payg' && (
-                        <p className="text-sm text-muted-foreground mt-2">
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-2">
                           Auto top-up: ${plan.defaultTopUpAmount} when balance &lt; ${plan.lowBalanceThreshold}
                         </p>
                       )}
                     </div>
 
-                    <ul className="space-y-3 mb-6">
+                    <ul className="space-y-2 sm:space-y-3 mb-4 sm:mb-6">
                       {plan.features.map((feature, index) => (
-                        <li key={index} className="flex items-center text-sm">
-                          <Check className="h-4 w-4 text-secondary mr-3 flex-shrink-0" />
+                        <li key={index} className="flex items-center text-xs sm:text-sm">
+                          <Check className="h-3 w-3 sm:h-4 sm:w-4 text-secondary mr-2 sm:mr-3 flex-shrink-0" />
                           <span className="text-foreground">{feature}</span>
                         </li>
                       ))}
                     </ul>
 
                     <Button 
-                      className="w-full" 
+                      className="w-full text-xs sm:text-sm" 
                       variant={currentPlan.toUpperCase() === key ? "outline" : (plan.popular ? "default" : "outline")}
                       disabled={currentPlan.toUpperCase() === key || createSubscriptionMutation.isPending}
                       onClick={() => handlePlanSelect(key)}
@@ -420,31 +420,31 @@ export default function Billing() {
         </Card>
 
         {/* Billing History */}
-        <Card className="mt-8">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Billing History</CardTitle>
-              <Button variant="outline" size="sm" data-testid="button-download-invoices">
-                <Download className="w-4 h-4 mr-2" />
+        <Card className="mt-6 sm:mt-8">
+          <CardHeader className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+              <CardTitle className="text-base sm:text-lg">Billing History</CardTitle>
+              <Button variant="outline" size="sm" data-testid="button-download-invoices" className="w-full sm:w-auto text-xs sm:text-sm">
+                <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
                 Download Invoices
               </Button>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0 sm:p-6 sm:pt-0">
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[600px]">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Date</th>
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Description</th>
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Amount</th>
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Invoice</th>
+                    <th className="text-left py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm font-medium text-muted-foreground">Date</th>
+                    <th className="text-left py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm font-medium text-muted-foreground">Description</th>
+                    <th className="text-left py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm font-medium text-muted-foreground">Amount</th>
+                    <th className="text-left py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm font-medium text-muted-foreground">Status</th>
+                    <th className="text-left py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm font-medium text-muted-foreground">Invoice</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <td colSpan={5} className="text-center py-6 sm:py-8 px-3 text-xs sm:text-sm text-muted-foreground">
                       No billing history available
                     </td>
                   </tr>

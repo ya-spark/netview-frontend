@@ -108,33 +108,33 @@ export default function Settings() {
 
   return (
     <Layout>
-      <div className="p-6 overflow-y-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2" data-testid="text-page-title">Settings</h1>
-          <p className="text-muted-foreground">Manage your account and organization preferences</p>
+      <div className="p-3 sm:p-4 lg:p-6 overflow-y-auto">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground mb-1 sm:mb-2" data-testid="text-page-title">Settings</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Manage your account and organization preferences</p>
         </div>
 
-        <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="profile" data-testid="tab-profile">
-              <User className="w-4 h-4 mr-2" />
-              Profile
+        <Tabs defaultValue="profile" className="space-y-4 sm:space-y-6">
+          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-5 gap-1">
+            <TabsTrigger value="profile" data-testid="tab-profile" className="text-xs sm:text-sm">
+              <User className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Profile</span>
             </TabsTrigger>
-            <TabsTrigger value="organization" data-testid="tab-organization" disabled={!canManageOrganization}>
-              <Globe className="w-4 h-4 mr-2" />
-              Organization
+            <TabsTrigger value="organization" data-testid="tab-organization" disabled={!canManageOrganization} className="text-xs sm:text-sm">
+              <Globe className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Organization</span>
             </TabsTrigger>
-            <TabsTrigger value="notifications" data-testid="tab-notifications">
-              <Bell className="w-4 h-4 mr-2" />
-              Notifications
+            <TabsTrigger value="notifications" data-testid="tab-notifications" className="text-xs sm:text-sm">
+              <Bell className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Notifications</span>
             </TabsTrigger>
-            <TabsTrigger value="security" data-testid="tab-security">
-              <Shield className="w-4 h-4 mr-2" />
-              Security
+            <TabsTrigger value="security" data-testid="tab-security" className="text-xs sm:text-sm">
+              <Shield className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Security</span>
             </TabsTrigger>
-            <TabsTrigger value="preferences" data-testid="tab-preferences">
-              <SettingsIcon className="w-4 h-4 mr-2" />
-              Preferences
+            <TabsTrigger value="preferences" data-testid="tab-preferences" className="text-xs sm:text-sm">
+              <SettingsIcon className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Preferences</span>
             </TabsTrigger>
           </TabsList>
 
