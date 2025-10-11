@@ -51,7 +51,7 @@ export function Header() {
   return (
     <header className="bg-card border-b border-border sticky top-0 z-50 shadow-sm">
       <div className="w-full">
-        <div className="px-6 py-4 mx-auto lg:max-w-6xl">
+        <div className="px-6 py-4 w-full">
           {/* Top Row - Logo, Desktop Navigation, User Menu */}
           <div className="flex items-center justify-between">
             {/* Left side - Logo and Mobile Menu */}
