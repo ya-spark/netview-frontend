@@ -138,7 +138,7 @@ function DashboardSidebar() {
     <div className="space-y-6">
       {/* Main Navigation */}
       <MainNavigation />
-      
+
       {/* Quick Overview */}
       <Card className="bg-accent">
         <CardContent className="p-4">
@@ -302,7 +302,7 @@ function ManageSidebar() {
     <div className="space-y-6">
       {/* Main Navigation */}
       <MainNavigation />
-      
+
       <nav className="space-y-1">
         <div className="text-sm font-medium text-foreground mb-3">
           Configuration
@@ -408,17 +408,17 @@ function MonitorSidebar() {
     <div className="space-y-6">
       {/* Main Navigation */}
       <MainNavigation />
-      
+
       <nav className="space-y-1">
         <div className="text-sm font-medium text-foreground mb-3">Monitor</div>
         {monitorNavigation.map((item) => {
           const Icon = item.icon;
           const handleClick = () => {
             // Extract hash from href and set it directly
-            const hashPart = item.href.split('#')[1];
-            window.location.hash = hashPart || '';
+            const hashPart = item.href.split("#")[1];
+            window.location.hash = hashPart || "";
           };
-          
+
           return (
             <Button
               key={item.name}
@@ -467,7 +467,7 @@ function ReportsSidebar() {
     <div className="space-y-6">
       {/* Main Navigation */}
       <MainNavigation />
-      
+
       {/* Report Types */}
       <nav className="space-y-1">
         <div className="text-sm font-medium text-foreground mb-3">
@@ -592,9 +592,7 @@ function PublicSidebar() {
     <div className="space-y-6">
       {/* Main Navigation */}
       <nav className="space-y-1">
-        <div className="text-sm font-medium text-foreground mb-3">
-          Explore
-        </div>
+        <div className="text-sm font-medium text-foreground mb-3">Explore</div>
         {publicNavigation.map((item) => {
           const Icon = item.icon;
           return (
@@ -678,17 +676,19 @@ export function Sidebar() {
     <SidebarWrapper>
       <SidebarContent>
         <SidebarHeader>
-          <div className="p-2">
+          <div className="p-0">
             <h2 className="text-lg font-semibold text-foreground">
               {!user && "Menu"}
               {user && location.startsWith("/dashboard") && "Dashboard"}
-              {user && (location.startsWith("/manage") ||
-                location === "/billing" ||
-                location === "/collaborators") &&
+              {user &&
+                (location.startsWith("/manage") ||
+                  location === "/billing" ||
+                  location === "/collaborators") &&
                 "Configuration"}
               {user && location.startsWith("/monitor") && "Monitor"}
               {user && location.startsWith("/reports") && "Reports"}
-              {user && !location.startsWith("/dashboard") &&
+              {user &&
+                !location.startsWith("/dashboard") &&
                 !location.startsWith("/manage") &&
                 !location.startsWith("/monitor") &&
                 !location.startsWith("/reports") &&
@@ -698,7 +698,7 @@ export function Sidebar() {
             </h2>
           </div>
         </SidebarHeader>
-        <div className="p-6">{getSidebarContent()}</div>
+        <div className="p-2">{getSidebarContent()}</div>
       </SidebarContent>
     </SidebarWrapper>
   );
