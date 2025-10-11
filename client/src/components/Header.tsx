@@ -68,7 +68,7 @@ export function Header() {
                   <Menu className="h-5 w-5" />
                 </Button>
               )}
-              
+
               <Link href={user ? "/dashboard" : "/"}>
                 <div className="flex items-center space-x-2 cursor-pointer">
                   <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
@@ -76,7 +76,9 @@ export function Header() {
                       N
                     </span>
                   </div>
-                  <span className="text-xl font-bold text-foreground hidden sm:block">NetView</span>
+                  <span className="text-xl font-bold text-foreground hidden sm:block">
+                    NetView
+                  </span>
                 </div>
               </Link>
             </div>
@@ -101,71 +103,71 @@ export function Header() {
 
             {/* Right side - User Menu or Sign up button */}
             {user ? (
-            <div className="flex items-center space-x-4">
-              {/* Notifications */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="relative"
-                data-testid="button-notifications"
-              >
-                <Bell className="h-5 w-5" />
-                {notificationCount > 0 && (
-                  <Badge
-                    variant="destructive"
-                    className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs p-0"
-                  >
-                    {notificationCount}
-                  </Badge>
-                )}
-              </Button>
+              <div className="flex items-center space-x-4">
+                {/* Notifications */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="relative"
+                  data-testid="button-notifications"
+                >
+                  <Bell className="h-5 w-5" />
+                  {notificationCount > 0 && (
+                    <Badge
+                      variant="destructive"
+                      className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs p-0"
+                    >
+                      {notificationCount}
+                    </Badge>
+                  )}
+                </Button>
 
-              {/* User Profile */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <div
-                    className="flex items-center space-x-3 cursor-pointer"
-                    data-testid="dropdown-user-menu"
-                  >
-                    <div className="text-right hidden sm:block">
-                      <div
-                        className="text-sm font-medium text-foreground"
-                        data-testid="text-user-name"
-                      >
-                        {user.firstName} {user.lastName}
+                {/* User Profile */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <div
+                      className="flex items-center space-x-3 cursor-pointer"
+                      data-testid="dropdown-user-menu"
+                    >
+                      <div className="text-right hidden sm:block">
+                        <div
+                          className="text-sm font-medium text-foreground"
+                          data-testid="text-user-name"
+                        >
+                          {user.firstName} {user.lastName}
+                        </div>
+                        <div
+                          className="text-xs text-muted-foreground"
+                          data-testid="text-user-role"
+                        >
+                          {user.role}
+                        </div>
                       </div>
-                      <div
-                        className="text-xs text-muted-foreground"
-                        data-testid="text-user-role"
-                      >
-                        {user.role}
-                      </div>
+                      <Avatar>
+                        <AvatarFallback className="bg-primary text-primary-foreground">
+                          {getInitials(user.firstName, user.lastName)}
+                        </AvatarFallback>
+                      </Avatar>
                     </div>
-                    <Avatar>
-                      <AvatarFallback className="bg-primary text-primary-foreground">
-                        {getInitials(user.firstName, user.lastName)}
-                      </AvatarFallback>
-                    </Avatar>
-                  </div>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem asChild>
-                    <Link href="/settings" className="flex items-center">
-                      <Settings className="mr-2 h-4 w-4" />
-                      <span>Settings</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={handleSignOut}
-                    data-testid="button-sign-out"
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Sign Out</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem asChild>
+                      <Link href="/settings" className="flex items-center">
+                        <Settings className="mr-2 h-4 w-4" />
+                        <span>Settings</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={handleSignOut}
+                      data-testid="button-sign-out"
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Sign Out</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             ) : (
               <div className="flex items-center space-x-4">
                 <Button asChild variant="ghost" data-testid="button-demo">
@@ -180,7 +182,6 @@ export function Header() {
               </div>
             )}
           </div>
-          
         </div>
       </div>
     </header>
