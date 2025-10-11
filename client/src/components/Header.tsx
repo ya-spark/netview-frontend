@@ -18,7 +18,7 @@ export function Header() {
   const [location] = useLocation();
   const { user, signOut } = useAuth();
   const [notificationCount] = useState(3);
-  const { toggleSidebar, isMobile } = useSidebar();
+  const { toggleSidebar } = useSidebar();
 
   // Different navigation based on login status
   const loggedInNavigation = [
@@ -56,13 +56,13 @@ export function Header() {
           <div className="flex items-center justify-between">
             {/* Left side - Logo and Mobile Menu */}
             <div className="flex items-center space-x-4">
-              {/* Mobile Sidebar Trigger */}
-              {isMobile && (
+              {/* Mobile Sidebar Trigger - Always render for logged-in users, control visibility with CSS */}
+              {user && (
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={toggleSidebar}
-                  className="lg:hidden"
+                  className="md:hidden"
                   data-testid="button-mobile-menu"
                 >
                   <Menu className="h-5 w-5" />
