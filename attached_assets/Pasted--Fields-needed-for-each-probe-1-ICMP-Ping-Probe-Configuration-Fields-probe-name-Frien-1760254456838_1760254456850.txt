@@ -1,0 +1,161 @@
+
+Fields needed for each probe.
+1. ICMP / Ping Probe
+
+Configuration Fields:
+
+probe_name – Friendly name for the probe
+
+host – IP or hostname to ping
+
+interval – How often to ping (e.g., every 60 seconds)
+
+timeout – Maximum wait time for a response
+
+packet_count – Number of ICMP packets per check
+
+alert_threshold – Number of failures before triggering alert
+
+Monitoring / Runtime Fields:
+
+last_status – Success / Failure
+
+latency_ms – Round-trip time in milliseconds
+
+packet_loss_percent – Packet loss over this check
+
+jitter_ms – Variation in latency
+
+last_checked_at – Timestamp of last probe execution
+
+2. HTTP / HTTPS Probe
+
+Configuration Fields:
+
+probe_name
+
+url – Full URL of the endpoint
+
+method – HTTP method (GET, POST, etc.)
+
+expected_status_codes – List of valid HTTP codes (e.g., 200, 301)
+
+headers – Optional custom headers
+
+timeout – Max wait time
+
+interval – Frequency of probe
+
+alert_on_failure – Boolean
+
+Monitoring / Runtime Fields:
+
+last_status – Success / Failure
+
+http_status – Actual HTTP code returned
+
+response_time_ms – Time to get a response
+
+response_size_bytes – Size of the response
+
+ssl_valid – Boolean if HTTPS and SSL is valid
+
+last_checked_at
+
+3. DNS Resolution Probe
+
+Configuration Fields:
+
+probe_name
+
+domain – Domain to resolve
+
+record_type – A, AAAA, CNAME, MX, etc.
+
+expected_ip – Optional expected value
+
+dns_server – Optional custom DNS server
+
+timeout
+
+interval
+
+alert_on_failure
+
+Monitoring / Runtime Fields:
+
+last_status – Success / Failure
+
+resolved_ips – List of IPs returned
+
+response_time_ms – Resolution latency
+
+record_type_checked – Type of record returned
+
+last_checked_at
+
+4. SSL/TLS Probe
+
+Configuration Fields:
+
+probe_name
+
+host – Domain or IP
+
+port – Default 443 for HTTPS
+
+alert_before_expiry_days – When to trigger expiration alert
+
+interval – How often to check
+
+expected_tls_version – Optional
+
+Monitoring / Runtime Fields:
+
+last_status – Success / Failure
+
+certificate_expiry_date – Expiry timestamp
+
+days_to_expiry – Calculated from current date
+
+tls_version – TLS version in use
+
+certificate_valid – Boolean
+
+issuer – Certificate issuer
+
+last_checked_at
+
+5. Authentication Probe (Optional first version)
+
+Configuration Fields:
+
+probe_name
+
+url – Login endpoint or API
+
+method – POST / GET
+
+credentials – Username / Password or API token
+
+expected_response – Success condition (status code, JSON field, etc.)
+
+timeout
+
+interval
+
+alert_on_failure
+
+Monitoring / Runtime Fields:
+
+last_status – Success / Failure
+
+response_code – HTTP status code
+
+response_time_ms – Time taken for authentication
+
+success_with_valid_credentials – Boolean
+
+failure_with_invalid_credentials – Boolean
+
+last_checked_at
