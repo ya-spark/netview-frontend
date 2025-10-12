@@ -28,6 +28,7 @@ Preferred communication style: Simple, everyday language.
 - **Authentication**: Firebase Admin SDK for token verification
 - **Session Management**: Express sessions with PostgreSQL store
 - **Middleware**: Custom API interceptors for logging, rate limiting, and analytics
+- **Logging**: Rotating file logger with configurable storage limits (see LOGGING.md)
 
 ### Gateway Architecture
 - **Technology**: Python Flask applications for probe execution
@@ -95,3 +96,4 @@ Preferred communication style: Simple, everyday language.
 - **AI Services**: Anthropic API key for Claude model access
 - **Gateway**: API keys for secure gateway-backend communication
 - **Contact**: Configurable contact email (contact@yaseenmd.com)
+- **Logging**: LOG_MAX_TOTAL_SIZE_MB, LOG_MAX_FILE_SIZE_MB, LOG_DIRECTORY (see LOGGING.md)
