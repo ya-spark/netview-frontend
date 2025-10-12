@@ -415,13 +415,32 @@ export default function Manage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {filteredProbes.map((probe: any) => (
+                    {filteredProbes.map((probe: any) => {
+                      // Extract the main configuration value to display based on probe type
+                      const getConfigDisplay = () => {
+                        const config = probe.configuration || {};
+                        switch (probe.type) {
+                          case 'HTTP/HTTPS':
+                          case 'Authentication':
+                            return config.url || 'No URL configured';
+                          case 'ICMP/Ping':
+                            return config.host || 'No host configured';
+                          case 'DNS Resolution':
+                            return config.domain || 'No domain configured';
+                          case 'SSL/TLS':
+                            return config.host ? `${config.host}:${config.port || 443}` : 'No host configured';
+                          default:
+                            return 'Configuration not set';
+                        }
+                      };
+
+                      return (
                       <div key={probe.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-border rounded-lg gap-4" data-testid={`probe-item-${probe.id}`}>
                         <div className="flex items-center space-x-4 min-w-0 flex-1">
                           <div className={`w-3 h-3 rounded-full flex-shrink-0 ${probe.isActive ? 'bg-secondary' : 'bg-muted'}`} />
                           <div className="min-w-0 flex-1">
                             <div className="font-medium text-foreground truncate">{probe.name}</div>
-                            <div className="text-sm text-muted-foreground truncate">{probe.url}</div>
+                            <div className="text-sm text-muted-foreground truncate">{getConfigDisplay()}</div>
                             <div className="text-xs text-muted-foreground mt-1">{probe.description}</div>
                           </div>
                         </div>
@@ -441,7 +460,8 @@ export default function Manage() {
                           </div>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
