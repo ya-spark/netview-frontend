@@ -39,13 +39,8 @@ export default function Reports() {
     mtbf: 1440,
   };
 
-  const mockProbeAnalytics = [
-    { name: 'Main Website', uptime: 99.9, avgResponse: 245, checks: 8640, incidents: 1 },
-    { name: 'API Service', uptime: 98.5, avgResponse: 156, checks: 8640, incidents: 3 },
-    { name: 'CDN Endpoint', uptime: 99.2, avgResponse: 89, checks: 8640, incidents: 2 },
-    { name: 'Database Health', uptime: 100, avgResponse: 45, checks: 8640, incidents: 0 },
-    { name: 'E-commerce Site', uptime: 99.7, avgResponse: 523, checks: 8640, incidents: 1 },
-  ];
+  // Note: In production, this would fetch real probe analytics from the API
+  const mockProbeAnalytics: Array<{name: string, uptime: number, avgResponse: number, checks: number, incidents: number}> = [];
 
   const mockIncidents = [
     {
