@@ -10,6 +10,22 @@ The system supports multiple user roles (SuperAdmin, Owner, Admin, Editor, Helpd
 
 Preferred communication style: Simple, everyday language.
 
+## Documentation
+
+This project includes comprehensive documentation for AI assistants to understand and modify the application effectively:
+
+- **`DOCS_INDEX.md`** - Quick reference guide and documentation index
+- **`DATABASE.md`** - Database schema, tables, relations, and storage patterns
+- **`API.md`** - REST API endpoints, authentication, and request/response formats
+- **`DEVELOPMENT.md`** - Development setup, workflows, and best practices
+- **`COMPONENTS.md`** - Frontend components, React patterns, and UI guidelines
+- **`SERVICES.md`** - Backend services, business logic, and external integrations
+- **`GATEWAY.md`** - Gateway architecture, probe execution, and deployment
+- **`AUTH.md`** - Authentication & authorization flows and security patterns
+- **`LOGGING.md`** - Logging system configuration and management
+
+**Start here**: `DOCS_INDEX.md` for quick navigation to the right documentation
+
 ## System Architecture
 
 ### Frontend Architecture
