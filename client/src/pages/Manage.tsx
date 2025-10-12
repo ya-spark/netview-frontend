@@ -22,13 +22,11 @@ import { useAuth } from '@/contexts/AuthContext';
 const probeSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   description: z.string().optional(),
-  type: z.enum(['Uptime', 'API', 'Security', 'Browser']),
-  protocol: z.enum(['HTTP', 'HTTPS', 'TCP', 'SMTP', 'DNS']).optional(),
-  url: z.string().url('Invalid URL'),
-  method: z.enum(['GET', 'POST', 'PUT', 'DELETE']).default('GET'),
-  expectedStatusCode: z.number().default(200),
-  expectedResponseTime: z.number().default(5000),
+  category: z.enum(['Uptime', 'API', 'Security', 'Browser']),
+  type: z.enum(['ICMP/Ping', 'HTTP/HTTPS', 'DNS Resolution', 'SSL/TLS', 'Authentication']),
   checkInterval: z.number().default(300),
+  // Configuration fields will be validated dynamically based on type
+  configuration: z.record(z.any()),
 });
 
 const notificationGroupSchema = z.object({
@@ -89,78 +87,15 @@ export default function Manage() {
     enabled: !!user,
   });
 
-  // Sample dummy data for gateways
-  const sampleGateways = [
-    {
-      id: 'gw-1',
-      name: 'US East Gateway',
-      location: 'New York, USA',
-      ipAddress: '198.51.100.10',
-      status: 'active',
-      lastHeartbeat: new Date(Date.now() - 2 * 60 * 1000).toISOString(), // 2 minutes ago
-      probeCount: 12
-    },
-    {
-      id: 'gw-2', 
-      name: 'EU West Gateway',
-      location: 'London, UK',
-      ipAddress: '203.0.113.25',
-      status: 'active',
-      lastHeartbeat: new Date(Date.now() - 1 * 60 * 1000).toISOString(), // 1 minute ago
-      probeCount: 8
-    },
-    {
-      id: 'gw-3',
-      name: 'Asia Pacific Gateway',
-      location: 'Singapore',
-      ipAddress: '192.0.2.45',
-      status: 'inactive',
-      lastHeartbeat: new Date(Date.now() - 15 * 60 * 1000).toISOString(), // 15 minutes ago
-      probeCount: 6
-    }
-  ];
-
-  // Sample dummy data for notification groups
-  const sampleNotificationGroups = [
-    {
-      id: 'ng-1',
-      name: 'DevOps Team',
-      emails: ['admin@company.com', 'devops@company.com', 'oncall@company.com'],
-      alertThreshold: 1,
-      memberCount: 3
-    },
-    {
-      id: 'ng-2',
-      name: 'Security Team',
-      emails: ['security@company.com', 'security-lead@company.com'],
-      alertThreshold: 2,
-      memberCount: 2
-    },
-    {
-      id: 'ng-3',
-      name: 'Management',
-      emails: ['cto@company.com', 'manager@company.com'],
-      alertThreshold: 3,
-      memberCount: 2
-    }
-  ];
-
-  // Use dummy data if API data is not available
-  const displayGateways = gateways && Array.isArray(gateways) && gateways.length > 0 ? gateways : sampleGateways;
-  const displayNotificationGroups = notificationGroups && Array.isArray(notificationGroups) && notificationGroups.length > 0 ? notificationGroups : sampleNotificationGroups;
-
   const probeForm = useForm<z.infer<typeof probeSchema>>({
     resolver: zodResolver(probeSchema),
     defaultValues: {
       name: '',
       description: '',
-      type: 'Uptime',
-      protocol: 'HTTPS',
-      url: '',
-      method: 'GET',
-      expectedStatusCode: 200,
-      expectedResponseTime: 5000,
+      category: 'Uptime',
+      type: 'ICMP/Ping',
       checkInterval: 300,
+      configuration: {},
     },
   });
 
@@ -364,30 +299,30 @@ export default function Manage() {
                         </DialogHeader>
                         <Form {...probeForm}>
                           <form onSubmit={probeForm.handleSubmit((data) => createProbeMutation.mutate(data))} className="space-y-4">
+                            <FormField
+                              control={probeForm.control}
+                              name="name"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Probe Name</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="My API Probe" {...field} data-testid="input-probe-name" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <FormField
                                 control={probeForm.control}
-                                name="name"
+                                name="category"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel>Name</FormLabel>
-                                    <FormControl>
-                                      <Input placeholder="My API Probe" {...field} data-testid="input-probe-name" />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                              <FormField
-                                control={probeForm.control}
-                                name="type"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Type</FormLabel>
+                                    <FormLabel>Category</FormLabel>
                                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                                       <FormControl>
-                                        <SelectTrigger data-testid="select-probe-type">
-                                          <SelectValue placeholder="Select type" />
+                                        <SelectTrigger data-testid="select-probe-category">
+                                          <SelectValue placeholder="Select category" />
                                         </SelectTrigger>
                                       </FormControl>
                                       <SelectContent>
@@ -401,26 +336,37 @@ export default function Manage() {
                                   </FormItem>
                                 )}
                               />
+                              <FormField
+                                control={probeForm.control}
+                                name="type"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Probe Type</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                      <FormControl>
+                                        <SelectTrigger data-testid="select-probe-type">
+                                          <SelectValue placeholder="Select type" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        <SelectItem value="ICMP/Ping">ICMP/Ping</SelectItem>
+                                        <SelectItem value="HTTP/HTTPS">HTTP/HTTPS</SelectItem>
+                                        <SelectItem value="DNS Resolution">DNS Resolution</SelectItem>
+                                        <SelectItem value="SSL/TLS">SSL/TLS</SelectItem>
+                                        <SelectItem value="Authentication">Authentication</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
                             </div>
-                            <FormField
-                              control={probeForm.control}
-                              name="url"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>URL</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder="https://api.example.com/health" {...field} data-testid="input-probe-url" />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
                             <FormField
                               control={probeForm.control}
                               name="description"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Description</FormLabel>
+                                  <FormLabel>Description (Optional)</FormLabel>
                                   <FormControl>
                                     <Textarea placeholder="Description of what this probe monitors" {...field} data-testid="textarea-probe-description" />
                                   </FormControl>
@@ -428,46 +374,21 @@ export default function Manage() {
                                 </FormItem>
                               )}
                             />
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                              <FormField
-                                control={probeForm.control}
-                                name="expectedStatusCode"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Expected Status</FormLabel>
-                                    <FormControl>
-                                      <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} data-testid="input-expected-status" />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                              <FormField
-                                control={probeForm.control}
-                                name="expectedResponseTime"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Timeout (ms)</FormLabel>
-                                    <FormControl>
-                                      <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} data-testid="input-timeout" />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                              <FormField
-                                control={probeForm.control}
-                                name="checkInterval"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Interval (sec)</FormLabel>
-                                    <FormControl>
-                                      <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} data-testid="input-interval" />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
+                            <FormField
+                              control={probeForm.control}
+                              name="checkInterval"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Check Interval (seconds)</FormLabel>
+                                  <FormControl>
+                                    <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} data-testid="input-interval" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <div className="p-4 bg-muted rounded-md">
+                              <p className="text-sm text-muted-foreground">Note: Probe-specific configuration fields will be added after selecting the probe type in future updates.</p>
                             </div>
                             <Button type="submit" disabled={createProbeMutation.isPending} className="w-full" data-testid="button-save-probe">
                               {createProbeMutation.isPending ? 'Creating...' : 'Create Probe'}
@@ -595,7 +516,7 @@ export default function Manage() {
 
             <Card>
               <CardContent className="p-6">
-                {!Array.isArray(displayNotificationGroups) || displayNotificationGroups.length === 0 ? (
+                {!Array.isArray(notificationGroups) || notificationGroups.length === 0 ? (
                   <div className="text-center py-8">
                     <Settings className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-foreground mb-2">No notification groups</h3>
@@ -603,7 +524,7 @@ export default function Manage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {displayNotificationGroups.map((group: any) => (
+                    {notificationGroups.map((group: any) => (
                       <div key={group.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-border rounded-lg gap-4" data-testid={`notification-item-${group.id}`}>
                         <div className="min-w-0 flex-1">
                           <div className="font-medium text-foreground">{group.name}</div>
@@ -698,7 +619,7 @@ export default function Manage() {
 
             <Card>
               <CardContent className="p-6">
-                {!Array.isArray(displayGateways) || displayGateways.length === 0 ? (
+                {!Array.isArray(gateways) || gateways.length === 0 ? (
                   <div className="text-center py-8">
                     <Globe className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-foreground mb-2">No gateways available</h3>
@@ -706,7 +627,7 @@ export default function Manage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {displayGateways.map((gateway: any) => (
+                    {gateways.map((gateway: any) => (
                       <div key={gateway.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-border rounded-lg gap-4" data-testid={`gateway-item-${gateway.id}`}>
                         <div className="flex items-center space-x-4 min-w-0 flex-1">
                           <div className={`w-3 h-3 rounded-full flex-shrink-0 ${gateway.status === 'active' ? 'bg-secondary' : 'bg-destructive'}`} />

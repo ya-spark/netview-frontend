@@ -137,6 +137,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdBy: req.user.id,
       });
 
+      // Validate probe-specific configuration based on type
+      const config = probeData.configuration as Record<string, any>;
+      switch (probeData.type) {
+        case 'ICMP/Ping':
+          if (!config.host || !config.timeout || !config.packet_count) {
+            return res.status(400).json({ message: 'ICMP/Ping probe requires: host, timeout, packet_count in configuration' });
+          }
+          break;
+        case 'HTTP/HTTPS':
+          if (!config.url || !config.method || !config.expected_status_codes) {
+            return res.status(400).json({ message: 'HTTP/HTTPS probe requires: url, method, expected_status_codes in configuration' });
+          }
+          break;
+        case 'DNS Resolution':
+          if (!config.domain || !config.record_type) {
+            return res.status(400).json({ message: 'DNS Resolution probe requires: domain, record_type in configuration' });
+          }
+          break;
+        case 'SSL/TLS':
+          if (!config.host || !config.port) {
+            return res.status(400).json({ message: 'SSL/TLS probe requires: host, port in configuration' });
+          }
+          break;
+        case 'Authentication':
+          if (!config.url || !config.method || !config.credentials) {
+            return res.status(400).json({ message: 'Authentication probe requires: url, method, credentials in configuration' });
+          }
+          break;
+        default:
+          return res.status(400).json({ message: 'Invalid probe type' });
+      }
+
       const probe = await storage.createProbe(probeData);
       res.json(probe);
     } catch (error) {
@@ -160,6 +192,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const updates = insertProbeSchema.partial().parse(req.body);
+      
+      // Validate probe-specific configuration if type or configuration is being updated
+      if (updates.configuration || updates.type) {
+        const probeType = updates.type || existingProbe.type;
+        const config = (updates.configuration || existingProbe.configuration) as Record<string, any>;
+        
+        switch (probeType) {
+          case 'ICMP/Ping':
+            if (!config.host || !config.timeout || !config.packet_count) {
+              return res.status(400).json({ message: 'ICMP/Ping probe requires: host, timeout, packet_count in configuration' });
+            }
+            break;
+          case 'HTTP/HTTPS':
+            if (!config.url || !config.method || !config.expected_status_codes) {
+              return res.status(400).json({ message: 'HTTP/HTTPS probe requires: url, method, expected_status_codes in configuration' });
+            }
+            break;
+          case 'DNS Resolution':
+            if (!config.domain || !config.record_type) {
+              return res.status(400).json({ message: 'DNS Resolution probe requires: domain, record_type in configuration' });
+            }
+            break;
+          case 'SSL/TLS':
+            if (!config.host || !config.port) {
+              return res.status(400).json({ message: 'SSL/TLS probe requires: host, port in configuration' });
+            }
+            break;
+          case 'Authentication':
+            if (!config.url || !config.method || !config.credentials) {
+              return res.status(400).json({ message: 'Authentication probe requires: url, method, credentials in configuration' });
+            }
+            break;
+          default:
+            return res.status(400).json({ message: 'Invalid probe type' });
+        }
+      }
+
       const probe = await storage.updateProbe(id, updates);
       res.json(probe);
     } catch (error) {
@@ -242,6 +311,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/gateways/:id", authenticateUser, requireRole(['SuperAdmin', 'Owner', 'Admin']), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const existingGateway = await storage.getGateway(id);
+      
+      if (!existingGateway) {
+        return res.status(404).json({ message: 'Gateway not found' });
+      }
+
+      // Check permissions - SuperAdmin can update any, others only their tenant's custom gateways
+      if (req.user?.role !== 'SuperAdmin') {
+        if (existingGateway.type === 'Core') {
+          return res.status(403).json({ message: 'Cannot modify core gateways' });
+        }
+        if (existingGateway.tenantId !== req.user?.tenantId) {
+          return res.status(403).json({ message: 'Insufficient permissions' });
+        }
+      }
+
+      const updates = insertGatewaySchema.partial().parse(req.body);
+      const gateway = await storage.updateGateway(id, updates);
+      res.json(gateway);
+    } catch (error) {
+      console.error('Update gateway error:', error);
+      res.status(500).json({ message: 'Failed to update gateway' });
+    }
+  });
+
+  app.delete("/api/gateways/:id", authenticateUser, requireRole(['SuperAdmin', 'Owner', 'Admin']), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const existingGateway = await storage.getGateway(id);
+      
+      if (!existingGateway) {
+        return res.status(404).json({ message: 'Gateway not found' });
+      }
+
+      // Check permissions - SuperAdmin can delete any, others only their tenant's custom gateways
+      if (req.user?.role !== 'SuperAdmin') {
+        if (existingGateway.type === 'Core') {
+          return res.status(403).json({ message: 'Cannot delete core gateways' });
+        }
+        if (existingGateway.tenantId !== req.user?.tenantId) {
+          return res.status(403).json({ message: 'Insufficient permissions' });
+        }
+      }
+
+      await storage.deleteGateway(id);
+      res.json({ message: 'Gateway deleted successfully' });
+    } catch (error) {
+      console.error('Delete gateway error:', error);
+      res.status(500).json({ message: 'Failed to delete gateway' });
+    }
+  });
+
   // Notification Groups routes
   app.get("/api/notification-groups", authenticateUser, async (req, res) => {
     try {
@@ -273,6 +397,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Create notification group error:', error);
       res.status(500).json({ message: 'Failed to create notification group' });
+    }
+  });
+
+  app.put("/api/notification-groups/:id", authenticateUser, requireRole(['SuperAdmin', 'Owner', 'Admin', 'Editor']), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const existingGroup = await storage.getNotificationGroup(id);
+      
+      if (!existingGroup) {
+        return res.status(404).json({ message: 'Notification group not found' });
+      }
+
+      // Check permissions
+      if (req.user?.role !== 'SuperAdmin' && existingGroup.tenantId !== req.user?.tenantId) {
+        return res.status(403).json({ message: 'Insufficient permissions' });
+      }
+
+      const updates = insertNotificationGroupSchema.partial().parse(req.body);
+      const group = await storage.updateNotificationGroup(id, updates);
+      res.json(group);
+    } catch (error) {
+      console.error('Update notification group error:', error);
+      res.status(500).json({ message: 'Failed to update notification group' });
+    }
+  });
+
+  app.delete("/api/notification-groups/:id", authenticateUser, requireRole(['SuperAdmin', 'Owner', 'Admin', 'Editor']), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const existingGroup = await storage.getNotificationGroup(id);
+      
+      if (!existingGroup) {
+        return res.status(404).json({ message: 'Notification group not found' });
+      }
+
+      // Check permissions
+      if (req.user?.role !== 'SuperAdmin' && existingGroup.tenantId !== req.user?.tenantId) {
+        return res.status(403).json({ message: 'Insufficient permissions' });
+      }
+
+      await storage.deleteNotificationGroup(id);
+      res.json({ message: 'Notification group deleted successfully' });
+    } catch (error) {
+      console.error('Delete notification group error:', error);
+      res.status(500).json({ message: 'Failed to delete notification group' });
     }
   });
 

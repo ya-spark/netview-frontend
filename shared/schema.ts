@@ -42,14 +42,9 @@ export const probes = pgTable("probes", {
   tenantId: uuid("tenant_id").references(() => tenants.id).notNull(),
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
-  type: varchar("type", { length: 50 }).notNull(), // Uptime, API, Security, Browser
-  protocol: varchar("protocol", { length: 50 }), // HTTP, HTTPS, TCP, SMTP, DNS
-  url: text("url"),
-  method: varchar("method", { length: 10 }).default("GET"),
-  headers: jsonb("headers"),
-  body: text("body"),
-  expectedStatusCode: integer("expected_status_code").default(200),
-  expectedResponseTime: integer("expected_response_time").default(5000), // milliseconds
+  category: varchar("category", { length: 50 }).notNull(), // Uptime, API, Security, Browser
+  type: varchar("type", { length: 50 }).notNull(), // ICMP/Ping, HTTP/HTTPS, DNS Resolution, SSL/TLS, Authentication
+  configuration: jsonb("configuration").notNull(), // Type-specific config (host, url, credentials, etc.)
   checkInterval: integer("check_interval").default(300), // seconds
   isActive: boolean("is_active").default(true),
   createdBy: uuid("created_by").references(() => users.id),
@@ -99,11 +94,8 @@ export const probeResults = pgTable("probe_results", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   probeId: uuid("probe_id").references(() => probes.id).notNull(),
   gatewayId: uuid("gateway_id").references(() => gateways.id).notNull(),
-  status: varchar("status", { length: 50 }).notNull(), // Up, Down, Warning
-  responseTime: integer("response_time"), // milliseconds
-  statusCode: integer("status_code"),
-  errorMessage: text("error_message"),
-  responseBody: text("response_body"),
+  status: varchar("status", { length: 50 }).notNull(), // Success, Failure, Warning
+  resultData: jsonb("result_data").notNull(), // Type-specific monitoring data (latency_ms, http_status, certificate_expiry, etc.)
   checkedAt: timestamp("checked_at").defaultNow(),
 });
 
