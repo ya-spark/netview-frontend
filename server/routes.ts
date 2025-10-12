@@ -11,6 +11,7 @@ import { getApiStats } from "./middleware/api-interceptor";
 import { sendNotification, sendToGroup, getNotificationStats, getNotificationLogs } from "./services/notification-manager";
 import { ApiKeyManager } from "./services/api-key-manager";
 import { verifyToken } from "./services/auth";
+import { logger } from "./utils/rotating-logger";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize default SuperAdmins
@@ -772,6 +773,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Get scopes error:', error);
       res.status(500).json({ message: 'Failed to fetch available scopes' });
+    }
+  });
+
+  // Get log statistics (Admin+ only)
+  app.get("/api/admin/logs/stats", authenticateUser, requireRole(['SuperAdmin', 'Owner', 'Admin']), async (req, res) => {
+    try {
+      const stats = logger.getLogStats();
+      const files = logger.getLogFilesList();
+      
+      res.json({
+        success: true,
+        data: {
+          ...stats,
+          files: files.map(f => ({
+            path: f,
+            name: f.split('/').pop()
+          })),
+          maxTotalSizeMB: parseFloat(process.env.LOG_MAX_TOTAL_SIZE_MB || '1'),
+          maxFileSizeMB: parseFloat(process.env.LOG_MAX_FILE_SIZE_MB || '0.5'),
+          logDirectory: process.env.LOG_DIRECTORY || 'logs'
+        },
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Log stats error:', error);
+      res.status(500).json({ message: 'Failed to fetch log statistics' });
     }
   });
 

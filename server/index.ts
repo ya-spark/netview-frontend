@@ -1,3 +1,4 @@
+import { logger } from "./utils/logger-init";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
@@ -16,6 +17,9 @@ app.use('/api', interceptApi);
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
+
+    // Log error to rotating logger
+    logger.error(`[${status}] ${message} - ${err.stack || ''}`, 'error-handler');
 
     res.status(status).json({ message });
     throw err;
@@ -41,5 +45,7 @@ app.use('/api', interceptApi);
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    logger.info(`Server started on port ${port}`, 'server');
+    logger.info(`Log configuration: Max total size=${process.env.LOG_MAX_TOTAL_SIZE_MB || '1'}MB, Max file size=${process.env.LOG_MAX_FILE_SIZE_MB || '0.5'}MB`, 'server');
   });
 })();
