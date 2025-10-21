@@ -43,7 +43,18 @@ export default function Settings() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
-  const { data: tenant } = useQuery({
+  const { data: tenant } = useQuery<{
+    id: string;
+    name: string;
+    subdomain?: string;
+    billingTier: string;
+    balance: number;
+    creditsLimit: number;
+    creditsUsed: number;
+    isActive: boolean;
+    createdAt: string;
+    updatedAt: string;
+  }>({
     queryKey: ['/api/tenant', user?.tenantId],
     enabled: !!user?.tenantId,
   });

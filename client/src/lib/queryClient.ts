@@ -11,14 +11,15 @@ async function throwIfResNotOk(res: Response) {
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const headers: Record<string, string> = {};
   
-  if (auth.currentUser) {
-    try {
-      const idToken = await auth.currentUser.getIdToken();
-      headers['Authorization'] = `Bearer ${idToken}`;
-    } catch (error) {
-      console.error('Failed to get Firebase ID token:', error);
-    }
-  }
+  // Temporarily disabled authentication
+  // if (auth.currentUser) {
+  //   try {
+  //     const idToken = await auth.currentUser.getIdToken();
+  //     headers['Authorization'] = `Bearer ${idToken}`;
+  //   } catch (error) {
+  //     console.error('Failed to get Firebase ID token:', error);
+  //   }
+  // }
   
   return headers;
 }
@@ -59,9 +60,10 @@ export const getQueryFn: <T>(options: {
       credentials: "include",
     });
 
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
-    }
+    // Temporarily disabled 401 handling
+    // if (unauthorizedBehavior === "returnNull" && res.status === 401) {
+    //   return null;
+    // }
 
     await throwIfResNotOk(res);
     return await res.json();

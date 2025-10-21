@@ -25,17 +25,8 @@ export default function Login() {
     handleRedirectResult()
       .then((result) => {
         console.log('🔄 Login: Redirect result:', result ? 'Success' : 'No redirect');
-        if (result) {
-          console.log('🔄 Login: Redirect result details:', {
-            uid: result.user?.uid || 'unknown',
-            email: result.user?.email || 'unknown',
-            displayName: result.user?.displayName || 'unknown'
-          });
-          toast({
-            title: "Welcome to NetView!",
-            description: "You have successfully signed in.",
-          });
-        }
+        // Note: handleRedirectResult always returns null in this implementation
+        // as it uses popup authentication instead of redirect
       })
       .catch((error) => {
         console.error('❌ Login: Redirect error:', error);

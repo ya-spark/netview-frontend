@@ -19,37 +19,39 @@ import Collaborators from "@/pages/Collaborators";
 import NotFound from "@/pages/not-found";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  // Temporarily disabled authentication
+  // const { user, loading } = useAuth();
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
-      </div>
-    );
-  }
+  // if (loading) {
+  //   return (
+  //     <div className="min-h-screen flex items-center justify-center">
+  //       <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+  //     </div>
+  //   );
+  // }
 
-  if (!user) {
-    return <Redirect to="/login" />;
-  }
+  // if (!user) {
+  //   return <Redirect to="/login" />;
+  // }
 
   return <>{children}</>;
 }
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  // Temporarily disabled authentication
+  // const { user, loading } = useAuth();
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
-      </div>
-    );
-  }
+  // if (loading) {
+  //   return (
+  //     <div className="min-h-screen flex items-center justify-center">
+  //       <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+  //     </div>
+  //   );
+  // }
 
-  if (user) {
-    return <Redirect to="/dashboard" />;
-  }
+  // if (user) {
+  //   return <Redirect to="/dashboard" />;
+  // }
 
   return <>{children}</>;
 }

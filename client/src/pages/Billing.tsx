@@ -12,7 +12,19 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { CreditCard, Check, Star, Download, Calendar, DollarSign } from 'lucide-react';
-import type { Tenant } from '@shared/schema';
+// Define Tenant type locally since shared schema is not available
+interface Tenant {
+  id: string;
+  name: string;
+  subdomain?: string;
+  billingTier: string;
+  balance: number;
+  creditsLimit: number;
+  creditsUsed: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
 
 let stripePromise: Promise<any> | null = null;
 const hasStripeConfig = !!import.meta.env.VITE_STRIPE_PUBLIC_KEY;
