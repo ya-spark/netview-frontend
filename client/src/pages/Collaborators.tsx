@@ -146,8 +146,8 @@ export default function Collaborators() {
 
   return (
     <Layout>
-      <div className="p-6 overflow-y-auto">
-        <div className="mb-8">
+      <div className="p-3 sm:p-4 lg:p-6 overflow-y-auto">
+        <div className="mb-6 sm:mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2" data-testid="text-page-title">Collaborators</h1>
           <p className="text-muted-foreground">Manage team members and their access levels</p>
         </div>
