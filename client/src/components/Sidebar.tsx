@@ -183,8 +183,8 @@ function DashboardSidebar() {
           Gateway Status
         </div>
         <div className="space-y-2">
-          {gateways && Array.isArray(gateways) && gateways.length > 0 ? (
-            gateways.map((gateway: any) => (
+          {gateways && Array.isArray(gateways?.data) && gateways.data.length > 0 ? (
+            gateways.data.map((gateway: any) => (
               <div
                 key={gateway.id}
                 className="flex items-center justify-between text-xs"

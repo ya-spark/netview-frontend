@@ -64,6 +64,14 @@ export default function Monitor() {
     enabled: !!user?.tenantId,
   });
 
+  const { data: gateways } = useQuery({
+    queryKey: ['/api/gateways'],
+    enabled: !!user,
+  });
+
+  // Debug logging
+  console.log('Monitor - Gateways Data:', gateways);
+
 
   // Mock probe results for demonstration
   const mockProbeResults = [
@@ -559,32 +567,40 @@ export default function Monitor() {
 
       {/* Gateways List */}
       <div className="space-y-4">
-        {mockGateways.map((gateway) => (
+        {gateways?.data && gateways.data.length > 0 ? (
+          gateways.data.map((gateway: any) => (
           <Card key={gateway.id} data-testid={`gateway-${gateway.id}`}>
             <CardContent className="p-4 sm:p-5 lg:p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  <div className={`w-3 h-3 rounded-full ${gateway.status === 'healthy' ? 'bg-secondary' : 'bg-amber-500'}`}></div>
+                  <div className={`w-3 h-3 rounded-full ${
+                    gateway.status === 'active' || gateway.status === 'registered' ? 'bg-secondary' : 
+                    gateway.status === 'pending' ? 'bg-amber-500' : 'bg-destructive'
+                  }`}></div>
                   <div>
                     <h3 className="text-lg font-medium text-foreground" data-testid={`text-gateway-name-${gateway.id}`}>
                       {gateway.name}
                     </h3>
-                    <p className="text-sm text-muted-foreground">{gateway.region}</p>
+                    <p className="text-sm text-muted-foreground">{gateway.location}</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-6">
                   <div className="text-center">
-                    <p className="text-sm text-muted-foreground">Probes</p>
-                    <p className="text-xl font-semibold text-foreground">{gateway.probes}</p>
+                    <p className="text-sm text-muted-foreground">Platform</p>
+                    <p className="text-xl font-semibold text-foreground">{gateway.platform}</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-sm text-muted-foreground">Latency</p>
-                    <p className="text-xl font-semibold text-foreground">{gateway.latency}ms</p>
+                    <p className="text-sm text-muted-foreground">Version</p>
+                    <p className="text-xl font-semibold text-foreground">{gateway.version}</p>
                   </div>
                   <div className="text-center">
                     <p className="text-sm text-muted-foreground">Status</p>
-                    <Badge variant={gateway.status === 'healthy' ? 'secondary' : 'outline'}>
-                      {gateway.status}
+                    <Badge variant={
+                      gateway.status === 'active' || gateway.status === 'registered' ? 'secondary' : 
+                      gateway.status === 'pending' ? 'outline' : 'destructive'
+                    }>
+                      {gateway.status === 'active' || gateway.status === 'registered' ? 'Online' : 
+                       gateway.status === 'pending' ? 'Pending' : 'Offline'}
                     </Badge>
                   </div>
                   <Button variant="outline" size="sm" data-testid={`button-gateway-details-${gateway.id}`}>
@@ -595,7 +611,13 @@ export default function Monitor() {
               </div>
             </CardContent>
           </Card>
-        ))}
+        ))) : (
+          <div className="text-center py-8">
+            <Server className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">No gateways available</h3>
+            <p className="text-muted-foreground">Gateways execute your monitoring probes</p>
+          </div>
+        )}
       </div>
     </>
   );

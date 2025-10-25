@@ -114,6 +114,7 @@ export default function Manage() {
   console.log('Gateways Loading:', gatewaysLoading);
   console.log('Gateways Error:', gatewaysError);
   console.log('Gateways Data:', gateways);
+  console.log('Gateways Data Array:', gateways?.data);
   console.log('User:', user);
 
   // Filter probe types based on selected category
@@ -509,7 +510,7 @@ export default function Manage() {
 
             <Card>
               <CardContent className="p-4 sm:p-5 lg:p-6">
-                {!Array.isArray(gateways) || gateways.length === 0 ? (
+                {!Array.isArray(gateways?.data) || gateways.data.length === 0 ? (
                   <div className="text-center py-8">
                     <Globe className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-foreground mb-2">No gateways available</h3>
@@ -517,7 +518,7 @@ export default function Manage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {gateways.map((gateway: any) => (
+                    {gateways.data.map((gateway: any) => (
                       <div key={gateway.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-border rounded-lg gap-4" data-testid={`gateway-item-${gateway.id}`}>
                         <div className="flex items-center space-x-4 min-w-0 flex-1">
                           <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
