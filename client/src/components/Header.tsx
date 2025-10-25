@@ -20,6 +20,7 @@ export function Header() {
   const [notificationCount] = useState(3);
   const { toggleSidebar } = useSidebar();
 
+
   // Different navigation based on login status
   const loggedInNavigation = [
     {
@@ -142,6 +143,14 @@ export function Header() {
                         >
                           {user.role}
                         </div>
+                        {user.tenantName && (
+                          <div
+                            className="text-xs text-muted-foreground"
+                            data-testid="text-tenant-info"
+                          >
+                           {user.tenantName} ({user.tenantId})
+                          </div>
+                        )}
                       </div>
                       <Avatar>
                         <AvatarFallback className="bg-primary text-primary-foreground">

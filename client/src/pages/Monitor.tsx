@@ -204,9 +204,9 @@ export default function Monitor() {
       </div>
 
       {/* Alert Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-8">
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-5 lg:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Active Alerts</p>
@@ -220,7 +220,7 @@ export default function Monitor() {
         </Card>
         
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-5 lg:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Critical</p>
@@ -234,7 +234,7 @@ export default function Monitor() {
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-5 lg:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Acknowledged</p>
@@ -248,7 +248,7 @@ export default function Monitor() {
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-5 lg:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Resolved (24h)</p>
@@ -314,9 +314,9 @@ export default function Monitor() {
       </div>
 
       {/* Probe Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-8">
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-5 lg:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Probes</p>
@@ -330,7 +330,7 @@ export default function Monitor() {
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-5 lg:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Active</p>
@@ -344,7 +344,7 @@ export default function Monitor() {
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-5 lg:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Failed</p>
@@ -358,7 +358,7 @@ export default function Monitor() {
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-5 lg:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Avg Response</p>
@@ -496,9 +496,9 @@ export default function Monitor() {
       </div>
 
       {/* Gateway Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-8">
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-5 lg:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Gateways</p>
@@ -512,7 +512,7 @@ export default function Monitor() {
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-5 lg:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Healthy</p>
@@ -526,7 +526,7 @@ export default function Monitor() {
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-5 lg:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Degraded</p>
@@ -540,7 +540,7 @@ export default function Monitor() {
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-5 lg:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Avg Latency</p>
@@ -558,7 +558,7 @@ export default function Monitor() {
       <div className="space-y-4">
         {mockGateways.map((gateway) => (
           <Card key={gateway.id} data-testid={`gateway-${gateway.id}`}>
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-5 lg:p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                   <div className={`w-3 h-3 rounded-full ${gateway.status === 'healthy' ? 'bg-secondary' : 'bg-amber-500'}`}></div>
@@ -707,9 +707,9 @@ export default function Monitor() {
   const renderOverviewSection = () => (
     <>
       {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-8">
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-5 lg:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Probes</p>
@@ -723,7 +723,7 @@ export default function Monitor() {
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-5 lg:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Up</p>
@@ -737,7 +737,7 @@ export default function Monitor() {
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-5 lg:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Down</p>
@@ -751,7 +751,7 @@ export default function Monitor() {
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-5 lg:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Avg Response</p>
@@ -824,7 +824,7 @@ export default function Monitor() {
             const isExpanded = expandedCards.has(probe.id);
             return (
               <Card key={probe.id} className="hover:shadow-md transition-shadow" data-testid={`probe-monitor-${probe.id}`}>
-                <CardContent className="p-6">
+                <CardContent className="p-4 sm:p-5 lg:p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                       {getStatusIcon(probe.status || 'Up')}
@@ -868,7 +868,7 @@ export default function Monitor() {
                         </TabsList>
 
                         <TabsContent value="overview" className="space-y-4">
-                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
                             <div className="bg-muted/50 rounded-lg p-4">
                               <div className="text-sm text-muted-foreground">Response Time</div>
                               <div className="text-xl font-semibold text-foreground">
@@ -977,7 +977,7 @@ export default function Monitor() {
 
   return (
     <Layout>
-      <div className="p-4 sm:p-6 overflow-y-auto">
+      <div className="p-3 sm:p-4 lg:p-6 overflow-y-auto">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2" data-testid="text-page-title">Monitor</h1>

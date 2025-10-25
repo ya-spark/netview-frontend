@@ -14,7 +14,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Search, Filter, Settings, Globe, Bot, Trash2, Edit } from 'lucide-react';
+import { Plus, Search, Filter, Settings, Globe, Trash2, Edit } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/contexts/AuthContext';
@@ -45,8 +45,6 @@ export default function Manage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
-  const [aiPrompt, setAiPrompt] = useState('');
-  const [aiCode, setAiCode] = useState('');
   const [currentHash, setCurrentHash] = useState(() => {
     // Get initial hash from URL
     return window.location.hash ? window.location.hash.substring(1) : 'probes';
@@ -132,23 +130,6 @@ export default function Manage() {
     },
   });
 
-  const generateProbesMutation = useMutation({
-    mutationFn: async (data: { url?: string; code?: string; description?: string }) => {
-      const response = await apiRequest('POST', '/api/probes/generate', data);
-      return response.json();
-    },
-    onSuccess: (generatedProbes) => {
-      toast({ title: 'Success', description: `Generated ${generatedProbes.length} probe configurations` });
-      // Auto-fill form with first generated probe
-      if (generatedProbes.length > 0) {
-        const firstProbe = generatedProbes[0];
-        probeForm.reset(firstProbe);
-      }
-    },
-    onError: (error: any) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    },
-  });
 
   const createNotificationGroupMutation = useMutation({
     mutationFn: async (data: z.infer<typeof notificationGroupSchema>) => {
@@ -185,12 +166,6 @@ export default function Manage() {
     },
   });
 
-  const handleGenerateProbes = () => {
-    const data: any = {};
-    if (aiPrompt) data.url = aiPrompt;
-    if (aiCode) data.code = aiCode;
-    generateProbesMutation.mutate(data);
-  };
 
   const filteredProbes = Array.isArray(probes) ? probes.filter((probe: any) =>
     probe.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -214,7 +189,7 @@ export default function Manage() {
 
   return (
     <Layout>
-      <div className="p-4 sm:p-6 overflow-y-auto">
+      <div className="p-3 sm:p-4 lg:p-6 overflow-y-auto">
         <div className="mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2" data-testid="text-page-title">Manage</h1>
           <p className="text-muted-foreground">Configure probes, notification groups, and gateways</p>
@@ -224,68 +199,24 @@ export default function Manage() {
         {hash === 'probes' && (
           <div className="space-y-6">
             <Card>
-              <CardContent className="p-4">
+              <CardContent className="p-4 sm:p-5 lg:p-6">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                    <div className="relative flex-1 sm:flex-none">
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="relative flex-1">
                       <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
                       <Input
                         placeholder="Search probes..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10 w-full sm:w-64"
+                        className="pl-10 w-full"
                         data-testid="input-search-probes"
                       />
                     </div>
-                    <Button variant="outline" size="icon" data-testid="button-filter-probes" className="w-10 h-10 sm:h-auto">
+                    <Button variant="outline" size="icon" data-testid="button-filter-probes" className="w-10 h-10 flex-shrink-0">
                       <Filter className="w-4 h-4" />
                     </Button>
                   </div>
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" disabled data-testid="button-ai-generate" className="w-full sm:w-auto">
-                          <Bot className="w-4 h-4 mr-2" />
-                          AI Generate (Coming Soon)
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-2xl">
-                        <DialogHeader>
-                          <DialogTitle>AI-Powered Probe Generation</DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4">
-                          <div>
-                            <Label htmlFor="ai-url">URL to Monitor</Label>
-                            <Input
-                              id="ai-url"
-                              placeholder="https://example.com/api"
-                              value={aiPrompt}
-                              onChange={(e) => setAiPrompt(e.target.value)}
-                              data-testid="input-ai-url"
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="ai-code">Or paste code to analyze</Label>
-                            <Textarea
-                              id="ai-code"
-                              placeholder="Paste your API code here..."
-                              value={aiCode}
-                              onChange={(e) => setAiCode(e.target.value)}
-                              rows={6}
-                              data-testid="textarea-ai-code"
-                            />
-                          </div>
-                          <Button 
-                            onClick={handleGenerateProbes}
-                            disabled={generateProbesMutation.isPending || (!aiPrompt && !aiCode)}
-                            className="w-full"
-                            data-testid="button-generate-probes"
-                          >
-                            {generateProbesMutation.isPending ? 'Generating...' : 'Generate Probes'}
-                          </Button>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-wrap">
                     <Dialog>
                       <DialogTrigger asChild>
                         <Button data-testid="button-create-probe" className="w-full sm:w-auto">
@@ -293,7 +224,7 @@ export default function Manage() {
                           Create Probe
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="max-w-2xl">
+                      <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
                           <DialogTitle>Create New Probe</DialogTitle>
                         </DialogHeader>
@@ -312,7 +243,7 @@ export default function Manage() {
                                 </FormItem>
                               )}
                             />
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
                               <FormField
                                 control={probeForm.control}
                                 name="category"
@@ -445,12 +376,12 @@ export default function Manage() {
                           </div>
                         </div>
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
-                          <div className="flex flex-wrap gap-1">
+                          <div className="flex flex-wrap gap-1 min-w-0">
                             <Badge variant="outline" className="capitalize">{probe.category}</Badge>
                             {getTypeBadge(probe.type)}
                             <Badge variant="outline">{probe.checkInterval}s</Badge>
                           </div>
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1 flex-shrink-0">
                             <Button variant="ghost" size="sm" data-testid={`button-edit-probe-${probe.id}`}>
                               <Edit className="w-4 h-4" />
                             </Button>
@@ -480,7 +411,7 @@ export default function Manage() {
                     Create Group
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Create Notification Group</DialogTitle>
                   </DialogHeader>
@@ -535,7 +466,7 @@ export default function Manage() {
             </div>
 
             <Card>
-              <CardContent className="p-6">
+              <CardContent className="p-4 sm:p-5 lg:p-6">
                 {!Array.isArray(notificationGroups) || notificationGroups.length === 0 ? (
                   <div className="text-center py-8">
                     <Settings className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -553,7 +484,7 @@ export default function Manage() {
                           </div>
                           <div className="text-xs text-muted-foreground">Threshold: {group.alertThreshold} failures</div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-shrink-0">
                           <Badge variant={group.isActive ? "secondary" : "outline"}>
                             {group.isActive ? 'Active' : 'Inactive'}
                           </Badge>
@@ -582,7 +513,7 @@ export default function Manage() {
                       Add Gateway
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle>Add Custom Gateway</DialogTitle>
                     </DialogHeader>
@@ -638,7 +569,7 @@ export default function Manage() {
             </div>
 
             <Card>
-              <CardContent className="p-6">
+              <CardContent className="p-4 sm:p-5 lg:p-6">
                 {!Array.isArray(gateways) || gateways.length === 0 ? (
                   <div className="text-center py-8">
                     <Globe className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -660,7 +591,7 @@ export default function Manage() {
                           </div>
                         </div>
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
-                          <div className="flex flex-wrap gap-1">
+                          <div className="flex flex-wrap gap-1 min-w-0">
                             <Badge variant="outline">
                               {gateway.probeCount} probes
                             </Badge>
@@ -669,7 +600,7 @@ export default function Manage() {
                             </Badge>
                           </div>
                           {gateway.lastHeartbeat && (
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-xs text-muted-foreground flex-shrink-0">
                               Last seen: {new Date(gateway.lastHeartbeat).toLocaleString()}
                             </span>
                           )}

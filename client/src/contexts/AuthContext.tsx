@@ -11,6 +11,7 @@ interface User {
   lastName: string;
   role: string;
   tenantId: string;
+  tenantName?: string;
   company?: string;
   region?: string;
   createdAt: string;
@@ -36,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     lastName: 'User',
     role: 'SuperAdmin',
     tenantId: '-919',
+    tenantName: 'Core',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   });
