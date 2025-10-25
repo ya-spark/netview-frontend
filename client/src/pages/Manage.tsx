@@ -49,6 +49,15 @@ export default function Manage() {
     // Get initial hash from URL
     return window.location.hash ? window.location.hash.substring(1) : 'probes';
   });
+
+  // Create Probe Dialog State
+  const [createProbeDialogOpen, setCreateProbeDialogOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedType, setSelectedType] = useState<string>('');
+  
+  // Configuration Dialog State
+  const [configDialogOpen, setConfigDialogOpen] = useState(false);
+  const [probeName, setProbeName] = useState<string>('');
   
   // Listen for hash changes
   useEffect(() => {
@@ -84,6 +93,35 @@ export default function Manage() {
     queryKey: ['/api/gateways'],
     enabled: !!user,
   });
+
+  const { data: probeCategories, error: categoriesError, isLoading: categoriesLoading } = useQuery({
+    queryKey: ['/api/probes/categories'],
+    enabled: !!user,
+  });
+
+  const { data: probeTypes, error: typesError, isLoading: typesLoading } = useQuery({
+    queryKey: ['/api/probes/types'],
+    enabled: !!user,
+  });
+
+  // Debug logging
+  console.log('Categories Loading:', categoriesLoading);
+  console.log('Categories Error:', categoriesError);
+  console.log('Categories Data:', probeCategories);
+  console.log('Types Loading:', typesLoading);
+  console.log('Types Error:', typesError);
+  console.log('Types Data:', probeTypes);
+
+  // Filter probe types based on selected category
+  const filteredProbeTypes = selectedCategory && (probeTypes as any)?.data 
+    ? (probeTypes as any).data[selectedCategory] || []
+    : [];
+
+  // Reset selected type when category changes
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategory(category);
+    setSelectedType(''); // Reset type selection
+  };
 
   const probeForm = useForm<z.infer<typeof probeSchema>>({
     resolver: zodResolver(probeSchema),
@@ -217,117 +255,14 @@ export default function Manage() {
                     </Button>
                   </div>
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-wrap">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button data-testid="button-create-probe" className="w-full sm:w-auto">
-                          <Plus className="w-4 h-4 mr-2" />
-                          Create Probe
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-                        <DialogHeader>
-                          <DialogTitle>Create New Probe</DialogTitle>
-                        </DialogHeader>
-                        <Form {...probeForm}>
-                          <form onSubmit={probeForm.handleSubmit((data) => createProbeMutation.mutate(data))} className="space-y-4">
-                            <FormField
-                              control={probeForm.control}
-                              name="name"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Probe Name</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder="My API Probe" {...field} data-testid="input-probe-name" />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
-                              <FormField
-                                control={probeForm.control}
-                                name="category"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Category</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                      <FormControl>
-                                        <SelectTrigger data-testid="select-probe-category">
-                                          <SelectValue placeholder="Select category" />
-                                        </SelectTrigger>
-                                      </FormControl>
-                                      <SelectContent>
-                                        <SelectItem value="Uptime">Uptime</SelectItem>
-                                        <SelectItem value="API">API</SelectItem>
-                                        <SelectItem value="Security">Security</SelectItem>
-                                        <SelectItem value="Browser">Browser</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                              <FormField
-                                control={probeForm.control}
-                                name="type"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Probe Type</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                      <FormControl>
-                                        <SelectTrigger data-testid="select-probe-type">
-                                          <SelectValue placeholder="Select type" />
-                                        </SelectTrigger>
-                                      </FormControl>
-                                      <SelectContent>
-                                        <SelectItem value="ICMP/Ping">ICMP/Ping</SelectItem>
-                                        <SelectItem value="HTTP/HTTPS">HTTP/HTTPS</SelectItem>
-                                        <SelectItem value="DNS Resolution">DNS Resolution</SelectItem>
-                                        <SelectItem value="SSL/TLS">SSL/TLS</SelectItem>
-                                        <SelectItem value="Authentication">Authentication</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                            </div>
-                            <FormField
-                              control={probeForm.control}
-                              name="description"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Description (Optional)</FormLabel>
-                                  <FormControl>
-                                    <Textarea placeholder="Description of what this probe monitors" {...field} data-testid="textarea-probe-description" />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={probeForm.control}
-                              name="checkInterval"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Check Interval (seconds)</FormLabel>
-                                  <FormControl>
-                                    <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} data-testid="input-interval" />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <div className="p-4 bg-muted rounded-md">
-                              <p className="text-sm text-muted-foreground">Note: Probe-specific configuration fields will be added after selecting the probe type in future updates.</p>
-                            </div>
-                            <Button type="submit" disabled={createProbeMutation.isPending} className="w-full" data-testid="button-save-probe">
-                              {createProbeMutation.isPending ? 'Creating...' : 'Create Probe'}
-                            </Button>
-                          </form>
-                        </Form>
-                      </DialogContent>
-                    </Dialog>
+                    <Button 
+                      data-testid="button-create-probe" 
+                      className="w-full sm:w-auto"
+                      onClick={() => setCreateProbeDialogOpen(true)}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Probe
+                    </Button>
                   </div>
                 </div>
               </CardContent>
@@ -614,6 +549,392 @@ export default function Manage() {
           </div>
         )}
       </div>
+
+      {/* Create Probe Dialog - Category and Type Selection */}
+      <Dialog open={createProbeDialogOpen} onOpenChange={setCreateProbeDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Select Probe Type</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="probe-category" className="text-right">
+                Category
+              </label>
+              <Select value={selectedCategory} onValueChange={handleCategoryChange}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categoriesLoading ? (
+                    <SelectItem value="loading" disabled>Loading categories...</SelectItem>
+                  ) : categoriesError ? (
+                    <SelectItem value="error" disabled>Error loading categories</SelectItem>
+                  ) : (probeCategories as any)?.data?.map((category: any) => (
+                    <SelectItem key={category.value} value={category.value}>
+                      {category.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="probe-type" className="text-right">
+                Type
+              </label>
+              <Select 
+                value={selectedType} 
+                onValueChange={setSelectedType}
+                disabled={!selectedCategory}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {typesLoading ? (
+                    <SelectItem value="loading" disabled>Loading types...</SelectItem>
+                  ) : typesError ? (
+                    <SelectItem value="error" disabled>Error loading types</SelectItem>
+                  ) : filteredProbeTypes.map((type: any) => (
+                    <SelectItem key={type.value} value={type.value}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setCreateProbeDialogOpen(false);
+                setSelectedCategory('');
+                setSelectedType('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => {
+                setCreateProbeDialogOpen(false);
+                setConfigDialogOpen(true);
+              }}
+              disabled={!selectedCategory || !selectedType}
+            >
+              Next
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Configuration Dialog - Specific fields based on probe type */}
+      <Dialog open={configDialogOpen} onOpenChange={setConfigDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Configure {selectedType} Probe</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            {/* Common fields for all probe types */}
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="probe-name" className="text-right">
+                Name
+              </label>
+              <Input
+                id="probe-name"
+                value={probeName}
+                onChange={(e) => setProbeName(e.target.value)}
+                className="col-span-3"
+                placeholder="Enter probe name"
+              />
+            </div>
+
+            {/* ICMP/Ping specific fields */}
+            {selectedType === 'ICMP/Ping' && (
+              <>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <label htmlFor="host" className="text-right">
+                    Host
+                  </label>
+                  <Input
+                    id="host"
+                    className="col-span-3"
+                    placeholder="IP address or hostname"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <label htmlFor="timeout" className="text-right">
+                    Timeout (ms)
+                  </label>
+                  <Input
+                    id="timeout"
+                    type="number"
+                    className="col-span-3"
+                    placeholder="5000"
+                    defaultValue="5000"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <label htmlFor="packet-count" className="text-right">
+                    Packet Count
+                  </label>
+                  <Input
+                    id="packet-count"
+                    type="number"
+                    className="col-span-3"
+                    placeholder="4"
+                    defaultValue="4"
+                  />
+                </div>
+              </>
+            )}
+
+            {/* HTTP/HTTPS specific fields */}
+            {selectedType === 'HTTP/HTTPS' && (
+              <>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <label htmlFor="url" className="text-right">
+                    URL
+                  </label>
+                  <Input
+                    id="url"
+                    className="col-span-3"
+                    placeholder="https://example.com"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <label htmlFor="method" className="text-right">
+                    Method
+                  </label>
+                  <Select defaultValue="GET">
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="GET">GET</SelectItem>
+                      <SelectItem value="POST">POST</SelectItem>
+                      <SelectItem value="PUT">PUT</SelectItem>
+                      <SelectItem value="DELETE">DELETE</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <label htmlFor="expected-status" className="text-right">
+                    Expected Status
+                  </label>
+                  <Input
+                    id="expected-status"
+                    type="number"
+                    className="col-span-3"
+                    placeholder="200"
+                    defaultValue="200"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <label htmlFor="timeout" className="text-right">
+                    Timeout (ms)
+                  </label>
+                  <Input
+                    id="timeout"
+                    type="number"
+                    className="col-span-3"
+                    placeholder="5000"
+                    defaultValue="5000"
+                  />
+                </div>
+              </>
+            )}
+
+            {/* SSL/TLS specific fields */}
+            {selectedType === 'SSL/TLS' && (
+              <>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <label htmlFor="host" className="text-right">
+                    Host
+                  </label>
+                  <Input
+                    id="host"
+                    className="col-span-3"
+                    placeholder="example.com"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <label htmlFor="port" className="text-right">
+                    Port
+                  </label>
+                  <Input
+                    id="port"
+                    type="number"
+                    className="col-span-3"
+                    placeholder="443"
+                    defaultValue="443"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <label htmlFor="alert-days" className="text-right">
+                    Alert Before Expiry (days)
+                  </label>
+                  <Input
+                    id="alert-days"
+                    type="number"
+                    className="col-span-3"
+                    placeholder="30"
+                    defaultValue="30"
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Authentication specific fields */}
+            {selectedType === 'Authentication' && (
+              <>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <label htmlFor="url" className="text-right">
+                    Login URL
+                  </label>
+                  <Input
+                    id="url"
+                    className="col-span-3"
+                    placeholder="https://example.com/login"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <label htmlFor="username" className="text-right">
+                    Username
+                  </label>
+                  <Input
+                    id="username"
+                    className="col-span-3"
+                    placeholder="test@example.com"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <label htmlFor="password" className="text-right">
+                    Password
+                  </label>
+                  <Input
+                    id="password"
+                    type="password"
+                    className="col-span-3"
+                    placeholder="Enter password"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <label htmlFor="expected-response" className="text-right">
+                    Expected Response
+                  </label>
+                  <Input
+                    id="expected-response"
+                    className="col-span-3"
+                    placeholder="success"
+                    defaultValue="success"
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Load Time specific fields */}
+            {selectedType === 'Load Time' && (
+              <>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <label htmlFor="url" className="text-right">
+                    URL
+                  </label>
+                  <Input
+                    id="url"
+                    className="col-span-3"
+                    placeholder="https://example.com"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <label htmlFor="max-load-time" className="text-right">
+                    Max Load Time (ms)
+                  </label>
+                  <Input
+                    id="max-load-time"
+                    type="number"
+                    className="col-span-3"
+                    placeholder="3000"
+                    defaultValue="3000"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <label htmlFor="browser" className="text-right">
+                    Browser
+                  </label>
+                  <Select defaultValue="chrome">
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="chrome">Chrome</SelectItem>
+                      <SelectItem value="firefox">Firefox</SelectItem>
+                      <SelectItem value="safari">Safari</SelectItem>
+                      <SelectItem value="edge">Edge</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+
+            {/* Common fields for all probe types */}
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="check-interval" className="text-right">
+                Check Interval (seconds)
+              </label>
+              <Input
+                id="check-interval"
+                type="number"
+                className="col-span-3"
+                placeholder="300"
+                defaultValue="300"
+              />
+            </div>
+          </div>
+          <div className="flex justify-between">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setConfigDialogOpen(false);
+                setCreateProbeDialogOpen(true);
+              }}
+            >
+              Back
+            </Button>
+            <div className="flex space-x-2">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setConfigDialogOpen(false);
+                  setProbeName('');
+                  setSelectedCategory('');
+                  setSelectedType('');
+                }}
+              >
+                Cancel
+              </Button>
+            <Button 
+              onClick={() => {
+                // TODO: Handle probe creation with all configuration
+                console.log('Creating probe with config:', { 
+                  probeName, 
+                  selectedCategory, 
+                  selectedType,
+                  // Add other form data here
+                });
+                setConfigDialogOpen(false);
+                setProbeName('');
+                setSelectedCategory('');
+                setSelectedType('');
+              }}
+              disabled={!probeName}
+            >
+              Create Probe
+            </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }

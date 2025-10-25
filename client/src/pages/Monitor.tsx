@@ -22,6 +22,8 @@ export default function Monitor() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  
+
 
   const toggleCardExpansion = (probeId: string) => {
     setExpandedCards(prev => {
@@ -61,6 +63,7 @@ export default function Monitor() {
     queryKey: ['/api/dashboard/stats'],
     enabled: !!user?.tenantId,
   });
+
 
   // Mock probe results for demonstration
   const mockProbeResults = [
@@ -987,6 +990,7 @@ export default function Monitor() {
         {/* Render section content based on hash */}
         {renderSectionContent()}
       </div>
+
     </Layout>
   );
 }
