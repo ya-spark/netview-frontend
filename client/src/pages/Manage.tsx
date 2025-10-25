@@ -47,7 +47,7 @@ export default function Manage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentHash, setCurrentHash] = useState(() => {
     // Get initial hash from URL
-    return window.location.hash ? window.location.hash.substring(1) : 'probes';
+    return window.location.hash ? window.location.hash.substring(1) : 'gateways';
   });
 
   // Create Probe Dialog State
@@ -62,7 +62,7 @@ export default function Manage() {
   // Listen for hash changes
   useEffect(() => {
     const handleHashChange = () => {
-      const newHash = window.location.hash ? window.location.hash.substring(1) : 'probes';
+      const newHash = window.location.hash ? window.location.hash.substring(1) : 'gateways';
       setCurrentHash(newHash);
     };
 
@@ -81,27 +81,27 @@ export default function Manage() {
 
   const { data: probes, refetch: refetchProbes } = useQuery({
     queryKey: ['/api/probes'],
-    enabled: !!user,
+    enabled: !!user && hash === 'probes',
   });
 
   const { data: notificationGroups, refetch: refetchNotificationGroups } = useQuery({
     queryKey: ['/api/notification-groups'],
-    enabled: !!user,
+    enabled: !!user && hash === 'notifications',
   });
 
-  const { data: gateways, refetch: refetchGateways } = useQuery({
+  const { data: gateways, refetch: refetchGateways, error: gatewaysError, isLoading: gatewaysLoading } = useQuery({
     queryKey: ['/api/gateways'],
-    enabled: !!user,
+    enabled: !!user && hash === 'gateways',
   });
 
   const { data: probeCategories, error: categoriesError, isLoading: categoriesLoading } = useQuery({
     queryKey: ['/api/probes/categories'],
-    enabled: !!user,
+    enabled: !!user && hash === 'probes',
   });
 
   const { data: probeTypes, error: typesError, isLoading: typesLoading } = useQuery({
     queryKey: ['/api/probes/types'],
-    enabled: !!user,
+    enabled: !!user && hash === 'probes',
   });
 
   // Debug logging
@@ -111,6 +111,10 @@ export default function Manage() {
   console.log('Types Loading:', typesLoading);
   console.log('Types Error:', typesError);
   console.log('Types Data:', probeTypes);
+  console.log('Gateways Loading:', gatewaysLoading);
+  console.log('Gateways Error:', gatewaysError);
+  console.log('Gateways Data:', gateways);
+  console.log('User:', user);
 
   // Filter probe types based on selected category
   const filteredProbeTypes = selectedCategory && (probeTypes as any)?.data 
@@ -516,7 +520,10 @@ export default function Manage() {
                     {gateways.map((gateway: any) => (
                       <div key={gateway.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-border rounded-lg gap-4" data-testid={`gateway-item-${gateway.id}`}>
                         <div className="flex items-center space-x-4 min-w-0 flex-1">
-                          <div className={`w-3 h-3 rounded-full flex-shrink-0 ${gateway.status === 'active' ? 'bg-secondary' : 'bg-destructive'}`} />
+                          <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
+                            gateway.status === 'active' || gateway.status === 'registered' ? 'bg-secondary' : 
+                            gateway.status === 'pending' ? 'bg-amber-500' : 'bg-destructive'
+                          }`} />
                           <div className="min-w-0 flex-1">
                             <div className="font-medium text-foreground truncate">{gateway.name}</div>
                             <div className="text-sm text-muted-foreground truncate">{gateway.location}</div>
@@ -530,8 +537,12 @@ export default function Manage() {
                             <Badge variant="outline">
                               {gateway.probeCount} probes
                             </Badge>
-                            <Badge variant={gateway.status === 'active' ? "secondary" : "destructive"}>
-                              {gateway.status === 'active' ? 'Online' : 'Offline'}
+                            <Badge variant={
+                              gateway.status === 'active' || gateway.status === 'registered' ? "secondary" : 
+                              gateway.status === 'pending' ? "outline" : "destructive"
+                            }>
+                              {gateway.status === 'active' || gateway.status === 'registered' ? 'Online' : 
+                               gateway.status === 'pending' ? 'Pending' : 'Offline'}
                             </Badge>
                           </div>
                           {gateway.lastHeartbeat && (

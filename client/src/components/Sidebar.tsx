@@ -192,16 +192,21 @@ function DashboardSidebar() {
                 <div className="flex items-center">
                   <div
                     className={`w-2 h-2 rounded-full mr-2 ${
-                      gateway.isOnline ? "bg-secondary" : "bg-destructive"
+                      gateway.isOnline ? "bg-secondary" : 
+                      gateway.status === 'pending' ? "bg-amber-500" : "bg-destructive"
                     }`}
                   />
                   <span className="text-muted-foreground">{gateway.name}</span>
                 </div>
                 <Badge
-                  variant={gateway.isOnline ? "secondary" : "destructive"}
+                  variant={
+                    gateway.isOnline ? "secondary" : 
+                    gateway.status === 'pending' ? "outline" : "destructive"
+                  }
                   className="text-xs"
                 >
-                  {gateway.isOnline ? "Online" : "Offline"}
+                  {gateway.isOnline ? "Online" : 
+                   gateway.status === 'pending' ? "Pending" : "Offline"}
                 </Badge>
               </div>
             ))
@@ -263,16 +268,16 @@ function ManageSidebar() {
 
   const manageNavigation = [
     {
-      name: "Probes",
-      hash: "probes",
-      icon: Activity,
-      current: hash === "probes",
-    },
-    {
       name: "Gateways",
       hash: "gateways",
       icon: Server,
       current: hash === "gateways",
+    },
+    {
+      name: "Probes",
+      hash: "probes",
+      icon: Activity,
+      current: hash === "probes",
     },
     {
       name: "Notification Groups",
