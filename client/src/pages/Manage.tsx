@@ -37,8 +37,9 @@ const notificationGroupSchema = z.object({
 
 const gatewaySchema = z.object({
   name: z.string().min(1, 'Name is required'),
+  type: z.enum(['Core', 'TenantSpecific']).default('TenantSpecific'),
   location: z.string().min(1, 'Location is required'),
-  ipAddress: z.string().optional(),
+  ip_address: z.string().optional(),
 });
 
 export default function Manage() {
@@ -153,8 +154,9 @@ export default function Manage() {
     resolver: zodResolver(gatewaySchema),
     defaultValues: {
       name: '',
+      type: 'TenantSpecific',
       location: '',
-      ipAddress: '',
+      ip_address: '',
     },
   });
 
@@ -474,6 +476,27 @@ export default function Manage() {
                         />
                         <FormField
                           control={gatewayForm.control}
+                          name="type"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Gateway Type</FormLabel>
+                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select gateway type" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="TenantSpecific">Tenant Specific</SelectItem>
+                                  <SelectItem value="Core">Core</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={gatewayForm.control}
                           name="location"
                           render={({ field }) => (
                             <FormItem>
@@ -487,7 +510,7 @@ export default function Manage() {
                         />
                         <FormField
                           control={gatewayForm.control}
-                          name="ipAddress"
+                          name="ip_address"
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>IP Address (Optional)</FormLabel>
