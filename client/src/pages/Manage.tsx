@@ -14,10 +14,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Search, Filter, Settings, Globe, Trash2, Edit } from 'lucide-react';
+import { Plus, Search, Filter, Settings, Globe, Trash2, Edit, Key, Download, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/contexts/AuthContext';
+import { GatewayApiService, GatewayUtils } from '@/services/gatewayApi';
+import type { GatewayResponse } from '@/types/gateway';
 
 const probeSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -38,8 +40,7 @@ const notificationGroupSchema = z.object({
 const gatewaySchema = z.object({
   name: z.string().min(1, 'Name is required'),
   type: z.enum(['Core', 'TenantSpecific']).default('TenantSpecific'),
-  location: z.string().min(1, 'Location is required'),
-  ip_address: z.string().optional(),
+  location: z.string().optional(),
 });
 
 export default function Manage() {
@@ -59,6 +60,11 @@ export default function Manage() {
   // Configuration Dialog State
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
   const [probeName, setProbeName] = useState<string>('');
+  
+  // Gateway Registration Key State
+  const [registrationKeyDialogOpen, setRegistrationKeyDialogOpen] = useState(false);
+  const [selectedGateway, setSelectedGateway] = useState<GatewayResponse | null>(null);
+  const [registrationKey, setRegistrationKey] = useState<string>('');
   
   // Listen for hash changes
   useEffect(() => {
@@ -93,6 +99,9 @@ export default function Manage() {
   const { data: gateways, refetch: refetchGateways, error: gatewaysError, isLoading: gatewaysLoading } = useQuery({
     queryKey: ['/api/gateways'],
     enabled: !!user && hash === 'gateways',
+    queryFn: async () => {
+      return await GatewayApiService.listGateways();
+    },
   });
 
   const { data: probeCategories, error: categoriesError, isLoading: categoriesLoading } = useQuery({
@@ -156,7 +165,6 @@ export default function Manage() {
       name: '',
       type: 'TenantSpecific',
       location: '',
-      ip_address: '',
     },
   });
 
@@ -198,13 +206,55 @@ export default function Manage() {
 
   const createGatewayMutation = useMutation({
     mutationFn: async (data: z.infer<typeof gatewaySchema>) => {
-      const response = await apiRequest('POST', '/api/gateways', data);
-      return response.json();
+      return await GatewayApiService.createGateway(data);
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
       toast({ title: 'Success', description: 'Gateway created successfully' });
       refetchGateways();
       gatewayForm.reset();
+      
+      // Show registration key dialog if gateway was created
+      if (response.data) {
+        setSelectedGateway(response.data);
+        setRegistrationKeyDialogOpen(true);
+      }
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const regenerateKeyMutation = useMutation({
+    mutationFn: async (gatewayId: string) => {
+      return await GatewayApiService.regenerateRegistrationKey(gatewayId);
+    },
+    onSuccess: (response) => {
+      toast({ title: 'Success', description: 'Registration key regenerated successfully' });
+      setRegistrationKey(response.data.registration_key);
+      setRegistrationKeyDialogOpen(true);
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const downloadKeyMutation = useMutation({
+    mutationFn: async (gatewayId: string) => {
+      return await GatewayApiService.downloadRegistrationKey(gatewayId);
+    },
+    onSuccess: (keyContent) => {
+      // Create and download the file
+      const blob = new Blob([keyContent], { type: 'text/plain' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `gateway_${selectedGateway?.id}_key.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      
+      toast({ title: 'Success', description: 'Registration key downloaded' });
     },
     onError: (error: any) => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -500,22 +550,9 @@ export default function Manage() {
                           name="location"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Location</FormLabel>
+                              <FormLabel>Location (Optional)</FormLabel>
                               <FormControl>
                                 <Input placeholder="New York, USA" {...field} data-testid="input-gateway-location" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={gatewayForm.control}
-                          name="ip_address"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>IP Address (Optional)</FormLabel>
-                              <FormControl>
-                                <Input placeholder="192.168.1.100" {...field} data-testid="input-gateway-ip" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -533,7 +570,7 @@ export default function Manage() {
 
             <Card>
               <CardContent className="p-4 sm:p-5 lg:p-6">
-                {!Array.isArray(gateways?.data) || gateways.data.length === 0 ? (
+                {!Array.isArray(gateways?.data) || gateways?.data.length === 0 ? (
                   <div className="text-center py-8">
                     <Globe className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-foreground mb-2">No gateways available</h3>
@@ -541,42 +578,82 @@ export default function Manage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {gateways.data.map((gateway: any) => (
-                      <div key={gateway.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-border rounded-lg gap-4" data-testid={`gateway-item-${gateway.id}`}>
-                        <div className="flex items-center space-x-4 min-w-0 flex-1">
-                          <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
-                            gateway.status === 'active' || gateway.status === 'registered' ? 'bg-secondary' : 
-                            gateway.status === 'pending' ? 'bg-amber-500' : 'bg-destructive'
-                          }`} />
-                          <div className="min-w-0 flex-1">
-                            <div className="font-medium text-foreground truncate">{gateway.name}</div>
-                            <div className="text-sm text-muted-foreground truncate">{gateway.location}</div>
-                            {gateway.ipAddress && (
-                              <div className="text-xs text-muted-foreground">{gateway.ipAddress}</div>
-                            )}
+                    {gateways.data.map((gateway: GatewayResponse) => {
+                      const statusInfo = GatewayUtils.formatGatewayStatus(gateway.status);
+                      const typeInfo = GatewayUtils.formatGatewayType(gateway.type);
+                      const isOnline = GatewayUtils.isGatewayOnline(gateway.last_heartbeat);
+                      const lastSeen = GatewayUtils.formatLastHeartbeat(gateway.last_heartbeat);
+                      
+                      return (
+                        <div key={gateway.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-border rounded-lg gap-4" data-testid={`gateway-item-${gateway.id}`}>
+                          <div className="flex items-center space-x-4 min-w-0 flex-1">
+                            <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
+                              isOnline ? 'bg-green-500' : 'bg-red-500'
+                            }`} />
+                            <div className="min-w-0 flex-1">
+                              <div className="font-medium text-foreground truncate">{gateway.name}</div>
+                              <div className="text-sm text-muted-foreground truncate">
+                                {gateway.location || 'No location specified'}
+                              </div>
+                              {gateway.ip_address && (
+                                <div className="text-xs text-muted-foreground">{gateway.ip_address}</div>
+                              )}
+                              {gateway.platform && (
+                                <div className="text-xs text-muted-foreground">{gateway.platform}</div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
-                          <div className="flex flex-wrap gap-1 min-w-0">
-                            <Badge variant="outline">
-                              {gateway.probeCount} probes
-                            </Badge>
-                            <Badge variant={
-                              gateway.status === 'active' || gateway.status === 'registered' ? "secondary" : 
-                              gateway.status === 'pending' ? "outline" : "destructive"
-                            }>
-                              {gateway.status === 'active' || gateway.status === 'registered' ? 'Online' : 
-                               gateway.status === 'pending' ? 'Pending' : 'Offline'}
-                            </Badge>
-                          </div>
-                          {gateway.lastHeartbeat && (
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
+                            <div className="flex flex-wrap gap-1 min-w-0">
+                              <Badge variant="outline" title={typeInfo.description}>
+                                {typeInfo.label}
+                              </Badge>
+                              <Badge variant={isOnline ? "secondary" : "destructive"}>
+                                {isOnline ? 'Online' : 'Offline'}
+                              </Badge>
+                              <Badge variant="outline" className={statusInfo.color}>
+                                {statusInfo.label}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => {
+                                  setSelectedGateway(gateway);
+                                  regenerateKeyMutation.mutate(gateway.id);
+                                }}
+                                disabled={regenerateKeyMutation.isPending}
+                                title="Regenerate registration key"
+                              >
+                                <RefreshCw className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => {
+                                  setSelectedGateway(gateway);
+                                  downloadKeyMutation.mutate(gateway.id);
+                                }}
+                                disabled={downloadKeyMutation.isPending}
+                                title="Download registration key"
+                              >
+                                <Download className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm" title="Edit gateway">
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm" title="Delete gateway">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
                             <span className="text-xs text-muted-foreground flex-shrink-0">
-                              Last seen: {new Date(gateway.lastHeartbeat).toLocaleString()}
+                              Last seen: {lastSeen}
                             </span>
-                          )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
@@ -584,6 +661,74 @@ export default function Manage() {
           </div>
         )}
       </div>
+
+      {/* Registration Key Dialog */}
+      <Dialog open={registrationKeyDialogOpen} onOpenChange={setRegistrationKeyDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Gateway Registration Key</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {selectedGateway && (
+              <div className="space-y-2">
+                <Label>Gateway: {selectedGateway.name}</Label>
+                <Label className="text-sm text-muted-foreground">
+                  {GatewayUtils.formatGatewayType(selectedGateway.type).description}
+                </Label>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>Registration Key</Label>
+              <div className="relative">
+                <Input
+                  value={registrationKey}
+                  readOnly
+                  className="pr-20 font-mono text-sm"
+                  placeholder="Registration key will appear here..."
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="absolute right-1 top-1 h-8"
+                  onClick={() => {
+                    navigator.clipboard.writeText(registrationKey);
+                    toast({ title: 'Success', description: 'Registration key copied to clipboard' });
+                  }}
+                  disabled={!registrationKey}
+                >
+                  Copy
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Use this key to register your gateway with the NetView controller. Keep it secure and don't share it.
+              </p>
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setRegistrationKeyDialogOpen(false);
+                  setSelectedGateway(null);
+                  setRegistrationKey('');
+                }}
+              >
+                Close
+              </Button>
+              <Button
+                onClick={() => {
+                  if (selectedGateway) {
+                    downloadKeyMutation.mutate(selectedGateway.id);
+                  }
+                }}
+                disabled={downloadKeyMutation.isPending || !registrationKey}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Download Key
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Create Probe Dialog - Category and Type Selection */}
       <Dialog open={createProbeDialogOpen} onOpenChange={setCreateProbeDialogOpen}>

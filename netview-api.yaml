@@ -1,0 +1,1652 @@
+openapi: 3.0.3
+info:
+  title: NetView Controller API
+  description: |
+    Multi-tenant network monitoring controller API for gateways and probes management.
+    
+    This API provides endpoints for:
+    - Gateway management (create, update, delete, monitor)
+    - Probe management (create, configure, start/stop, view results)
+    - Authentication and authorization
+    - Multi-tenant support
+    
+    ## Authentication
+    
+    The API uses two types of authentication:
+    
+    ### Client Authentication (for /api/* endpoints)
+    - Uses Bearer token authentication
+    - Tokens are obtained through Firebase authentication
+    - Required headers: `Authorization: Bearer <token>`
+    
+    ### Gateway Authentication (for /gateways/* endpoints)
+    - Uses gateway-specific auth tokens
+    - Tokens are obtained during gateway registration
+    - Required headers: `Authorization: Bearer <gateway_token>`
+    
+    ## Role-Based Access Control
+    
+    The API implements role-based access control with the following roles:
+    - **SuperAdmin**: Full access to all operations
+    - **Owner**: Full access to tenant resources
+    - **Admin**: Administrative access to tenant resources
+    - **Editor**: Can create and modify resources
+    - **Viewer**: Read-only access
+    
+  version: 1.0.0
+  contact:
+    name: NetView Support
+    email: support@netview.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080
+    description: Development server
+  - url: https://api.netview.com
+    description: Production server
+
+paths:
+  # Health Check
+  /health:
+    get:
+      tags:
+        - System
+      summary: Health check
+      description: Check the health status of the API server
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    type: string
+                    example: "1.0.0"
+                  database:
+                    type: string
+                    example: "connected"
+                  tenants_count:
+                    type: integer
+                    example: 5
+        '500':
+          description: Server is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # Gateway Management Endpoints
+  /api/gateways:
+    get:
+      tags:
+        - Gateways
+      summary: List all gateways
+      description: Get all gateways for the authenticated tenant, including shared gateways
+      security:
+        - ClientAuth: []
+      responses:
+        '200':
+          description: List of gateways
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewayListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    post:
+      tags:
+        - Gateways
+      summary: Create a new gateway
+      description: Create a new gateway for the authenticated tenant
+      security:
+        - ClientAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GatewayCreate'
+      responses:
+        '201':
+          description: Gateway created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewaySingleResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/gateways/shared:
+    get:
+      tags:
+        - Gateways
+      summary: Get shared gateways
+      description: Get all shared gateways available to all tenants
+      security:
+        - ClientAuth: []
+      responses:
+        '200':
+          description: List of shared gateways
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewayListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/gateways/{gateway_id}:
+    get:
+      tags:
+        - Gateways
+      summary: Get a specific gateway
+      description: Get details of a specific gateway by ID
+      security:
+        - ClientAuth: []
+      parameters:
+        - name: gateway_id
+          in: path
+          required: true
+          description: Gateway ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Gateway details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewaySingleResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    put:
+      tags:
+        - Gateways
+      summary: Update a gateway
+      description: Update an existing gateway
+      security:
+        - ClientAuth: []
+      parameters:
+        - name: gateway_id
+          in: path
+          required: true
+          description: Gateway ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GatewayUpdate'
+      responses:
+        '200':
+          description: Gateway updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewaySingleResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    delete:
+      tags:
+        - Gateways
+      summary: Delete a gateway
+      description: Delete a gateway
+      security:
+        - ClientAuth: []
+      parameters:
+        - name: gateway_id
+          in: path
+          required: true
+          description: Gateway ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Gateway deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Gateway deleted successfully"
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/gateways/{gateway_id}/regenerate-key:
+    post:
+      tags:
+        - Gateways
+      summary: Regenerate registration key
+      description: Generate a new registration key for a gateway
+      security:
+        - ClientAuth: []
+      parameters:
+        - name: gateway_id
+          in: path
+          required: true
+          description: Gateway ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: New registration key generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  timestamp:
+                    type: string
+                    format: date-time
+                  data:
+                    type: object
+                    properties:
+                      registration_key:
+                        type: string
+                        example: "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7b8c9d0e1f2g3h4"
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/gateways/{gateway_id}/download-key:
+    get:
+      tags:
+        - Gateways
+      summary: Download registration key
+      description: Download the registration key for a gateway as a text file
+      security:
+        - ClientAuth: []
+      parameters:
+        - name: gateway_id
+          in: path
+          required: true
+          description: Gateway ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Registration key file
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7b8c9d0e1f2g3h4"
+          headers:
+            Content-Disposition:
+              description: Attachment header
+              schema:
+                type: string
+                example: "attachment; filename=gateway_123_key.txt"
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/gateways/{gateway_id}/audit-logs:
+    get:
+      tags:
+        - Gateways
+      summary: Get gateway audit logs
+      description: Get audit logs for a specific gateway
+      security:
+        - ClientAuth: []
+      parameters:
+        - name: gateway_id
+          in: path
+          required: true
+          description: Gateway ID
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Maximum number of logs to return
+          schema:
+            type: integer
+            default: 100
+            minimum: 1
+            maximum: 1000
+        - name: offset
+          in: query
+          description: Number of logs to skip
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: List of audit logs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLogListResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # Probe Management Endpoints
+  /api/probes:
+    get:
+      tags:
+        - Probes
+      summary: List all probes
+      description: Get all probes for the authenticated tenant with optional filtering
+      security:
+        - ClientAuth: []
+      parameters:
+        - name: category
+          in: query
+          description: Filter by probe category
+          schema:
+            type: string
+            enum: [Uptime, API, Security, Browser]
+        - name: probe_type
+          in: query
+          description: Filter by probe type
+          schema:
+            type: string
+            enum: [ICMP/Ping, HTTP/HTTPS, DNS Resolution, SSL/TLS, Authentication]
+        - name: gateway_type
+          in: query
+          description: Filter by gateway type
+          schema:
+            type: string
+            enum: [Core, TenantSpecific]
+        - name: is_active
+          in: query
+          description: Filter by active status
+          schema:
+            type: string
+            enum: [true, false]
+      responses:
+        '200':
+          description: List of probes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProbeListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    post:
+      tags:
+        - Probes
+      summary: Create a new probe
+      description: Create a new probe for the authenticated tenant
+      security:
+        - ClientAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProbeCreate'
+      responses:
+        '201':
+          description: Probe created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProbeSingleResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/probes/{probe_id}:
+    get:
+      tags:
+        - Probes
+      summary: Get a specific probe
+      description: Get details of a specific probe by ID
+      security:
+        - ClientAuth: []
+      parameters:
+        - name: probe_id
+          in: path
+          required: true
+          description: Probe ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Probe details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProbeSingleResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    put:
+      tags:
+        - Probes
+      summary: Update a probe
+      description: Update an existing probe
+      security:
+        - ClientAuth: []
+      parameters:
+        - name: probe_id
+          in: path
+          required: true
+          description: Probe ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProbeUpdate'
+      responses:
+        '200':
+          description: Probe updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProbeSingleResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    delete:
+      tags:
+        - Probes
+      summary: Delete a probe
+      description: Delete a probe
+      security:
+        - ClientAuth: []
+      parameters:
+        - name: probe_id
+          in: path
+          required: true
+          description: Probe ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Probe deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Probe deleted successfully"
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/probes/{probe_id}/start:
+    post:
+      tags:
+        - Probes
+      summary: Start a probe
+      description: Activate a probe to start monitoring
+      security:
+        - ClientAuth: []
+      parameters:
+        - name: probe_id
+          in: path
+          required: true
+          description: Probe ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Probe started successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Probe started successfully"
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/probes/{probe_id}/stop:
+    post:
+      tags:
+        - Probes
+      summary: Stop a probe
+      description: Deactivate a probe to stop monitoring
+      security:
+        - ClientAuth: []
+      parameters:
+        - name: probe_id
+          in: path
+          required: true
+          description: Probe ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Probe stopped successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Probe stopped successfully"
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/probes/{probe_id}/results:
+    get:
+      tags:
+        - Probes
+      summary: Get probe results
+      description: Get recent results for a specific probe
+      security:
+        - ClientAuth: []
+      parameters:
+        - name: probe_id
+          in: path
+          required: true
+          description: Probe ID
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Maximum number of results to return
+          schema:
+            type: integer
+            default: 100
+            minimum: 1
+            maximum: 1000
+        - name: offset
+          in: query
+          description: Number of results to skip
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: List of probe results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProbeResultListResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/probes/{probe_id}/history:
+    get:
+      tags:
+        - Probes
+      summary: Get probe history
+      description: Get historical data for a specific probe
+      security:
+        - ClientAuth: []
+      parameters:
+        - name: probe_id
+          in: path
+          required: true
+          description: Probe ID
+          schema:
+            type: string
+        - name: days
+          in: query
+          description: Number of days of history to retrieve
+          schema:
+            type: integer
+            default: 7
+            minimum: 1
+            maximum: 365
+      responses:
+        '200':
+          description: List of historical probe results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProbeResultListResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/probes/{probe_id}/status:
+    get:
+      tags:
+        - Probes
+      summary: Get probe status
+      description: Get current status information for a specific probe
+      security:
+        - ClientAuth: []
+      parameters:
+        - name: probe_id
+          in: path
+          required: true
+          description: Probe ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Probe status information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  timestamp:
+                    type: string
+                    format: date-time
+                  data:
+                    type: object
+                    properties:
+                      probe_id:
+                        type: string
+                        example: "probe_123"
+                      is_active:
+                        type: boolean
+                        example: true
+                      last_check:
+                        type: string
+                        format: date-time
+                        example: "2024-01-01T12:00:00Z"
+                      status:
+                        type: string
+                        enum: [Success, Failure, Warning, unknown]
+                        example: "Success"
+                      response_time:
+                        type: number
+                        format: float
+                        example: 0.245
+                      error_message:
+                        type: string
+                        nullable: true
+                        example: null
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/probes/categories:
+    get:
+      tags:
+        - Probes
+      summary: Get probe categories
+      description: Get all available probe categories
+      security:
+        - ClientAuth: []
+      responses:
+        '200':
+          description: List of probe categories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  timestamp:
+                    type: string
+                    format: date-time
+                  data:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Uptime", "API", "Security", "Browser"]
+                  count:
+                    type: integer
+                    example: 4
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/probes/types:
+    get:
+      tags:
+        - Probes
+      summary: Get probe types
+      description: Get all available probe types
+      security:
+        - ClientAuth: []
+      responses:
+        '200':
+          description: List of probe types
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  timestamp:
+                    type: string
+                    format: date-time
+                  data:
+                    type: array
+                    items:
+                      type: string
+                    example: ["ICMP/Ping", "HTTP/HTTPS", "DNS Resolution", "SSL/TLS", "Authentication"]
+                  count:
+                    type: integer
+                    example: 5
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # Gateway API Endpoints (for gateway-to-controller communication)
+  /gateways/register:
+    post:
+      tags:
+        - Gateway API
+      summary: Register a gateway
+      description: Register a new gateway with the controller using a registration key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GatewayRegistrationRequest'
+      responses:
+        '200':
+          description: Gateway registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewayRegistrationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /gateways/{gateway_id}/probes:
+    get:
+      tags:
+        - Gateway API
+      summary: Get assigned probes
+      description: Get all probes assigned to the authenticated gateway
+      security:
+        - GatewayAuth: []
+      parameters:
+        - name: gateway_id
+          in: path
+          required: true
+          description: Gateway ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of assigned probes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProbeListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /gateways/{gateway_id}/results:
+    post:
+      tags:
+        - Gateway API
+      summary: Submit probe results
+      description: Submit probe execution results from a gateway
+      security:
+        - GatewayAuth: []
+      parameters:
+        - name: gateway_id
+          in: path
+          required: true
+          description: Gateway ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GatewayResultsSubmission'
+      responses:
+        '200':
+          description: Results submitted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Results submitted successfully"
+                  timestamp:
+                    type: string
+                    format: date-time
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /gateways/{gateway_id}/heartbeat:
+    post:
+      tags:
+        - Gateway API
+      summary: Send heartbeat
+      description: Send a heartbeat signal to indicate gateway is alive
+      security:
+        - GatewayAuth: []
+      parameters:
+        - name: gateway_id
+          in: path
+          required: true
+          description: Gateway ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GatewayHeartbeat'
+      responses:
+        '200':
+          description: Heartbeat received
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Heartbeat received"
+                  timestamp:
+                    type: string
+                    format: date-time
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    ClientAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Client authentication using Bearer token.
+        Tokens are obtained through Firebase authentication.
+    
+    GatewayAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Gateway authentication using gateway-specific auth token.
+        Tokens are obtained during gateway registration.
+
+  schemas:
+    # Base Response Models
+    BaseResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        timestamp:
+          type: string
+          format: date-time
+          example: "2024-01-01T12:00:00Z"
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "An error occurred"
+        code:
+          type: string
+          nullable: true
+          example: "VALIDATION_ERROR"
+        details:
+          type: object
+          nullable: true
+          additionalProperties: true
+        timestamp:
+          type: string
+          format: date-time
+          example: "2024-01-01T12:00:00Z"
+
+    # Gateway Models
+    GatewayCreate:
+      type: object
+      required:
+        - name
+        - type
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: "Production Gateway"
+        type:
+          type: string
+          enum: [Core, TenantSpecific]
+          example: "TenantSpecific"
+        location:
+          type: string
+          maxLength: 255
+          nullable: true
+          example: "US-East-1"
+        ip_address:
+          type: string
+          maxLength: 45
+          nullable: true
+          example: "192.168.1.100"
+        platform:
+          type: string
+          maxLength: 100
+          nullable: true
+          example: "Linux"
+        version:
+          type: string
+          maxLength: 50
+          nullable: true
+          example: "1.0.0"
+
+    GatewayUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: "Updated Gateway Name"
+        location:
+          type: string
+          maxLength: 255
+          nullable: true
+          example: "US-West-2"
+        ip_address:
+          type: string
+          maxLength: 45
+          nullable: true
+          example: "192.168.1.101"
+        platform:
+          type: string
+          maxLength: 100
+          nullable: true
+          example: "Windows"
+        version:
+          type: string
+          maxLength: 50
+          nullable: true
+          example: "1.1.0"
+
+    GatewayResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "gateway_123"
+        tenant_id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "Production Gateway"
+        type:
+          type: string
+          enum: [Core, TenantSpecific]
+          example: "TenantSpecific"
+        location:
+          type: string
+          nullable: true
+          example: "US-East-1"
+        ip_address:
+          type: string
+          nullable: true
+          example: "192.168.1.100"
+        platform:
+          type: string
+          nullable: true
+          example: "Linux"
+        version:
+          type: string
+          nullable: true
+          example: "1.0.0"
+        status:
+          type: string
+          enum: [pending, registered, active, revoked]
+          example: "active"
+        is_online:
+          type: boolean
+          example: true
+        last_heartbeat:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2024-01-01T12:00:00Z"
+        auth_token_prefix:
+          type: string
+          nullable: true
+          example: "abc123..."
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-01-01T10:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2024-01-01T12:00:00Z"
+
+    GatewayRegistrationRequest:
+      type: object
+      required:
+        - registration_key
+        - gateway_id
+      properties:
+        registration_key:
+          type: string
+          minLength: 64
+          maxLength: 64
+          example: "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7b8c9d0e1f2g3h4"
+        gateway_id:
+          type: string
+          minLength: 1
+          example: "gateway_123"
+
+    GatewayRegistrationResponse:
+      type: object
+      properties:
+        auth_token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        gateway:
+          $ref: '#/components/schemas/GatewayResponse'
+        message:
+          type: string
+          example: "Gateway registered successfully"
+
+    GatewayResultsSubmission:
+      type: object
+      required:
+        - results
+      properties:
+        results:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/GatewayProbeResult'
+
+    GatewayProbeResult:
+      type: object
+      required:
+        - probe_id
+        - status
+      properties:
+        probe_id:
+          type: string
+          example: "probe_123"
+        status:
+          type: string
+          enum: [Success, Failure, Warning]
+          example: "Success"
+        result_data:
+          type: object
+          additionalProperties: true
+          example:
+            response_time: 0.245
+            status_code: 200
+            content_length: 1024
+        execution_time:
+          type: number
+          format: float
+          minimum: 0
+          example: 0.245
+        error_message:
+          type: string
+          nullable: true
+          example: null
+        checked_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2024-01-01T12:00:00Z"
+
+    GatewayHeartbeat:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: "healthy"
+        data:
+          type: object
+          additionalProperties: true
+          nullable: true
+          example:
+            cpu_usage: 45.2
+            memory_usage: 67.8
+            disk_usage: 23.1
+
+    # Probe Models
+    ProbeCreate:
+      type: object
+      required:
+        - name
+        - category
+        - type
+        - gateway_type
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: "Website Health Check"
+        description:
+          type: string
+          maxLength: 1000
+          nullable: true
+          example: "Monitor website availability and response time"
+        category:
+          type: string
+          enum: [Uptime, API, Security, Browser]
+          example: "Uptime"
+        type:
+          type: string
+          enum: [ICMP/Ping, HTTP/HTTPS, DNS Resolution, SSL/TLS, Authentication]
+          example: "HTTP/HTTPS"
+        gateway_type:
+          type: string
+          enum: [Core, TenantSpecific]
+          example: "Core"
+        gateway_id:
+          type: string
+          nullable: true
+          example: "gateway_123"
+        check_interval:
+          type: integer
+          minimum: 60
+          maximum: 86400
+          default: 300
+          example: 300
+          description: "Check interval in seconds (1 minute to 24 hours)"
+        timeout:
+          type: integer
+          minimum: 5
+          maximum: 300
+          default: 30
+          example: 30
+          description: "Timeout in seconds (5 seconds to 5 minutes)"
+        retries:
+          type: integer
+          minimum: 0
+          maximum: 10
+          default: 3
+          example: 3
+        configuration:
+          type: object
+          additionalProperties: true
+          default: {}
+          example:
+            url: "https://example.com"
+            method: "GET"
+            expected_status: 200
+            follow_redirects: true
+        is_active:
+          type: boolean
+          default: true
+          example: true
+
+    ProbeUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: "Updated Website Health Check"
+        description:
+          type: string
+          maxLength: 1000
+          nullable: true
+          example: "Updated description"
+        category:
+          type: string
+          enum: [Uptime, API, Security, Browser]
+          example: "Uptime"
+        type:
+          type: string
+          enum: [ICMP/Ping, HTTP/HTTPS, DNS Resolution, SSL/TLS, Authentication]
+          example: "HTTP/HTTPS"
+        gateway_type:
+          type: string
+          enum: [Core, TenantSpecific]
+          example: "Core"
+        gateway_id:
+          type: string
+          nullable: true
+          example: "gateway_456"
+        check_interval:
+          type: integer
+          minimum: 60
+          maximum: 86400
+          example: 600
+        timeout:
+          type: integer
+          minimum: 5
+          maximum: 300
+          example: 45
+        retries:
+          type: integer
+          minimum: 0
+          maximum: 10
+          example: 5
+        configuration:
+          type: object
+          additionalProperties: true
+          example:
+            url: "https://updated-example.com"
+            method: "POST"
+            expected_status: 201
+        is_active:
+          type: boolean
+          example: false
+
+    ProbeResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "probe_123"
+        tenant_id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "Website Health Check"
+        description:
+          type: string
+          nullable: true
+          example: "Monitor website availability and response time"
+        category:
+          type: string
+          enum: [Uptime, API, Security, Browser]
+          example: "Uptime"
+        type:
+          type: string
+          enum: [ICMP/Ping, HTTP/HTTPS, DNS Resolution, SSL/TLS, Authentication]
+          example: "HTTP/HTTPS"
+        gateway_type:
+          type: string
+          enum: [Core, TenantSpecific]
+          example: "Core"
+        gateway_id:
+          type: string
+          nullable: true
+          example: "gateway_123"
+        check_interval:
+          type: integer
+          example: 300
+        timeout:
+          type: integer
+          example: 30
+        retries:
+          type: integer
+          example: 3
+        configuration:
+          type: object
+          additionalProperties: true
+          example:
+            url: "https://example.com"
+            method: "GET"
+            expected_status: 200
+        is_active:
+          type: boolean
+          example: true
+        created_by:
+          type: string
+          nullable: true
+          example: "user_123"
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-01-01T10:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2024-01-01T12:00:00Z"
+
+    ProbeResultResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "result_123"
+        probe_id:
+          type: string
+          example: "probe_123"
+        gateway_id:
+          type: string
+          example: "gateway_123"
+        tenant_id:
+          type: integer
+          example: 1
+        status:
+          type: string
+          enum: [Success, Failure, Warning]
+          example: "Success"
+        result_data:
+          type: object
+          additionalProperties: true
+          example:
+            response_time: 0.245
+            status_code: 200
+            content_length: 1024
+        execution_time:
+          type: number
+          format: float
+          example: 0.245
+        error_message:
+          type: string
+          nullable: true
+          example: null
+        checked_at:
+          type: string
+          format: date-time
+          example: "2024-01-01T12:00:00Z"
+
+    # Response Wrapper Models
+    GatewayListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/GatewayResponse'
+            count:
+              type: integer
+              example: 5
+
+    GatewaySingleResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/GatewayResponse'
+
+    ProbeListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/ProbeResponse'
+            count:
+              type: integer
+              example: 10
+
+    ProbeSingleResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/ProbeResponse'
+
+    ProbeResultListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/ProbeResultResponse'
+            count:
+              type: integer
+              example: 100
+
+    AuditLogListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    example: "log_123"
+                  gateway_id:
+                    type: string
+                    example: "gateway_123"
+                  action:
+                    type: string
+                    example: "created"
+                  details:
+                    type: object
+                    additionalProperties: true
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2024-01-01T12:00:00Z"
+            count:
+              type: integer
+              example: 25
+
+  responses:
+    BadRequestError:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: "Invalid request data"
+            code: "VALIDATION_ERROR"
+            timestamp: "2024-01-01T12:00:00Z"
+
+    UnauthorizedError:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: "Authentication required"
+            code: "UNAUTHORIZED"
+            timestamp: "2024-01-01T12:00:00Z"
+
+    ForbiddenError:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: "Access denied"
+            code: "FORBIDDEN"
+            timestamp: "2024-01-01T12:00:00Z"
+
+    NotFoundError:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: "Resource not found"
+            code: "NOT_FOUND"
+            timestamp: "2024-01-01T12:00:00Z"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: "Internal server error"
+            code: "INTERNAL_ERROR"
+            timestamp: "2024-01-01T12:00:00Z"
+
+tags:
+  - name: System
+    description: System health and status endpoints
+  - name: Gateways
+    description: Gateway management endpoints for client applications
+  - name: Probes
+    description: Probe management endpoints for client applications
+  - name: Gateway API
+    description: Gateway-to-controller communication endpoints

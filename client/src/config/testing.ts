@@ -37,11 +37,11 @@ export const testingConfig: TestingConfig = {
   enabled: true, // Set to false to disable testing mode
   
   user: {
-    email: 'demo@netview.com',
+    email: 'suenv@demo.com',
     tenantId: '-919',
     role: 'SuperAdmin',
-    firstName: 'Demo',
-    lastName: 'User'
+    firstName: 'Sue',
+    lastName: 'Env'
   },
   
   api: {
@@ -58,11 +58,11 @@ export const testingConfigs = {
   superAdmin: {
     enabled: true,
     user: {
-      email: 'admin@netview.com',
+      email: 'suenv@demo.com',
       tenantId: '-919',
       role: 'SuperAdmin',
-      firstName: 'Super',
-      lastName: 'Admin'
+      firstName: 'Sue',
+      lastName: 'Env'
     },
     api: {
       baseUrl: '/api',
