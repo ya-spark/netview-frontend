@@ -65,6 +65,11 @@ export default function Manage() {
   const [registrationKeyDialogOpen, setRegistrationKeyDialogOpen] = useState(false);
   const [selectedGateway, setSelectedGateway] = useState<GatewayResponse | null>(null);
   const [registrationKey, setRegistrationKey] = useState<string>('');
+  const [keyCopied, setKeyCopied] = useState(false);
+  
+  // Edit Gateway Dialog State
+  const [editGatewayDialogOpen, setEditGatewayDialogOpen] = useState(false);
+  const [editingGateway, setEditingGateway] = useState<GatewayResponse | null>(null);
   
   // Listen for hash changes
   useEffect(() => {
@@ -216,6 +221,7 @@ export default function Manage() {
       // Show registration key dialog if gateway was created
       if (response.data) {
         setSelectedGateway(response.data);
+        setKeyCopied(false);
         setRegistrationKeyDialogOpen(true);
       }
     },
@@ -231,6 +237,7 @@ export default function Manage() {
     onSuccess: (response) => {
       toast({ title: 'Success', description: 'Registration key regenerated successfully' });
       setRegistrationKey(response.data.registration_key);
+      setKeyCopied(false);
       setRegistrationKeyDialogOpen(true);
     },
     onError: (error: any) => {
@@ -255,6 +262,35 @@ export default function Manage() {
       window.URL.revokeObjectURL(url);
       
       toast({ title: 'Success', description: 'Registration key downloaded' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const updateGatewayMutation = useMutation({
+    mutationFn: async ({ gatewayId, data }: { gatewayId: string; data: z.infer<typeof gatewaySchema> }) => {
+      return await GatewayApiService.updateGateway(gatewayId, data);
+    },
+    onSuccess: () => {
+      toast({ title: 'Success', description: 'Gateway updated successfully' });
+      refetchGateways();
+      setEditGatewayDialogOpen(false);
+      setEditingGateway(null);
+      gatewayForm.reset();
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const deleteGatewayMutation = useMutation({
+    mutationFn: async (gatewayId: string) => {
+      return await GatewayApiService.deleteGateway(gatewayId);
+    },
+    onSuccess: () => {
+      toast({ title: 'Success', description: 'Gateway deleted successfully' });
+      refetchGateways();
     },
     onError: (error: any) => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -585,26 +621,23 @@ export default function Manage() {
                       const lastSeen = GatewayUtils.formatLastHeartbeat(gateway.last_heartbeat);
                       
                       return (
-                        <div key={gateway.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-border rounded-lg gap-4" data-testid={`gateway-item-${gateway.id}`}>
-                          <div className="flex items-center space-x-4 min-w-0 flex-1">
+                        <div key={gateway.id} className="flex flex-col sm:flex-row sm:items-center p-4 border border-border rounded-lg gap-4" data-testid={`gateway-item-${gateway.id}`}>
+                          <div className="flex items-center space-x-4 flex-[2] min-w-0">
                             <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
                               isOnline ? 'bg-green-500' : 'bg-red-500'
                             }`} />
-                            <div className="min-w-0 flex-1">
-                              <div className="font-medium text-foreground truncate">{gateway.name}</div>
-                              <div className="text-sm text-muted-foreground truncate">
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-foreground text-lg">{gateway.name}</div>
+                              <div className="text-sm text-muted-foreground">
                                 {gateway.location || 'No location specified'}
                               </div>
                               {gateway.ip_address && (
                                 <div className="text-xs text-muted-foreground">{gateway.ip_address}</div>
                               )}
-                              {gateway.platform && (
-                                <div className="text-xs text-muted-foreground">{gateway.platform}</div>
-                              )}
                             </div>
                           </div>
-                          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
-                            <div className="flex flex-wrap gap-1 min-w-0">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 flex-[1] flex-shrink-0">
+                            <div className="flex flex-wrap gap-1">
                               <Badge variant="outline" title={typeInfo.description}>
                                 {typeInfo.label}
                               </Badge>
@@ -615,7 +648,7 @@ export default function Manage() {
                                 {statusInfo.label}
                               </Badge>
                             </div>
-                            <div className="flex items-center gap-1 flex-shrink-0">
+                            <div className="flex items-center gap-1">
                               <Button 
                                 variant="ghost" 
                                 size="sm" 
@@ -632,18 +665,29 @@ export default function Manage() {
                                 variant="ghost" 
                                 size="sm" 
                                 onClick={() => {
-                                  setSelectedGateway(gateway);
-                                  downloadKeyMutation.mutate(gateway.id);
+                                  setEditingGateway(gateway);
+                                  gatewayForm.reset({
+                                    name: gateway.name,
+                                    type: gateway.type,
+                                    location: gateway.location || '',
+                                  });
+                                  setEditGatewayDialogOpen(true);
                                 }}
-                                disabled={downloadKeyMutation.isPending}
-                                title="Download registration key"
+                                title="Edit gateway"
                               >
-                                <Download className="w-4 h-4" />
-                              </Button>
-                              <Button variant="ghost" size="sm" title="Edit gateway">
                                 <Edit className="w-4 h-4" />
                               </Button>
-                              <Button variant="ghost" size="sm" title="Delete gateway">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => {
+                                  if (confirm(`Are you sure you want to delete the gateway "${gateway.name}"? This action cannot be undone.`)) {
+                                    deleteGatewayMutation.mutate(gateway.id);
+                                  }
+                                }}
+                                disabled={deleteGatewayMutation.isPending}
+                                title="Delete gateway"
+                              >
                                 <Trash2 className="w-4 h-4" />
                               </Button>
                             </div>
@@ -681,7 +725,7 @@ export default function Manage() {
               <Label>Registration Key</Label>
               <div className="relative">
                 <Input
-                  value={registrationKey}
+                  value={keyCopied ? '••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••' : registrationKey}
                   readOnly
                   className="pr-20 font-mono text-sm"
                   placeholder="Registration key will appear here..."
@@ -692,15 +736,19 @@ export default function Manage() {
                   className="absolute right-1 top-1 h-8"
                   onClick={() => {
                     navigator.clipboard.writeText(registrationKey);
+                    setKeyCopied(true);
                     toast({ title: 'Success', description: 'Registration key copied to clipboard' });
                   }}
-                  disabled={!registrationKey}
+                  disabled={!registrationKey || keyCopied}
                 >
-                  Copy
+                  {keyCopied ? 'Copied' : 'Copy'}
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Use this key to register your gateway with the NetView controller. Keep it secure and don't share it.
+                {keyCopied 
+                  ? 'Key copied to clipboard. Keep it secure and don\'t share it.'
+                  : 'Use this key to register your gateway with the NetView controller. Keep it secure and don\'t share it.'
+                }
               </p>
             </div>
             <div className="flex justify-end space-x-2">
@@ -710,6 +758,7 @@ export default function Manage() {
                   setRegistrationKeyDialogOpen(false);
                   setSelectedGateway(null);
                   setRegistrationKey('');
+                  setKeyCopied(false);
                 }}
               >
                 Close
@@ -727,6 +776,86 @@ export default function Manage() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Gateway Dialog */}
+      <Dialog open={editGatewayDialogOpen} onOpenChange={setEditGatewayDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Gateway</DialogTitle>
+          </DialogHeader>
+          <Form {...gatewayForm}>
+            <form onSubmit={gatewayForm.handleSubmit((data) => {
+              if (editingGateway) {
+                updateGatewayMutation.mutate({ gatewayId: editingGateway.id, data });
+              }
+            })} className="space-y-4">
+              <FormField
+                control={gatewayForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Gateway Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="US East Gateway" {...field} data-testid="input-edit-gateway-name" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={gatewayForm.control}
+                name="type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Gateway Type</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select gateway type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="TenantSpecific">Tenant Specific</SelectItem>
+                        <SelectItem value="Core">Core</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={gatewayForm.control}
+                name="location"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Location (Optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="New York, USA" {...field} data-testid="input-edit-gateway-location" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="flex justify-end space-x-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setEditGatewayDialogOpen(false);
+                    setEditingGateway(null);
+                    gatewayForm.reset();
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={updateGatewayMutation.isPending}>
+                  {updateGatewayMutation.isPending ? 'Updating...' : 'Update Gateway'}
+                </Button>
+              </div>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
 
