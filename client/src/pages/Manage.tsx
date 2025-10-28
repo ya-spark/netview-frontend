@@ -622,7 +622,8 @@ export default function Manage() {
                       
                       return (
                         <div key={gateway.id} className="flex flex-col sm:flex-row sm:items-center p-4 border border-border rounded-lg gap-4" data-testid={`gateway-item-${gateway.id}`}>
-                          <div className="flex items-center space-x-4 flex-[2] min-w-0">
+                          {/* Container 1: Name and Details (33%) */}
+                          <div className="flex items-center space-x-4 w-full sm:w-1/3 min-w-0">
                             <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
                               isOnline ? 'bg-green-500' : 'bg-red-500'
                             }`} />
@@ -636,18 +637,22 @@ export default function Manage() {
                               )}
                             </div>
                           </div>
-                          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 flex-[1] flex-shrink-0">
-                            <div className="flex flex-wrap gap-1">
-                              <Badge variant="outline" title={typeInfo.description}>
-                                {typeInfo.label}
-                              </Badge>
-                              <Badge variant={isOnline ? "secondary" : "destructive"}>
-                                {isOnline ? 'Online' : 'Offline'}
-                              </Badge>
-                              <Badge variant="outline" className={statusInfo.color}>
-                                {statusInfo.label}
-                              </Badge>
-                            </div>
+                          
+                          {/* Container 2: Status Chips (33%) */}
+                          <div className="flex flex-wrap gap-1 w-full sm:w-1/3 items-start sm:items-center">
+                            <Badge variant="outline" title={typeInfo.description}>
+                              {typeInfo.label}
+                            </Badge>
+                            <Badge variant={isOnline ? "secondary" : "destructive"}>
+                              {isOnline ? 'Online' : 'Offline'}
+                            </Badge>
+                            <Badge variant="outline" className={statusInfo.color}>
+                              {statusInfo.label}
+                            </Badge>
+                          </div>
+                          
+                          {/* Container 3: CRUD Actions and Last Seen (33%) */}
+                          <div className="flex flex-wrap items-center gap-2 w-full sm:w-1/3 justify-start sm:justify-end">
                             <div className="flex items-center gap-1">
                               <Button 
                                 variant="ghost" 
@@ -691,7 +696,7 @@ export default function Manage() {
                                 <Trash2 className="w-4 h-4" />
                               </Button>
                             </div>
-                            <span className="text-xs text-muted-foreground flex-shrink-0">
+                            <span className="text-xs text-muted-foreground">
                               Last seen: {lastSeen}
                             </span>
                           </div>
