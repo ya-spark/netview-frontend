@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User as FirebaseUser, onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { apiRequest } from '@/lib/queryClient';
+import { getTestingConfig, isTestingModeEnabled } from '@/config/testing';
 
 // Define User type locally since shared schema is not available
 interface User {
@@ -28,20 +29,70 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // Temporarily disabled authentication - providing mock user data
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
-  const [user, setUser] = useState<User | null>({
-    id: 'mock-user-1',
-    email: 'demo@netview.com',
-    firstName: 'Demo',
-    lastName: 'User',
-    role: 'SuperAdmin',
-    tenantId: '-919',
-    tenantName: 'Core',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  });
+  
+  // Helper function to create user from testing config
+  const createUserFromTestingConfig = (): User | null => {
+    if (!isTestingModeEnabled()) {
+      return null;
+    }
+    
+    const testingConfig = getTestingConfig();
+    // Map tenantId to tenantName (Core for -919, otherwise just tenant ID)
+    const tenantName = testingConfig.user.tenantId === '-919' ? 'Core' : `Tenant ${testingConfig.user.tenantId}`;
+    
+    return {
+      id: 'testing-user',
+      email: testingConfig.user.email,
+      firstName: testingConfig.user.firstName,
+      lastName: testingConfig.user.lastName,
+      role: testingConfig.user.role,
+      tenantId: testingConfig.user.tenantId,
+      tenantName: tenantName,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+  };
+
+  // Initialize user from testing config if enabled
+  const [user, setUser] = useState<User | null>(createUserFromTestingConfig());
   const [loading, setLoading] = useState(false);
+
+  // Watch for testing config changes and update user
+  useEffect(() => {
+    // Initialize user from testing config
+    if (isTestingModeEnabled()) {
+      const newUser = createUserFromTestingConfig();
+      setUser(newUser);
+    } else {
+      setUser(null);
+    }
+    
+    // Set up interval to check for testing config changes (when switching configs via switchTestingConfig)
+    const interval = setInterval(() => {
+      if (isTestingModeEnabled()) {
+        const newUser = createUserFromTestingConfig();
+        setUser(prevUser => {
+          // Only update if user data actually changed
+          if (!prevUser || !newUser) {
+            return newUser;
+          }
+          if (newUser.email !== prevUser.email || 
+              newUser.role !== prevUser.role || 
+              newUser.tenantId !== prevUser.tenantId ||
+              newUser.firstName !== prevUser.firstName ||
+              newUser.lastName !== prevUser.lastName) {
+            return newUser;
+          }
+          return prevUser;
+        });
+      } else {
+        setUser(null);
+      }
+    }, 500); // Check every 500ms
+
+    return () => clearInterval(interval);
+  }, []); // Empty deps - only run once on mount
 
   // Commented out Firebase authentication
   // useEffect(() => {
