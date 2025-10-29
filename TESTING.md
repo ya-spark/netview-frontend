@@ -20,17 +20,17 @@ The testing configuration system allows you to:
 
 ### Default Configuration
 
-The default testing configuration provides a SuperAdmin user with tenant 1 access:
+The default testing configuration provides a SuperAdmin user with Demo tenant (tenant 1) access:
 
 ```typescript
 {
   enabled: true,
   user: {
-    email: 'admin@demo.com',
+    email: 'superadmin@demo.com',
     tenantId: '1',
     role: 'SuperAdmin',
-    firstName: 'Admin',
-    lastName: 'User'
+    firstName: 'Super',
+    lastName: 'Admin'
   }
 }
 ```
@@ -39,25 +39,30 @@ The default testing configuration provides a SuperAdmin user with tenant 1 acces
 
 These configurations match the users defined in the backend:
 
-**SuperAdmin Users:**
-- **superAdmin** - SuperAdmin with tenant 1 access (`admin@demo.com`)
-- **superAdmin2** - SuperAdmin with tenant 2 access (`superadmin@enterprise.com`)
+**Core Tenant (-919) - System users:**
+- **coreSuperAdmin** - SuperAdmin with Core tenant access (`superadmin@core.com`)
+- **coreAdmin** - Admin with Core tenant access (`admin@core.com`)
 
-**Owner Users:**
-- **owner1** - Owner with tenant 1 access (`to1@demo.com`)
-- **owner** - Owner with tenant 2 access (`to2@demo.com`)
-- **enterpriseAdmin** - Enterprise Admin (Owner role) with tenant 2 (`admin@enterprise.com`)
+**Demo Tenant (1) - All roles:**
+- **superAdmin1** - SuperAdmin with Demo tenant access (`superadmin@demo.com`)
+- **owner1** - Owner with Demo tenant access (`owner@demo.com`)
+- **admin1** - Admin with Demo tenant access (`admin@demo.com`)
+- **editor1** - Editor with Demo tenant access (`editor@demo.com`)
+- **viewer1** - Viewer with Demo tenant access (`viewer@demo.com`)
 
-**Admin Users:**
-- **admin** - Admin with tenant 2 access (`ta2@demo.com`)
+**Enterprise Tenant (2) - All roles:**
+- **superAdmin2** - SuperAdmin with Enterprise tenant access (`superadmin@enterprise.com`)
+- **owner2** - Owner with Enterprise tenant access (`owner@enterprise.com`)
+- **admin2** - Admin with Enterprise tenant access (`admin@enterprise.com`)
+- **editor2** - Editor with Enterprise tenant access (`editor@enterprise.com`)
+- **viewer2** - Viewer with Enterprise tenant access (`viewer@enterprise.com`)
 
-**Editor Users:**
-- **editor1** - Editor with tenant 1 access (`editor@demo.com`)
-- **regularUser** - Editor with tenant 2 access (`te2@demo.com`)
-
-**Viewer Users:**
-- **viewer1** - Viewer with tenant 1 access (`viewer@demo.com`)
-- **viewer** - Viewer with tenant 2 access (`tv2@demo.com`)
+**Legacy Aliases (for backward compatibility):**
+- **superAdmin** - Alias for `superAdmin1` (Demo tenant)
+- **owner** - Alias for `owner2` (Enterprise tenant)
+- **admin** - Alias for `admin2` (Enterprise tenant)
+- **regularUser** - Alias for `editor2` (Enterprise tenant)
+- **viewer** - Alias for `viewer2` (Enterprise tenant)
 
 ## Usage
 
@@ -71,26 +76,39 @@ The system automatically sets the required headers (`X-User-Email` and `X-Tenant
 ```typescript
 import { switchTestingConfig } from '@/config/testing';
 
-// Switch to different user roles
-switchTestingConfig('superAdmin');      // SuperAdmin tenant 1
-switchTestingConfig('superAdmin2');     // SuperAdmin tenant 2
-switchTestingConfig('owner1');          // Owner tenant 1
-switchTestingConfig('owner');           // Owner tenant 2
-switchTestingConfig('enterpriseAdmin'); // Enterprise Admin tenant 2
-switchTestingConfig('admin');           // Admin tenant 2
-switchTestingConfig('editor1');         // Editor tenant 1
-switchTestingConfig('regularUser');     // Editor tenant 2
-switchTestingConfig('viewer1');         // Viewer tenant 1
-switchTestingConfig('viewer');          // Viewer tenant 2
+// Core Tenant (-919)
+switchTestingConfig('coreSuperAdmin');  // SuperAdmin Core tenant
+switchTestingConfig('coreAdmin');       // Admin Core tenant
+
+// Demo Tenant (1)
+switchTestingConfig('superAdmin1');     // SuperAdmin Demo tenant
+switchTestingConfig('owner1');          // Owner Demo tenant
+switchTestingConfig('admin1');          // Admin Demo tenant
+switchTestingConfig('editor1');         // Editor Demo tenant
+switchTestingConfig('viewer1');         // Viewer Demo tenant
+
+// Enterprise Tenant (2)
+switchTestingConfig('superAdmin2');     // SuperAdmin Enterprise tenant
+switchTestingConfig('owner2');          // Owner Enterprise tenant
+switchTestingConfig('admin2');          // Admin Enterprise tenant
+switchTestingConfig('editor2');         // Editor Enterprise tenant
+switchTestingConfig('viewer2');         // Viewer Enterprise tenant
+
+// Legacy aliases (still supported)
+switchTestingConfig('superAdmin');      // Alias for superAdmin1
+switchTestingConfig('owner');           // Alias for owner2
+switchTestingConfig('admin');           // Alias for admin2
+switchTestingConfig('regularUser');     // Alias for editor2
+switchTestingConfig('viewer');          // Alias for viewer2
 ```
 
 #### In Browser Console (Development)
 ```javascript
 // Available in development mode
-TestingUtils.useSuperAdmin();    // SuperAdmin tenant 1
-TestingUtils.useOwner();         // Owner tenant 2
-TestingUtils.useRegularUser();  // Editor tenant 2
-TestingUtils.useViewer();        // Viewer tenant 2
+TestingUtils.useSuperAdmin();    // SuperAdmin Demo tenant (1)
+TestingUtils.useOwner();         // Owner Enterprise tenant (2)
+TestingUtils.useRegularUser();  // Editor Enterprise tenant (2)
+TestingUtils.useViewer();        // Viewer Enterprise tenant (2)
 TestingUtils.logUserInfo();
 ```
 
@@ -207,7 +225,7 @@ The system logs testing headers when they're used:
 
 ```
 Using testing headers: {
-  "X-User-Email": "admin@demo.com",
+  "X-User-Email": "superadmin@demo.com",
   "X-Tenant-ID": "1"
 }
 ```
@@ -251,18 +269,28 @@ TestingUtils.isEnabled();  // Check status
 
 ### Switch User Roles
 ```javascript
-TestingUtils.useSuperAdmin();    // SuperAdmin with tenant 1 (admin@demo.com)
-TestingUtils.useOwner();         // Owner with tenant 2 (to2@demo.com)
-TestingUtils.useRegularUser();  // Editor with tenant 2 (te2@demo.com)
-TestingUtils.useViewer();        // Viewer with tenant 2 (tv2@demo.com)
+TestingUtils.useSuperAdmin();    // SuperAdmin with Demo tenant (superadmin@demo.com)
+TestingUtils.useOwner();         // Owner with Enterprise tenant (owner@enterprise.com)
+TestingUtils.useRegularUser();  // Editor with Enterprise tenant (editor@enterprise.com)
+TestingUtils.useViewer();        // Viewer with Enterprise tenant (viewer@enterprise.com)
 
 // Additional configurations available via switchTestingConfig():
-// - superAdmin2: SuperAdmin tenant 2 (superadmin@enterprise.com)
-// - owner1: Owner tenant 1 (to1@demo.com)
-// - enterpriseAdmin: Enterprise Admin tenant 2 (admin@enterprise.com)
-// - admin: Admin tenant 2 (ta2@demo.com)
-// - editor1: Editor tenant 1 (editor@demo.com)
-// - viewer1: Viewer tenant 1 (viewer@demo.com)
+// Core Tenant (-919):
+//   - coreSuperAdmin: SuperAdmin Core tenant (superadmin@core.com)
+//   - coreAdmin: Admin Core tenant (admin@core.com)
+// Demo Tenant (1):
+//   - superAdmin1: SuperAdmin Demo tenant (superadmin@demo.com)
+//   - owner1: Owner Demo tenant (owner@demo.com)
+//   - admin1: Admin Demo tenant (admin@demo.com)
+//   - editor1: Editor Demo tenant (editor@demo.com)
+//   - viewer1: Viewer Demo tenant (viewer@demo.com)
+// Enterprise Tenant (2):
+//   - superAdmin2: SuperAdmin Enterprise tenant (superadmin@enterprise.com)
+//   - owner2: Owner Enterprise tenant (owner@enterprise.com)
+//   - admin2: Admin Enterprise tenant (admin@enterprise.com)
+//   - editor2: Editor Enterprise tenant (editor@enterprise.com)
+//   - viewer2: Viewer Enterprise tenant (viewer@enterprise.com)
+// Legacy aliases: superAdmin, owner, admin, regularUser, viewer
 ```
 
 ### Debug & Info
