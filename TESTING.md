@@ -20,16 +20,16 @@ The testing configuration system allows you to:
 
 ### Default Configuration
 
-The default testing configuration provides a SuperAdmin user:
+The default testing configuration provides a SuperAdmin user with tenant 1 access:
 
 ```typescript
 {
   enabled: true,
   user: {
-    email: 'demo@netview.com',
-    tenantId: '-919',
+    email: 'admin@demo.com',
+    tenantId: '1',
     role: 'SuperAdmin',
-    firstName: 'Demo',
+    firstName: 'Admin',
     lastName: 'User'
   }
 }
@@ -37,10 +37,27 @@ The default testing configuration provides a SuperAdmin user:
 
 ### Available Configurations
 
-- **superAdmin** - SuperAdmin with Core tenant access (-919)
-- **owner** - Owner role with tenant ID 2
-- **regularUser** - Editor role with tenant ID 2
-- **viewer** - Viewer role with tenant ID 2
+These configurations match the users defined in the backend:
+
+**SuperAdmin Users:**
+- **superAdmin** - SuperAdmin with tenant 1 access (`admin@demo.com`)
+- **superAdmin2** - SuperAdmin with tenant 2 access (`superadmin@enterprise.com`)
+
+**Owner Users:**
+- **owner1** - Owner with tenant 1 access (`to1@demo.com`)
+- **owner** - Owner with tenant 2 access (`to2@demo.com`)
+- **enterpriseAdmin** - Enterprise Admin (Owner role) with tenant 2 (`admin@enterprise.com`)
+
+**Admin Users:**
+- **admin** - Admin with tenant 2 access (`ta2@demo.com`)
+
+**Editor Users:**
+- **editor1** - Editor with tenant 1 access (`editor@demo.com`)
+- **regularUser** - Editor with tenant 2 access (`te2@demo.com`)
+
+**Viewer Users:**
+- **viewer1** - Viewer with tenant 1 access (`viewer@demo.com`)
+- **viewer** - Viewer with tenant 2 access (`tv2@demo.com`)
 
 ## Usage
 
@@ -55,19 +72,25 @@ The system automatically sets the required headers (`X-User-Email` and `X-Tenant
 import { switchTestingConfig } from '@/config/testing';
 
 // Switch to different user roles
-switchTestingConfig('superAdmin');
-switchTestingConfig('owner');
-switchTestingConfig('regularUser');
-switchTestingConfig('viewer');
+switchTestingConfig('superAdmin');      // SuperAdmin tenant 1
+switchTestingConfig('superAdmin2');     // SuperAdmin tenant 2
+switchTestingConfig('owner1');          // Owner tenant 1
+switchTestingConfig('owner');           // Owner tenant 2
+switchTestingConfig('enterpriseAdmin'); // Enterprise Admin tenant 2
+switchTestingConfig('admin');           // Admin tenant 2
+switchTestingConfig('editor1');         // Editor tenant 1
+switchTestingConfig('regularUser');     // Editor tenant 2
+switchTestingConfig('viewer1');         // Viewer tenant 1
+switchTestingConfig('viewer');          // Viewer tenant 2
 ```
 
 #### In Browser Console (Development)
 ```javascript
 // Available in development mode
-TestingUtils.useSuperAdmin();
-TestingUtils.useOwner();
-TestingUtils.useRegularUser();
-TestingUtils.useViewer();
+TestingUtils.useSuperAdmin();    // SuperAdmin tenant 1
+TestingUtils.useOwner();         // Owner tenant 2
+TestingUtils.useRegularUser();  // Editor tenant 2
+TestingUtils.useViewer();        // Viewer tenant 2
 TestingUtils.logUserInfo();
 ```
 
@@ -184,8 +207,8 @@ The system logs testing headers when they're used:
 
 ```
 Using testing headers: {
-  "X-User-Email": "demo@netview.com",
-  "X-Tenant-ID": "-919"
+  "X-User-Email": "admin@demo.com",
+  "X-Tenant-ID": "1"
 }
 ```
 
@@ -228,10 +251,18 @@ TestingUtils.isEnabled();  // Check status
 
 ### Switch User Roles
 ```javascript
-TestingUtils.useSuperAdmin();    // SuperAdmin with Core tenant (-919)
-TestingUtils.useOwner();         // Owner with tenant 2
-TestingUtils.useRegularUser();  // Editor with tenant 2
-TestingUtils.useViewer();        // Viewer with tenant 2
+TestingUtils.useSuperAdmin();    // SuperAdmin with tenant 1 (admin@demo.com)
+TestingUtils.useOwner();         // Owner with tenant 2 (to2@demo.com)
+TestingUtils.useRegularUser();  // Editor with tenant 2 (te2@demo.com)
+TestingUtils.useViewer();        // Viewer with tenant 2 (tv2@demo.com)
+
+// Additional configurations available via switchTestingConfig():
+// - superAdmin2: SuperAdmin tenant 2 (superadmin@enterprise.com)
+// - owner1: Owner tenant 1 (to1@demo.com)
+// - enterpriseAdmin: Enterprise Admin tenant 2 (admin@enterprise.com)
+// - admin: Admin tenant 2 (ta2@demo.com)
+// - editor1: Editor tenant 1 (editor@demo.com)
+// - viewer1: Viewer tenant 1 (viewer@demo.com)
 ```
 
 ### Debug & Info

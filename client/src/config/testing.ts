@@ -30,18 +30,18 @@ export interface TestingConfig {
 /**
  * Default testing configuration
  * 
- * This configuration provides an Owner user with access to the Core tenant (-919)
- * which matches the mock user data in AuthContext.tsx
+ * This configuration provides a SuperAdmin user with tenant 1 access
+ * which matches the mock user data in the backend
  */
 export const testingConfig: TestingConfig = {
   enabled: true, // Set to false to disable testing mode
   
   user: {
-    email: 'to2@demo.com',
-    tenantId: '2',
-    role: 'Owner',
-    firstName: 'Te',
-    lastName: '2'
+    email: 'admin@demo.com',
+    tenantId: '1',
+    role: 'SuperAdmin',
+    firstName: 'Admin',
+    lastName: 'User'
   },
   
   api: {
@@ -52,48 +52,17 @@ export const testingConfig: TestingConfig = {
 
 /**
  * Alternative testing configurations for different scenarios
+ * These match the users defined in the backend
  */
 export const testingConfigs = {
-  /** SuperAdmin with Core tenant access */
+  /** SuperAdmin with tenant 1 access */
   superAdmin: {
     enabled: true,
     user: {
-      email: 'suenv@demo.com',
-      tenantId: '-919',
+      email: 'admin@demo.com',
+      tenantId: '1',
       role: 'SuperAdmin',
-      firstName: 'Sue',
-      lastName: 'Env'
-    },
-    api: {
-      baseUrl: '/api',
-      includeCredentials: true
-    }
-  },
-  
-  /** Owner with tenant access */
-  owner: {
-    enabled: true,
-    user: {
-      email: 'suenv@demo.com',
-      tenantId: '2',
-      role: 'Owner',
-      firstName: 'Sue',
-      lastName: 'Env'
-    },
-    api: {
-      baseUrl: '/api',
-      includeCredentials: true
-    }
-  },
-  
-  /** Regular user with specific tenant */
-  regularUser: {
-    enabled: true,
-    user: {
-      email: 'user@example.com',
-      tenantId: '2',
-      role: 'Editor',
-      firstName: 'Regular',
+      firstName: 'Admin',
       lastName: 'User'
     },
     api: {
@@ -102,15 +71,143 @@ export const testingConfigs = {
     }
   },
   
-  /** Viewer role for read-only testing */
+  /** SuperAdmin with tenant 2 access */
+  superAdmin2: {
+    enabled: true,
+    user: {
+      email: 'superadmin@enterprise.com',
+      tenantId: '2',
+      role: 'SuperAdmin',
+      firstName: 'Super',
+      lastName: 'Admin'
+    },
+    api: {
+      baseUrl: '/api',
+      includeCredentials: true
+    }
+  },
+  
+  /** Owner with tenant 1 access */
+  owner1: {
+    enabled: true,
+    user: {
+      email: 'to1@demo.com',
+      tenantId: '1',
+      role: 'Owner',
+      firstName: 'Tenant',
+      lastName: 'One Owner'
+    },
+    api: {
+      baseUrl: '/api',
+      includeCredentials: true
+    }
+  },
+  
+  /** Owner with tenant 2 access */
+  owner: {
+    enabled: true,
+    user: {
+      email: 'to2@demo.com',
+      tenantId: '2',
+      role: 'Owner',
+      firstName: 'Tenant',
+      lastName: 'Two Owner'
+    },
+    api: {
+      baseUrl: '/api',
+      includeCredentials: true
+    }
+  },
+  
+  /** Enterprise Admin (Owner role) with tenant 2 */
+  enterpriseAdmin: {
+    enabled: true,
+    user: {
+      email: 'admin@enterprise.com',
+      tenantId: '2',
+      role: 'Owner',
+      firstName: 'Enterprise',
+      lastName: 'Admin'
+    },
+    api: {
+      baseUrl: '/api',
+      includeCredentials: true
+    }
+  },
+  
+  /** Admin with tenant 2 access */
+  admin: {
+    enabled: true,
+    user: {
+      email: 'ta2@demo.com',
+      tenantId: '2',
+      role: 'Admin',
+      firstName: 'Tenant',
+      lastName: 'Two Admin'
+    },
+    api: {
+      baseUrl: '/api',
+      includeCredentials: true
+    }
+  },
+  
+  /** Editor with tenant 1 access */
+  editor1: {
+    enabled: true,
+    user: {
+      email: 'editor@demo.com',
+      tenantId: '1',
+      role: 'Editor',
+      firstName: 'Editor',
+      lastName: 'User'
+    },
+    api: {
+      baseUrl: '/api',
+      includeCredentials: true
+    }
+  },
+  
+  /** Editor with tenant 2 access */
+  regularUser: {
+    enabled: true,
+    user: {
+      email: 'te2@demo.com',
+      tenantId: '2',
+      role: 'Editor',
+      firstName: 'Tenant',
+      lastName: 'Two Editor'
+    },
+    api: {
+      baseUrl: '/api',
+      includeCredentials: true
+    }
+  },
+  
+  /** Viewer with tenant 1 access */
+  viewer1: {
+    enabled: true,
+    user: {
+      email: 'viewer@demo.com',
+      tenantId: '1',
+      role: 'Viewer',
+      firstName: 'Viewer',
+      lastName: 'User'
+    },
+    api: {
+      baseUrl: '/api',
+      includeCredentials: true
+    }
+  },
+  
+  /** Viewer with tenant 2 access */
   viewer: {
     enabled: true,
     user: {
-      email: 'viewer@example.com',
+      email: 'tv2@demo.com',
       tenantId: '2',
       role: 'Viewer',
-      firstName: 'Read',
-      lastName: 'Only'
+      firstName: 'Tenant',
+      lastName: 'Two Viewer'
     },
     api: {
       baseUrl: '/api',
