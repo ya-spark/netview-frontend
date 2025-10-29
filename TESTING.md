@@ -57,13 +57,6 @@ These configurations match the users defined in the backend:
 - **editor2** - Editor with Enterprise tenant access (`editor@enterprise.com`)
 - **viewer2** - Viewer with Enterprise tenant access (`viewer@enterprise.com`)
 
-**Legacy Aliases (for backward compatibility):**
-- **superAdmin** - Alias for `superAdmin1` (Demo tenant)
-- **owner** - Alias for `owner2` (Enterprise tenant)
-- **admin** - Alias for `admin2` (Enterprise tenant)
-- **regularUser** - Alias for `editor2` (Enterprise tenant)
-- **viewer** - Alias for `viewer2` (Enterprise tenant)
-
 ## Usage
 
 ### 1. Automatic Header Setting
@@ -93,13 +86,6 @@ switchTestingConfig('owner2');          // Owner Enterprise tenant
 switchTestingConfig('admin2');          // Admin Enterprise tenant
 switchTestingConfig('editor2');         // Editor Enterprise tenant
 switchTestingConfig('viewer2');         // Viewer Enterprise tenant
-
-// Legacy aliases (still supported)
-switchTestingConfig('superAdmin');      // Alias for superAdmin1
-switchTestingConfig('owner');           // Alias for owner2
-switchTestingConfig('admin');           // Alias for admin2
-switchTestingConfig('regularUser');     // Alias for editor2
-switchTestingConfig('viewer');          // Alias for viewer2
 ```
 
 #### In Browser Console (Development)
@@ -290,7 +276,6 @@ TestingUtils.useViewer();        // Viewer with Enterprise tenant (viewer@enterp
 //   - admin2: Admin Enterprise tenant (admin@enterprise.com)
 //   - editor2: Editor Enterprise tenant (editor@enterprise.com)
 //   - viewer2: Viewer Enterprise tenant (viewer@enterprise.com)
-// Legacy aliases: superAdmin, owner, admin, regularUser, viewer
 ```
 
 ### Debug & Info

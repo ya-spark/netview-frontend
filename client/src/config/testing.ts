@@ -105,22 +105,6 @@ export const testingConfigs = {
     }
   },
   
-  /** SuperAdmin with Demo tenant access (alias for backward compatibility) */
-  superAdmin: {
-    enabled: true,
-    user: {
-      email: 'superadmin@demo.com',
-      tenantId: '1',
-      role: 'SuperAdmin',
-      firstName: 'Super',
-      lastName: 'Admin'
-    },
-    api: {
-      baseUrl: '/api',
-      includeCredentials: true
-    }
-  },
-  
   /** Owner with Demo tenant access */
   owner1: {
     enabled: true,
@@ -252,71 +236,6 @@ export const testingConfigs = {
   
   /** Viewer with Enterprise tenant access */
   viewer2: {
-    enabled: true,
-    user: {
-      email: 'viewer@enterprise.com',
-      tenantId: '2',
-      role: 'Viewer',
-      firstName: 'Viewer',
-      lastName: 'Enterprise'
-    },
-    api: {
-      baseUrl: '/api',
-      includeCredentials: true
-    }
-  },
-  
-  // Aliases for backward compatibility
-  /** Owner with Enterprise tenant access (alias) */
-  owner: {
-    enabled: true,
-    user: {
-      email: 'owner@enterprise.com',
-      tenantId: '2',
-      role: 'Owner',
-      firstName: 'Owner',
-      lastName: 'Enterprise'
-    },
-    api: {
-      baseUrl: '/api',
-      includeCredentials: true
-    }
-  },
-  
-  /** Admin with Enterprise tenant access (alias) */
-  admin: {
-    enabled: true,
-    user: {
-      email: 'admin@enterprise.com',
-      tenantId: '2',
-      role: 'Admin',
-      firstName: 'Admin',
-      lastName: 'Enterprise'
-    },
-    api: {
-      baseUrl: '/api',
-      includeCredentials: true
-    }
-  },
-  
-  /** Editor with Enterprise tenant access (alias) */
-  regularUser: {
-    enabled: true,
-    user: {
-      email: 'editor@enterprise.com',
-      tenantId: '2',
-      role: 'Editor',
-      firstName: 'Editor',
-      lastName: 'Enterprise'
-    },
-    api: {
-      baseUrl: '/api',
-      includeCredentials: true
-    }
-  },
-  
-  /** Viewer with Enterprise tenant access (alias) */
-  viewer: {
     enabled: true,
     user: {
       email: 'viewer@enterprise.com',

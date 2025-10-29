@@ -12,34 +12,34 @@ import { switchTestingConfig, getTestingConfig, testingConfigs, toggleTestingMod
  */
 export const TestingUtils = {
   /**
-   * Switch to SuperAdmin configuration
+   * Switch to SuperAdmin configuration (Demo tenant)
    */
   useSuperAdmin: () => {
-    switchTestingConfig('superAdmin');
+    switchTestingConfig('superAdmin1');
     console.log('🔑 Switched to SuperAdmin testing config');
   },
 
   /**
-   * Switch to regular user configuration
+   * Switch to regular user configuration (Editor, Enterprise tenant)
    */
   useRegularUser: () => {
-    switchTestingConfig('regularUser');
+    switchTestingConfig('editor2');
     console.log('👤 Switched to regular user testing config');
   },
 
   /**
-   * Switch to viewer configuration
+   * Switch to viewer configuration (Enterprise tenant)
    */
   useViewer: () => {
-    switchTestingConfig('viewer');
+    switchTestingConfig('viewer2');
     console.log('👁️ Switched to viewer testing config');
   },
 
   /**
-   * Switch to Owner configuration
+   * Switch to Owner configuration (Enterprise tenant)
    */
   useOwner: () => {
-    switchTestingConfig('owner');
+    switchTestingConfig('owner2');
     console.log('👑 Switched to Owner testing config');
   },
 
