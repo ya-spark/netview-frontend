@@ -72,6 +72,9 @@ export default function Manage() {
   const [gatewayType, setGatewayType] = useState<'Core' | 'TenantSpecific'>('Core');
   const [gatewayId, setGatewayId] = useState<string | null>(null);
   const [httpMethod, setHttpMethod] = useState<string>('GET');
+  const [probeTimeout, setProbeTimeout] = useState<number>(30);
+  const [retries, setRetries] = useState<number>(3);
+  const [isActive, setIsActive] = useState<boolean>(true);
   
   // Gateway Registration Key State
   const [registrationKeyDialogOpen, setRegistrationKeyDialogOpen] = useState(false);
@@ -122,7 +125,7 @@ export default function Manage() {
 
   const { data: gateways, refetch: refetchGateways, error: gatewaysError, isLoading: gatewaysLoading } = useQuery({
     queryKey: ['/api/gateways'],
-    enabled: !!user && hash === 'gateways',
+    enabled: !!user && (hash === 'gateways' || hash === 'probes'), // Load gateways when viewing probes too
     queryFn: async () => {
       return await GatewayApiService.listGateways();
     },
@@ -205,6 +208,15 @@ export default function Manage() {
       setSelectedCategory('');
       setSelectedType('');
       setProbeName('');
+      setProbeDescription('');
+      setProbeConfig({});
+      setCheckInterval(300);
+      setGatewayType('Core');
+      setGatewayId(null);
+      setHttpMethod('GET');
+      setProbeTimeout(30);
+      setRetries(3);
+      setIsActive(true);
     },
     onError: (error: any) => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -933,7 +945,7 @@ export default function Manage() {
 
       {/* Edit Probe Dialog */}
       <Dialog open={editProbeDialogOpen} onOpenChange={setEditProbeDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Probe</DialogTitle>
           </DialogHeader>
@@ -943,6 +955,22 @@ export default function Manage() {
                 updateProbeMutation.mutate({ probeId: editingProbe.id, data });
               }
             })} className="space-y-4">
+              {/* Read-only fields */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Category</Label>
+                  <div className="text-sm text-muted-foreground py-2">
+                    {editingProbe?.category}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Type</Label>
+                  <div className="text-sm text-muted-foreground py-2">
+                    {editingProbe?.type}
+                  </div>
+                </div>
+              </div>
+
               <FormField
                 control={probeForm.control}
                 name="name"
@@ -971,6 +999,61 @@ export default function Manage() {
               />
               <FormField
                 control={probeForm.control}
+                name="gateway_type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Gateway Type</FormLabel>
+                    <Select onValueChange={(value) => {
+                      field.onChange(value);
+                      if (value === 'Core') {
+                        probeForm.setValue('gateway_id', null);
+                      }
+                    }} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Core">Core</SelectItem>
+                        <SelectItem value="TenantSpecific">Tenant Specific</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              {probeForm.watch('gateway_type') === 'TenantSpecific' && (
+                <FormField
+                  control={probeForm.control}
+                  name="gateway_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gateway</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        value={field.value || ''}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select gateway" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {gateways?.data?.filter((g: GatewayResponse) => g.type === 'TenantSpecific').map((gateway: GatewayResponse) => (
+                            <SelectItem key={gateway.id} value={gateway.id}>
+                              {gateway.name} {gateway.location ? `(${gateway.location})` : ''}
+                            </SelectItem>
+                          )) || []}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+              <FormField
+                control={probeForm.control}
                 name="check_interval"
                 render={({ field }) => (
                   <FormItem>
@@ -982,6 +1065,44 @@ export default function Manage() {
                         max={86400}
                         {...field} 
                         onChange={e => field.onChange(parseInt(e.target.value) || 300)} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={probeForm.control}
+                name="timeout"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Timeout (seconds)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        min={5} 
+                        max={300}
+                        {...field} 
+                        onChange={e => field.onChange(parseInt(e.target.value) || 30)} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={probeForm.control}
+                name="retries"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Retries</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        min={0} 
+                        max={10}
+                        {...field} 
+                        onChange={e => field.onChange(parseInt(e.target.value) || 3)} 
                       />
                     </FormControl>
                     <FormMessage />
@@ -1032,7 +1153,27 @@ export default function Manage() {
       </Dialog>
 
       {/* Create Probe Dialog - Category and Type Selection */}
-      <Dialog open={createProbeDialogOpen} onOpenChange={setCreateProbeDialogOpen}>
+      <Dialog 
+        open={createProbeDialogOpen} 
+        onOpenChange={(open) => {
+          setCreateProbeDialogOpen(open);
+          if (!open) {
+            // Reset state when dialog closes
+            setSelectedCategory('');
+            setSelectedType('');
+            setProbeName('');
+            setProbeDescription('');
+            setProbeConfig({});
+            setCheckInterval(300);
+            setGatewayType('Core');
+            setGatewayId(null);
+            setHttpMethod('GET');
+            setProbeTimeout(30);
+            setRetries(3);
+            setIsActive(true);
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Select Probe Type</DialogTitle>
@@ -1116,7 +1257,25 @@ export default function Manage() {
       </Dialog>
 
       {/* Configuration Dialog - Specific fields based on probe type */}
-      <Dialog open={configDialogOpen} onOpenChange={setConfigDialogOpen}>
+      <Dialog 
+        open={configDialogOpen} 
+        onOpenChange={(open) => {
+          setConfigDialogOpen(open);
+          if (!open && !createProbeDialogOpen) {
+            // Reset state when dialog closes (unless create dialog is opening)
+            setProbeName('');
+            setProbeDescription('');
+            setProbeConfig({});
+            setCheckInterval(300);
+            setGatewayType('Core');
+            setGatewayId(null);
+            setHttpMethod('GET');
+            setProbeTimeout(30);
+            setRetries(3);
+            setIsActive(true);
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>Configure {selectedType} Probe</DialogTitle>
@@ -1149,9 +1308,14 @@ export default function Manage() {
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <label htmlFor="gateway-type-select" className="text-right">
-                Gateway Type
+                Gateway Type *
               </label>
-              <Select value={gatewayType} onValueChange={(value: 'Core' | 'TenantSpecific') => setGatewayType(value)}>
+              <Select value={gatewayType} onValueChange={(value: 'Core' | 'TenantSpecific') => {
+                setGatewayType(value);
+                if (value === 'Core') {
+                  setGatewayId(null); // Clear gateway_id for Core type
+                }
+              }}>
                 <SelectTrigger className="col-span-3" id="gateway-type-select">
                   <SelectValue />
                 </SelectTrigger>
@@ -1161,6 +1325,28 @@ export default function Manage() {
                 </SelectContent>
               </Select>
             </div>
+            {gatewayType === 'TenantSpecific' && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label htmlFor="gateway-id-select" className="text-right">
+                  Gateway
+                </label>
+                <Select 
+                  value={gatewayId || ''} 
+                  onValueChange={(value) => setGatewayId(value || null)}
+                >
+                  <SelectTrigger className="col-span-3" id="gateway-id-select">
+                    <SelectValue placeholder="Select gateway" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {gateways?.data?.filter((g: GatewayResponse) => g.type === 'TenantSpecific').map((gateway: GatewayResponse) => (
+                      <SelectItem key={gateway.id} value={gateway.id}>
+                        {gateway.name} {gateway.location ? `(${gateway.location})` : ''}
+                      </SelectItem>
+                    )) || []}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* ICMP/Ping specific fields */}
             {selectedType === 'ICMP/Ping' && (
@@ -1435,7 +1621,7 @@ export default function Manage() {
             {/* Common fields for all probe types */}
             <div className="grid grid-cols-4 items-center gap-4">
               <label htmlFor="check-interval" className="text-right">
-                Check Interval (seconds)
+                Check Interval (seconds) *
               </label>
               <Input
                 id="check-interval"
@@ -1447,6 +1633,53 @@ export default function Manage() {
                 min="60"
                 max="86400"
               />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="timeout" className="text-right">
+                Timeout (seconds)
+              </label>
+              <Input
+                id="probe-timeout"
+                type="number"
+                value={probeTimeout}
+                onChange={(e) => setProbeTimeout(parseInt(e.target.value) || 30)}
+                className="col-span-3"
+                placeholder="30"
+                min="5"
+                max="300"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="retries" className="text-right">
+                Retries
+              </label>
+              <Input
+                id="retries"
+                type="number"
+                value={retries}
+                onChange={(e) => setRetries(parseInt(e.target.value) || 3)}
+                className="col-span-3"
+                placeholder="3"
+                min="0"
+                max="10"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="is-active" className="text-right">
+                Active
+              </label>
+              <div className="col-span-3 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="is-active"
+                  checked={isActive}
+                  onChange={(e) => setIsActive(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                <label htmlFor="is-active" className="text-sm text-muted-foreground">
+                  Enable this probe
+                </label>
+              </div>
             </div>
           </div>
           <div className="flex justify-between">
@@ -1471,6 +1704,9 @@ export default function Manage() {
                 setGatewayType('Core');
                 setGatewayId(null);
                 setHttpMethod('GET');
+                setProbeTimeout(30);
+                setRetries(3);
+                setIsActive(true);
                 setSelectedCategory('');
                 setSelectedType('');
               }}
@@ -1536,8 +1772,10 @@ export default function Manage() {
                   gateway_type: gatewayType,
                   gateway_id: gatewayId || undefined,
                   check_interval: checkInterval,
+                  timeout: probeTimeout,
+                  retries: retries,
                   configuration: config,
-                  is_active: true,
+                  is_active: isActive,
                 };
 
                 createProbeMutation.mutate(probeData);
