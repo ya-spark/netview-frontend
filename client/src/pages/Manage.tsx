@@ -109,28 +109,15 @@ export default function Manage() {
     },
   });
 
-  const { data: probeCategories, error: categoriesError, isLoading: categoriesLoading } = useQuery({
-    queryKey: ['/api/probes/categories'],
-    enabled: !!user && hash === 'probes',
-  });
-
   const { data: probeTypes, error: typesError, isLoading: typesLoading } = useQuery({
     queryKey: ['/api/probes/types'],
     enabled: !!user && hash === 'probes',
   });
 
-  // Debug logging
-  console.log('Categories Loading:', categoriesLoading);
-  console.log('Categories Error:', categoriesError);
-  console.log('Categories Data:', probeCategories);
-  console.log('Types Loading:', typesLoading);
-  console.log('Types Error:', typesError);
-  console.log('Types Data:', probeTypes);
-  console.log('Gateways Loading:', gatewaysLoading);
-  console.log('Gateways Error:', gatewaysError);
-  console.log('Gateways Data:', gateways);
-  console.log('Gateways Data Array:', gateways?.data);
-  console.log('User:', user);
+  // Extract categories from the probe types response (keys of the mapping)
+  const probeCategories = (probeTypes as any)?.data 
+    ? Object.keys((probeTypes as any).data)
+    : [];
 
   // Filter probe types based on selected category
   const filteredProbeTypes = selectedCategory && (probeTypes as any)?.data 
@@ -881,13 +868,15 @@ export default function Manage() {
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categoriesLoading ? (
+                  {typesLoading ? (
                     <SelectItem value="loading" disabled>Loading categories...</SelectItem>
-                  ) : categoriesError ? (
+                  ) : typesError ? (
                     <SelectItem value="error" disabled>Error loading categories</SelectItem>
-                  ) : (probeCategories as any)?.data?.map((category: any) => (
-                    <SelectItem key={category.value} value={category.value}>
-                      {category.label}
+                  ) : probeCategories.length === 0 ? (
+                    <SelectItem value="none" disabled>No categories available</SelectItem>
+                  ) : probeCategories.map((category: string) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -910,9 +899,13 @@ export default function Manage() {
                     <SelectItem value="loading" disabled>Loading types...</SelectItem>
                   ) : typesError ? (
                     <SelectItem value="error" disabled>Error loading types</SelectItem>
-                  ) : filteredProbeTypes.map((type: any) => (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.label}
+                  ) : !selectedCategory ? (
+                    <SelectItem value="select-category" disabled>Select a category first</SelectItem>
+                  ) : filteredProbeTypes.length === 0 ? (
+                    <SelectItem value="none" disabled>No types available</SelectItem>
+                  ) : filteredProbeTypes.map((type: string) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
                     </SelectItem>
                   ))}
                 </SelectContent>
