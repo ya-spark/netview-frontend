@@ -36,6 +36,14 @@ export const TestingUtils = {
   },
 
   /**
+   * Switch to Owner configuration
+   */
+  useOwner: () => {
+    switchTestingConfig('owner');
+    console.log('👑 Switched to Owner testing config');
+  },
+
+  /**
    * Get current testing configuration
    */
   getCurrentConfig: () => {
@@ -101,6 +109,7 @@ export const TestingUtils = {
  * 
  * Usage in browser console:
  * - TestingUtils.useSuperAdmin()
+ * - TestingUtils.useOwner()
  * - TestingUtils.useRegularUser()
  * - TestingUtils.useViewer()
  * - TestingUtils.logUserInfo()
@@ -114,6 +123,7 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
   console.log('  TestingUtils.disable() - Disable testing mode');
   console.log('  TestingUtils.isEnabled() - Check if testing mode is enabled');
   console.log('  TestingUtils.useSuperAdmin() - Switch to SuperAdmin');
+  console.log('  TestingUtils.useOwner() - Switch to Owner');
   console.log('  TestingUtils.useRegularUser() - Switch to regular user');
   console.log('  TestingUtils.useViewer() - Switch to viewer');
   console.log('  TestingUtils.logUserInfo() - Show current user info');

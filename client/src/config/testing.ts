@@ -30,18 +30,18 @@ export interface TestingConfig {
 /**
  * Default testing configuration
  * 
- * This configuration provides a SuperAdmin user with access to the Core tenant (-919)
+ * This configuration provides an Owner user with access to the Core tenant (-919)
  * which matches the mock user data in AuthContext.tsx
  */
 export const testingConfig: TestingConfig = {
   enabled: true, // Set to false to disable testing mode
   
   user: {
-    email: 'suenv@demo.com',
-    tenantId: '-919',
-    role: 'SuperAdmin',
-    firstName: 'Sue',
-    lastName: 'Env'
+    email: 'ten2@demo.com',
+    tenantId: '2',
+    role: 'Owner',
+    firstName: 'Te',
+    lastName: '2'
   },
   
   api: {
@@ -61,6 +61,22 @@ export const testingConfigs = {
       email: 'suenv@demo.com',
       tenantId: '-919',
       role: 'SuperAdmin',
+      firstName: 'Sue',
+      lastName: 'Env'
+    },
+    api: {
+      baseUrl: '/api',
+      includeCredentials: true
+    }
+  },
+  
+  /** Owner with Core tenant access */
+  owner: {
+    enabled: true,
+    user: {
+      email: 'suenv@demo.com',
+      tenantId: '-919',
+      role: 'Owner',
       firstName: 'Sue',
       lastName: 'Env'
     },
