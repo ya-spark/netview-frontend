@@ -236,6 +236,7 @@ export default function Manage() {
     },
     onSuccess: (response) => {
       toast({ title: 'Success', description: 'Registration key regenerated successfully' });
+      // The response now contains the registration key string directly
       setRegistrationKey(response.data.registration_key);
       setKeyCopied(false);
       setRegistrationKeyDialogOpen(true);
