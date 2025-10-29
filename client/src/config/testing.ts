@@ -70,12 +70,12 @@ export const testingConfigs = {
     }
   },
   
-  /** Owner with Core tenant access */
+  /** Owner with tenant access */
   owner: {
     enabled: true,
     user: {
       email: 'suenv@demo.com',
-      tenantId: '-919',
+      tenantId: '2',
       role: 'Owner',
       firstName: 'Sue',
       lastName: 'Env'
@@ -91,7 +91,7 @@ export const testingConfigs = {
     enabled: true,
     user: {
       email: 'user@example.com',
-      tenantId: '123',
+      tenantId: '2',
       role: 'Editor',
       firstName: 'Regular',
       lastName: 'User'
@@ -107,7 +107,7 @@ export const testingConfigs = {
     enabled: true,
     user: {
       email: 'viewer@example.com',
-      tenantId: '456',
+      tenantId: '2',
       role: 'Viewer',
       firstName: 'Read',
       lastName: 'Only'

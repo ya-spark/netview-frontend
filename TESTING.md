@@ -38,8 +38,9 @@ The default testing configuration provides a SuperAdmin user:
 ### Available Configurations
 
 - **superAdmin** - SuperAdmin with Core tenant access (-919)
-- **regularUser** - Editor role with tenant ID 123
-- **viewer** - Viewer role with tenant ID 456
+- **owner** - Owner role with tenant ID 2
+- **regularUser** - Editor role with tenant ID 2
+- **viewer** - Viewer role with tenant ID 2
 
 ## Usage
 
@@ -55,6 +56,7 @@ import { switchTestingConfig } from '@/config/testing';
 
 // Switch to different user roles
 switchTestingConfig('superAdmin');
+switchTestingConfig('owner');
 switchTestingConfig('regularUser');
 switchTestingConfig('viewer');
 ```
@@ -63,6 +65,7 @@ switchTestingConfig('viewer');
 ```javascript
 // Available in development mode
 TestingUtils.useSuperAdmin();
+TestingUtils.useOwner();
 TestingUtils.useRegularUser();
 TestingUtils.useViewer();
 TestingUtils.logUserInfo();
@@ -225,9 +228,10 @@ TestingUtils.isEnabled();  // Check status
 
 ### Switch User Roles
 ```javascript
-TestingUtils.useSuperAdmin();    // SuperAdmin with Core tenant
-TestingUtils.useRegularUser();  // Editor with tenant 123
-TestingUtils.useViewer();        // Viewer with tenant 456
+TestingUtils.useSuperAdmin();    // SuperAdmin with Core tenant (-919)
+TestingUtils.useOwner();         // Owner with tenant 2
+TestingUtils.useRegularUser();  // Editor with tenant 2
+TestingUtils.useViewer();        // Viewer with tenant 2
 ```
 
 ### Debug & Info
