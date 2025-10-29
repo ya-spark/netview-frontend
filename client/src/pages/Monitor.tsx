@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Search, Filter, Eye, Activity, AlertTriangle, CheckCircle, Clock, TrendingUp, Bell, Server, MapPin, FileText, Plus, Settings, Construction, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { ProbeApiService } from '@/services/probeApi';
 
 export default function Monitor() {
   const { user } = useAuth();
@@ -57,6 +58,9 @@ export default function Monitor() {
   const { data: probes } = useQuery({
     queryKey: ['/api/probes'],
     enabled: !!user,
+    queryFn: async () => {
+      return await ProbeApiService.listProbes();
+    },
   });
 
   const { data: stats } = useQuery({

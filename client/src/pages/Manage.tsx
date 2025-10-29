@@ -19,16 +19,22 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { GatewayApiService, GatewayUtils } from '@/services/gatewayApi';
+import { ProbeApiService, ProbeUtils } from '@/services/probeApi';
 import type { GatewayResponse } from '@/types/gateway';
+import type { Probe, ProbeCreate, ProbeCategory, ProbeType } from '@/types/probe';
 
 const probeSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   description: z.string().optional(),
   category: z.enum(['Uptime', 'API', 'Security', 'Browser']),
   type: z.enum(['ICMP/Ping', 'HTTP/HTTPS', 'DNS Resolution', 'SSL/TLS', 'Authentication']),
-  checkInterval: z.number().default(300),
-  // Configuration fields will be validated dynamically based on type
-  configuration: z.record(z.any()),
+  gateway_type: z.enum(['Core', 'TenantSpecific']).default('Core'),
+  gateway_id: z.string().optional().nullable(),
+  check_interval: z.number().min(60).max(86400).default(300),
+  timeout: z.number().min(5).max(300).default(30).optional(),
+  retries: z.number().min(0).max(10).default(3).optional(),
+  configuration: z.record(z.any()).optional(),
+  is_active: z.boolean().default(true).optional(),
 });
 
 const notificationGroupSchema = z.object({
@@ -60,6 +66,12 @@ export default function Manage() {
   // Configuration Dialog State
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
   const [probeName, setProbeName] = useState<string>('');
+  const [probeDescription, setProbeDescription] = useState<string>('');
+  const [probeConfig, setProbeConfig] = useState<Record<string, any>>({});
+  const [checkInterval, setCheckInterval] = useState<number>(300);
+  const [gatewayType, setGatewayType] = useState<'Core' | 'TenantSpecific'>('Core');
+  const [gatewayId, setGatewayId] = useState<string | null>(null);
+  const [httpMethod, setHttpMethod] = useState<string>('GET');
   
   // Gateway Registration Key State
   const [registrationKeyDialogOpen, setRegistrationKeyDialogOpen] = useState(false);
@@ -70,6 +82,10 @@ export default function Manage() {
   // Edit Gateway Dialog State
   const [editGatewayDialogOpen, setEditGatewayDialogOpen] = useState(false);
   const [editingGateway, setEditingGateway] = useState<GatewayResponse | null>(null);
+  
+  // Edit Probe Dialog State
+  const [editProbeDialogOpen, setEditProbeDialogOpen] = useState(false);
+  const [editingProbe, setEditingProbe] = useState<Probe | null>(null);
   
   // Listen for hash changes
   useEffect(() => {
@@ -94,6 +110,9 @@ export default function Manage() {
   const { data: probes, refetch: refetchProbes } = useQuery({
     queryKey: ['/api/probes'],
     enabled: !!user && hash === 'probes',
+    queryFn: async () => {
+      return await ProbeApiService.listProbes();
+    },
   });
 
   const { data: notificationGroups, refetch: refetchNotificationGroups } = useQuery({
@@ -112,16 +131,24 @@ export default function Manage() {
   const { data: probeTypes, error: typesError, isLoading: typesLoading } = useQuery({
     queryKey: ['/api/probes/types'],
     enabled: !!user && hash === 'probes',
+    queryFn: async () => {
+      return await ProbeApiService.getProbeTypes();
+    },
   });
 
   // Extract categories from the probe types response (keys of the mapping)
-  const probeCategories = (probeTypes as any)?.data 
-    ? Object.keys((probeTypes as any).data)
+  // Handle both object mapping and array responses
+  const probeCategories = probeTypes?.data 
+    ? Array.isArray(probeTypes.data) 
+      ? [] // If array, no categories to show (category filter already applied)
+      : Object.keys(probeTypes.data)
     : [];
 
   // Filter probe types based on selected category
-  const filteredProbeTypes = selectedCategory && (probeTypes as any)?.data 
-    ? (probeTypes as any).data[selectedCategory] || []
+  const filteredProbeTypes = selectedCategory && probeTypes?.data 
+    ? Array.isArray(probeTypes.data)
+      ? probeTypes.data // If array, use it directly
+      : probeTypes.data[selectedCategory] || []
     : [];
 
   // Reset selected type when category changes
@@ -137,8 +164,13 @@ export default function Manage() {
       description: '',
       category: 'Uptime',
       type: 'ICMP/Ping',
-      checkInterval: 300,
+      gateway_type: 'Core',
+      gateway_id: null,
+      check_interval: 300,
+      timeout: 30,
+      retries: 3,
       configuration: {},
+      is_active: true,
     },
   });
 
@@ -161,14 +193,47 @@ export default function Manage() {
   });
 
   const createProbeMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof probeSchema>) => {
-      const response = await apiRequest('POST', '/api/probes', data);
-      return response.json();
+    mutationFn: async (data: ProbeCreate) => {
+      return await ProbeApiService.createProbe(data);
     },
     onSuccess: () => {
       toast({ title: 'Success', description: 'Probe created successfully' });
       refetchProbes();
       probeForm.reset();
+      setCreateProbeDialogOpen(false);
+      setConfigDialogOpen(false);
+      setSelectedCategory('');
+      setSelectedType('');
+      setProbeName('');
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const updateProbeMutation = useMutation({
+    mutationFn: async ({ probeId, data }: { probeId: string; data: Partial<ProbeCreate> }) => {
+      return await ProbeApiService.updateProbe(probeId, data);
+    },
+    onSuccess: () => {
+      toast({ title: 'Success', description: 'Probe updated successfully' });
+      refetchProbes();
+      setEditProbeDialogOpen(false);
+      setEditingProbe(null);
+      probeForm.reset();
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const deleteProbeMutation = useMutation({
+    mutationFn: async (probeId: string) => {
+      return await ProbeApiService.deleteProbe(probeId);
+    },
+    onSuccess: () => {
+      toast({ title: 'Success', description: 'Probe deleted successfully' });
+      refetchProbes();
     },
     onError: (error: any) => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -286,21 +351,16 @@ export default function Manage() {
   });
 
 
-  const filteredProbes = Array.isArray(probes) ? probes.filter((probe: any) =>
-    probe.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    probe.url?.toLowerCase().includes(searchTerm.toLowerCase())
-  ) : [];
+  const filteredProbes = probes?.data 
+    ? probes.data.filter((probe: Probe) =>
+        probe.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ProbeUtils.getConfigDisplay(probe).toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : [];
 
   const getTypeBadge = (type: string) => {
-    const colors = {
-      'Uptime': 'bg-primary/10 text-primary',
-      'API': 'bg-secondary/10 text-secondary',
-      'Security': 'bg-purple-100 text-purple-700',
-      'Browser': 'bg-green-100 text-green-700',
-    };
-    
     return (
-      <Badge className={colors[type as keyof typeof colors] || 'bg-muted text-muted-foreground'}>
+      <Badge variant="outline" className="capitalize">
         {type}
       </Badge>
     );
@@ -362,46 +422,65 @@ export default function Manage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {filteredProbes.map((probe: any) => {
-                      // Extract the main configuration value to display based on probe type
-                      const getConfigDisplay = () => {
-                        const config = probe.configuration || {};
-                        switch (probe.type) {
-                          case 'HTTP/HTTPS':
-                          case 'Authentication':
-                            return config.url || 'No URL configured';
-                          case 'ICMP/Ping':
-                            return config.host || 'No host configured';
-                          case 'DNS Resolution':
-                            return config.domain || 'No domain configured';
-                          case 'SSL/TLS':
-                            return config.host ? `${config.host}:${config.port || 443}` : 'No host configured';
-                          default:
-                            return 'Configuration not set';
-                        }
-                      };
-
+                    {filteredProbes.map((probe: Probe) => {
+                      const configDisplay = ProbeUtils.getConfigDisplay(probe);
                       return (
                       <div key={probe.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-border rounded-lg gap-4" data-testid={`probe-item-${probe.id}`}>
                         <div className="flex items-center space-x-4 min-w-0 flex-1">
-                          <div className={`w-3 h-3 rounded-full flex-shrink-0 ${probe.isActive ? 'bg-secondary' : 'bg-muted'}`} />
+                          <div className={`w-3 h-3 rounded-full flex-shrink-0 ${probe.is_active ? 'bg-secondary' : 'bg-muted'}`} />
                           <div className="min-w-0 flex-1">
                             <div className="font-medium text-foreground truncate">{probe.name}</div>
-                            <div className="text-sm text-muted-foreground truncate">{getConfigDisplay()}</div>
-                            <div className="text-xs text-muted-foreground mt-1">{probe.description}</div>
+                            <div className="text-sm text-muted-foreground truncate">{configDisplay}</div>
+                            {probe.description && (
+                              <div className="text-xs text-muted-foreground mt-1">{probe.description}</div>
+                            )}
                           </div>
                         </div>
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
                           <div className="flex flex-wrap gap-1 min-w-0">
                             <Badge variant="outline" className="capitalize">{probe.category}</Badge>
                             {getTypeBadge(probe.type)}
-                            <Badge variant="outline">{probe.checkInterval}s</Badge>
+                            <Badge variant="outline">{probe.check_interval}s</Badge>
+                            <Badge variant={probe.gateway_type === 'Core' ? 'secondary' : 'outline'}>
+                              {probe.gateway_type === 'Core' ? 'Core' : 'Custom'}
+                            </Badge>
                           </div>
                           <div className="flex items-center gap-1 flex-shrink-0">
-                            <Button variant="ghost" size="sm" data-testid={`button-edit-probe-${probe.id}`}>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              data-testid={`button-edit-probe-${probe.id}`}
+                              onClick={() => {
+                                setEditingProbe(probe);
+                                probeForm.reset({
+                                  name: probe.name,
+                                  description: probe.description || '',
+                                  category: probe.category,
+                                  type: probe.type,
+                                  gateway_type: probe.gateway_type,
+                                  gateway_id: probe.gateway_id || null,
+                                  check_interval: probe.check_interval,
+                                  timeout: probe.timeout,
+                                  retries: probe.retries,
+                                  configuration: probe.configuration || {},
+                                  is_active: probe.is_active,
+                                });
+                                setEditProbeDialogOpen(true);
+                              }}
+                            >
                               <Edit className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="sm" data-testid={`button-delete-probe-${probe.id}`}>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              data-testid={`button-delete-probe-${probe.id}`}
+                              onClick={() => {
+                                if (confirm(`Are you sure you want to delete the probe "${probe.name}"? This action cannot be undone.`)) {
+                                  deleteProbeMutation.mutate(probe.id);
+                                }
+                              }}
+                              disabled={deleteProbeMutation.isPending}
+                            >
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
@@ -852,6 +931,106 @@ export default function Manage() {
         </DialogContent>
       </Dialog>
 
+      {/* Edit Probe Dialog */}
+      <Dialog open={editProbeDialogOpen} onOpenChange={setEditProbeDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Probe</DialogTitle>
+          </DialogHeader>
+          <Form {...probeForm}>
+            <form onSubmit={probeForm.handleSubmit((data) => {
+              if (editingProbe) {
+                updateProbeMutation.mutate({ probeId: editingProbe.id, data });
+              }
+            })} className="space-y-4">
+              <FormField
+                control={probeForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Probe name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={probeForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="Optional description" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={probeForm.control}
+                name="check_interval"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Check Interval (seconds)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        min={60} 
+                        max={86400}
+                        {...field} 
+                        onChange={e => field.onChange(parseInt(e.target.value) || 300)} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={probeForm.control}
+                name="is_active"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                    <div className="space-y-0.5">
+                      <FormLabel>Active</FormLabel>
+                      <div className="text-sm text-muted-foreground">
+                        Enable or disable this probe
+                      </div>
+                    </div>
+                    <FormControl>
+                      <input
+                        type="checkbox"
+                        checked={field.value}
+                        onChange={field.onChange}
+                        className="h-4 w-4"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <div className="flex justify-end space-x-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setEditProbeDialogOpen(false);
+                    setEditingProbe(null);
+                    probeForm.reset();
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={updateProbeMutation.isPending}>
+                  {updateProbeMutation.isPending ? 'Updating...' : 'Update Probe'}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
       {/* Create Probe Dialog - Category and Type Selection */}
       <Dialog open={createProbeDialogOpen} onOpenChange={setCreateProbeDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
@@ -946,7 +1125,7 @@ export default function Manage() {
             {/* Common fields for all probe types */}
             <div className="grid grid-cols-4 items-center gap-4">
               <label htmlFor="probe-name" className="text-right">
-                Name
+                Name *
               </label>
               <Input
                 id="probe-name"
@@ -955,6 +1134,32 @@ export default function Manage() {
                 className="col-span-3"
                 placeholder="Enter probe name"
               />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="probe-description" className="text-right">
+                Description
+              </label>
+              <Input
+                id="probe-description"
+                value={probeDescription}
+                onChange={(e) => setProbeDescription(e.target.value)}
+                className="col-span-3"
+                placeholder="Optional description"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="gateway-type-select" className="text-right">
+                Gateway Type
+              </label>
+              <Select value={gatewayType} onValueChange={(value: 'Core' | 'TenantSpecific') => setGatewayType(value)}>
+                <SelectTrigger className="col-span-3" id="gateway-type-select">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Core">Core</SelectItem>
+                  <SelectItem value="TenantSpecific">Tenant Specific</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* ICMP/Ping specific fields */}
@@ -1014,8 +1219,8 @@ export default function Manage() {
                   <label htmlFor="method" className="text-right">
                     Method
                   </label>
-                  <Select defaultValue="GET">
-                    <SelectTrigger className="col-span-3">
+                  <Select defaultValue="GET" onValueChange={setHttpMethod}>
+                    <SelectTrigger className="col-span-3" id="method">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1141,6 +1346,48 @@ export default function Manage() {
               </>
             )}
 
+            {/* DNS Resolution specific fields */}
+            {selectedType === 'DNS Resolution' && (
+              <>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <label htmlFor="domain" className="text-right">
+                    Domain
+                  </label>
+                  <Input
+                    id="domain"
+                    className="col-span-3"
+                    placeholder="example.com"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <label htmlFor="dns-server" className="text-right">
+                    DNS Server (Optional)
+                  </label>
+                  <Input
+                    id="dns-server"
+                    className="col-span-3"
+                    placeholder="8.8.8.8"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <label htmlFor="record-type" className="text-right">
+                    Record Type
+                  </label>
+                  <Select defaultValue="A">
+                    <SelectTrigger className="col-span-3" id="record-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="A">A</SelectItem>
+                      <SelectItem value="AAAA">AAAA</SelectItem>
+                      <SelectItem value="CNAME">CNAME</SelectItem>
+                      <SelectItem value="MX">MX</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+
             {/* Load Time specific fields */}
             {selectedType === 'Load Time' && (
               <>
@@ -1193,9 +1440,12 @@ export default function Manage() {
               <Input
                 id="check-interval"
                 type="number"
+                value={checkInterval}
+                onChange={(e) => setCheckInterval(parseInt(e.target.value) || 300)}
                 className="col-span-3"
                 placeholder="300"
-                defaultValue="300"
+                min="60"
+                max="86400"
               />
             </div>
           </div>
@@ -1212,32 +1462,89 @@ export default function Manage() {
             <div className="flex space-x-2">
               <Button 
                 variant="outline" 
-                onClick={() => {
-                  setConfigDialogOpen(false);
-                  setProbeName('');
-                  setSelectedCategory('');
-                  setSelectedType('');
-                }}
+              onClick={() => {
+                setConfigDialogOpen(false);
+                setProbeName('');
+                setProbeDescription('');
+                setProbeConfig({});
+                setCheckInterval(300);
+                setGatewayType('Core');
+                setGatewayId(null);
+                setHttpMethod('GET');
+                setSelectedCategory('');
+                setSelectedType('');
+              }}
               >
                 Cancel
               </Button>
             <Button 
               onClick={() => {
-                // TODO: Handle probe creation with all configuration
-                console.log('Creating probe with config:', { 
-                  probeName, 
-                  selectedCategory, 
-                  selectedType,
-                  // Add other form data here
-                });
-                setConfigDialogOpen(false);
-                setProbeName('');
-                setSelectedCategory('');
-                setSelectedType('');
+                if (!probeName || !selectedCategory || !selectedType) {
+                  toast({ title: 'Error', description: 'Please fill in all required fields', variant: 'destructive' });
+                  return;
+                }
+
+                // Build configuration object based on probe type
+                const config: Record<string, any> = {};
+                
+                // Get form values from DOM (since we're not using react-hook-form for this complex form)
+                if (selectedType === 'ICMP/Ping') {
+                  const hostInput = document.getElementById('host') as HTMLInputElement;
+                  const timeoutInput = document.getElementById('timeout') as HTMLInputElement;
+                  const packetCountInput = document.getElementById('packet-count') as HTMLInputElement;
+                  if (hostInput?.value) config.host = hostInput.value;
+                  if (timeoutInput?.value) config.timeout = parseInt(timeoutInput.value);
+                  if (packetCountInput?.value) config.packet_count = parseInt(packetCountInput.value);
+                } else if (selectedType === 'HTTP/HTTPS') {
+                  const urlInput = document.getElementById('url') as HTMLInputElement;
+                  const expectedStatusInput = document.getElementById('expected-status') as HTMLInputElement;
+                  const timeoutInput = document.getElementById('timeout') as HTMLInputElement;
+                  if (urlInput?.value) config.url = urlInput.value;
+                  config.method = httpMethod || 'GET';
+                  if (expectedStatusInput?.value) config.expected_status = parseInt(expectedStatusInput.value);
+                  if (timeoutInput?.value) config.timeout = parseInt(timeoutInput.value);
+                } else if (selectedType === 'SSL/TLS') {
+                  const hostInput = document.getElementById('host') as HTMLInputElement;
+                  const portInput = document.getElementById('port') as HTMLInputElement;
+                  const alertDaysInput = document.getElementById('alert-days') as HTMLInputElement;
+                  if (hostInput?.value) config.host = hostInput.value;
+                  if (portInput?.value) config.port = parseInt(portInput.value);
+                  if (alertDaysInput?.value) config.alert_days = parseInt(alertDaysInput.value);
+                } else if (selectedType === 'Authentication') {
+                  const urlInput = document.getElementById('url') as HTMLInputElement;
+                  const usernameInput = document.getElementById('username') as HTMLInputElement;
+                  const passwordInput = document.getElementById('password') as HTMLInputElement;
+                  const expectedResponseInput = document.getElementById('expected-response') as HTMLInputElement;
+                  if (urlInput?.value) config.url = urlInput.value;
+                  if (usernameInput?.value) config.username = usernameInput.value;
+                  if (passwordInput?.value) config.password = passwordInput.value;
+                  if (expectedResponseInput?.value) config.expected_response = expectedResponseInput.value;
+                } else if (selectedType === 'DNS Resolution') {
+                  const domainInput = document.getElementById('domain') as HTMLInputElement;
+                  const dnsServerInput = document.getElementById('dns-server') as HTMLInputElement;
+                  const recordTypeSelect = document.getElementById('record-type')?.parentElement?.querySelector('[role="combobox"]')?.textContent || 'A';
+                  if (domainInput?.value) config.domain = domainInput.value;
+                  if (dnsServerInput?.value) config.dns_server = dnsServerInput.value;
+                  config.record_type = recordTypeSelect || 'A';
+                }
+
+                const probeData: ProbeCreate = {
+                  name: probeName,
+                  description: probeDescription || undefined,
+                  category: selectedCategory as ProbeCategory,
+                  type: selectedType as ProbeType,
+                  gateway_type: gatewayType,
+                  gateway_id: gatewayId || undefined,
+                  check_interval: checkInterval,
+                  configuration: config,
+                  is_active: true,
+                };
+
+                createProbeMutation.mutate(probeData);
               }}
-              disabled={!probeName}
+              disabled={!probeName || createProbeMutation.isPending}
             >
-              Create Probe
+              {createProbeMutation.isPending ? 'Creating...' : 'Create Probe'}
             </Button>
             </div>
           </div>

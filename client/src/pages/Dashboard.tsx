@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Layout } from '@/components/Layout';
 import { BarChart3, AlertTriangle, CheckCircle, DollarSign, RefreshCw, Plus, Search, Filter } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { ProbeApiService, ProbeUtils } from '@/services/probeApi';
+import type { Probe } from '@/types/probe';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -20,6 +22,9 @@ export default function Dashboard() {
   const { data: probes, refetch: refetchProbes } = useQuery({
     queryKey: ['/api/probes'],
     enabled: !!user,
+    queryFn: async () => {
+      return await ProbeApiService.listProbes();
+    },
   });
 
   const handleRefresh = () => {
@@ -27,9 +32,9 @@ export default function Dashboard() {
     refetchProbes();
   };
 
-  const filteredProbes = (probes as any[] || []).filter((probe: any) =>
+  const filteredProbes = (probes?.data || []).filter((probe: Probe) =>
     probe.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    probe.url?.toLowerCase().includes(searchTerm.toLowerCase())
+    ProbeUtils.getConfigDisplay(probe).toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getStatusBadge = (status: string) => {
