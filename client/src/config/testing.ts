@@ -37,7 +37,7 @@ export const testingConfig: TestingConfig = {
   enabled: true, // Set to false to disable testing mode
   
   user: {
-    email: 'ten2@demo.com',
+    email: 'to2@demo.com',
     tenantId: '2',
     role: 'Owner',
     firstName: 'Te',
