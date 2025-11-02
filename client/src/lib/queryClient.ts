@@ -37,9 +37,15 @@ export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
+  additionalHeaders?: Record<string, string>,
 ): Promise<Response> {
   const authHeaders = await getAuthHeaders();
   const headers: Record<string, string> = { ...authHeaders };
+  
+  // Merge additional headers if provided
+  if (additionalHeaders) {
+    Object.assign(headers, additionalHeaders);
+  }
   
   if (data) {
     headers["Content-Type"] = "application/json";

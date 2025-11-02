@@ -1,0 +1,130 @@
+// Collaborator API service functions based on NetView Collaborators API specification
+
+import { apiRequest } from '../lib/queryClient';
+import type {
+  CollaboratorCreate,
+  CollaboratorUpdate,
+  CollaboratorListResponse,
+  CollaboratorSingleResponse,
+  CollaboratorDeleteResponse,
+} from '../types/collaborator';
+
+/**
+ * Helper function to create headers required by Collaborators API
+ */
+function getCollaboratorHeaders(userEmail: string, tenantId: string): Record<string, string> {
+  // Convert tenantId to integer (API expects integer)
+  const tenantIdInt = parseInt(tenantId, 10);
+  if (isNaN(tenantIdInt)) {
+    throw new Error(`Invalid tenant ID: ${tenantId}`);
+  }
+
+  return {
+    'X-Tenant-ID': tenantIdInt.toString(),
+    'X-User-Email': userEmail,
+  };
+}
+
+/**
+ * Collaborator API service class for all collaborator-related operations
+ */
+export class CollaboratorApiService {
+  /**
+   * List all collaborators for the authenticated tenant
+   * Requires Owner role
+   */
+  static async listCollaborators(
+    userEmail: string,
+    tenantId: string
+  ): Promise<CollaboratorListResponse> {
+    const headers = getCollaboratorHeaders(userEmail, tenantId);
+    const response = await apiRequest('GET', '/api/collaborators', undefined, headers);
+    return response.json();
+  }
+
+  /**
+   * Get a specific collaborator by ID
+   * Requires Owner role
+   */
+  static async getCollaborator(
+    collaboratorId: string,
+    userEmail: string,
+    tenantId: string
+  ): Promise<CollaboratorSingleResponse> {
+    const headers = getCollaboratorHeaders(userEmail, tenantId);
+    const response = await apiRequest('GET', `/api/collaborators/${collaboratorId}`, undefined, headers);
+    return response.json();
+  }
+
+  /**
+   * Create a new collaborator (send invite)
+   * Requires Owner role
+   */
+  static async createCollaborator(
+    data: CollaboratorCreate,
+    userEmail: string,
+    tenantId: string
+  ): Promise<CollaboratorSingleResponse> {
+    const headers = getCollaboratorHeaders(userEmail, tenantId);
+    const response = await apiRequest('POST', '/api/collaborators', data, headers);
+    return response.json();
+  }
+
+  /**
+   * Update an existing collaborator
+   * Requires Owner role
+   */
+  static async updateCollaborator(
+    collaboratorId: string,
+    data: CollaboratorUpdate,
+    userEmail: string,
+    tenantId: string
+  ): Promise<CollaboratorSingleResponse> {
+    const headers = getCollaboratorHeaders(userEmail, tenantId);
+    const response = await apiRequest('PUT', `/api/collaborators/${collaboratorId}`, data, headers);
+    return response.json();
+  }
+
+  /**
+   * Delete a collaborator (soft delete)
+   * Requires Owner role
+   */
+  static async deleteCollaborator(
+    collaboratorId: string,
+    userEmail: string,
+    tenantId: string
+  ): Promise<CollaboratorDeleteResponse> {
+    const headers = getCollaboratorHeaders(userEmail, tenantId);
+    const response = await apiRequest('DELETE', `/api/collaborators/${collaboratorId}`, undefined, headers);
+    return response.json();
+  }
+
+  /**
+   * Accept a collaborator invite
+   * Requires authenticated user with email matching collaborator email
+   */
+  static async acceptInvite(
+    collaboratorId: string,
+    userEmail: string,
+    tenantId: string
+  ): Promise<CollaboratorSingleResponse> {
+    const headers = getCollaboratorHeaders(userEmail, tenantId);
+    const response = await apiRequest('POST', `/api/collaborators/${collaboratorId}/accept`, undefined, headers);
+    return response.json();
+  }
+
+  /**
+   * Reject a collaborator invite
+   * Requires authenticated user with email matching collaborator email
+   */
+  static async rejectInvite(
+    collaboratorId: string,
+    userEmail: string,
+    tenantId: string
+  ): Promise<CollaboratorSingleResponse> {
+    const headers = getCollaboratorHeaders(userEmail, tenantId);
+    const response = await apiRequest('POST', `/api/collaborators/${collaboratorId}/reject`, undefined, headers);
+    return response.json();
+  }
+}
+
