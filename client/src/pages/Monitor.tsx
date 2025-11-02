@@ -109,7 +109,7 @@ export default function Monitor() {
     { id: '4', timestamp: new Date(Date.now() - 15 * 60 * 1000), level: 'INFO', source: 'Monitor Service', message: 'Probe configuration updated for production-db' },
   ];
 
-  const filteredProbes = (probes as any[] || []).filter((probe: any) => {
+  const filteredProbes = (probes?.data || []).filter((probe: any) => {
     const matchesSearch = probe.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          probe.url?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || probe.status === statusFilter;

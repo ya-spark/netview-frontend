@@ -125,7 +125,7 @@ export default function Manage() {
 
   const { data: notificationGroupsResponse, refetch: refetchNotificationGroups } = useQuery({
     queryKey: ['/api/notifications/groups'],
-    enabled: !!user && hash === 'notifications',
+    enabled: !!user && (hash === 'notifications' || hash === 'probes'),
     queryFn: async () => {
       return await NotificationGroupApiService.listGroups();
     },
@@ -1146,6 +1146,7 @@ export default function Manage() {
         onOpenChange={setEditProbeDialogOpen}
         probe={editingProbe}
         gateways={gateways}
+        notificationGroups={notificationGroups}
         onSubmit={(data) => {
           if (editingProbe) {
             updateProbeMutation.mutate({ probeId: editingProbe.id, data });
@@ -1191,6 +1192,7 @@ export default function Manage() {
         selectedCategory={selectedCategory as ProbeCategory}
         selectedType={selectedType as ProbeType}
         gateways={gateways}
+        notificationGroups={notificationGroups}
         onSubmit={(data) => {
           createProbeMutation.mutate(data);
         }}

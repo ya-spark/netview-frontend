@@ -111,7 +111,7 @@ export default function Reports() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Probes</SelectItem>
-                  {(probes as any[])?.map((probe: any) => (
+                  {(probes?.data || []).map((probe: any) => (
                     <SelectItem key={probe.id} value={probe.id}>
                       {probe.name}
                     </SelectItem>

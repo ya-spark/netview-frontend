@@ -12,17 +12,20 @@ import { SslTlsConfigSection } from './probe-config-sections/SslTlsConfigSection
 import { AuthenticationConfigSection } from './probe-config-sections/AuthenticationConfigSection';
 import type { Probe } from '@/types/probe';
 import type { GatewayResponse } from '@/types/gateway';
+import type { NotificationGroup } from '@/types/notification';
 
 interface ProbeEditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   probe: Probe | null;
   gateways?: { data?: GatewayResponse[] };
+  notificationGroups?: NotificationGroup[];
   onSubmit: (data: {
     name?: string;
     description?: string;
     gateway_type?: 'Core' | 'TenantSpecific';
     gateway_id?: string | null;
+    notification_group_id?: string | null;
     check_interval?: number;
     timeout?: number;
     retries?: number;
@@ -37,6 +40,7 @@ export function ProbeEditDialog({
   onOpenChange,
   probe,
   gateways,
+  notificationGroups = [],
   onSubmit,
   isPending = false,
 }: ProbeEditDialogProps) {
@@ -45,6 +49,7 @@ export function ProbeEditDialog({
   const [probeDescription, setProbeDescription] = useState('');
   const [gatewayType, setGatewayType] = useState<'Core' | 'TenantSpecific'>('Core');
   const [gatewayId, setGatewayId] = useState<string | null>(null);
+  const [notificationGroupId, setNotificationGroupId] = useState<string | null>(null);
   const [checkInterval, setCheckInterval] = useState<number>(300);
   const [probeTimeout, setProbeTimeout] = useState<number>(30);
   const [retries, setRetries] = useState<number>(3);
@@ -93,6 +98,7 @@ export function ProbeEditDialog({
       setProbeDescription(probe.description || '');
       setGatewayType(probe.gateway_type);
       setGatewayId(probe.gateway_id || null);
+      setNotificationGroupId(probe.notification_group_id || null);
       setCheckInterval(probe.check_interval);
       setProbeTimeout(probe.timeout || 30);
       setRetries(probe.retries || 3);
@@ -199,6 +205,7 @@ export function ProbeEditDialog({
       description: probeDescription || undefined,
       gateway_type: gatewayType,
       gateway_id: gatewayId || undefined,
+      notification_group_id: notificationGroupId || undefined,
       check_interval: checkInterval,
       timeout: probeTimeout,
       retries: retries,
@@ -300,6 +307,27 @@ export function ProbeEditDialog({
               </Select>
             </div>
           )}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="edit-notification-group" className="text-right">
+              Notification Group
+            </Label>
+            <Select
+              value={notificationGroupId || '__none__'}
+              onValueChange={(value) => setNotificationGroupId(value === '__none__' ? null : value)}
+            >
+              <SelectTrigger className="col-span-3" id="edit-notification-group">
+                <SelectValue placeholder="Select notification group (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">None</SelectItem>
+                {notificationGroups.map((group) => (
+                  <SelectItem key={group.id} value={group.id}>
+                    {group.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           {/* Probe-specific configuration sections */}
           {probe.type === 'ICMP/Ping' && (

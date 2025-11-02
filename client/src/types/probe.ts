@@ -44,6 +44,7 @@ export interface Probe {
   type: ProbeType;
   gateway_type: GatewayType;
   gateway_id?: string | null;
+  notification_group_id?: string | null;
   check_interval: number;
   timeout: number;
   retries: number;
