@@ -113,11 +113,14 @@ export default function Collaborators() {
       return CollaboratorApiService.createCollaborator(createData, user.email, user.tenantId);
     },
     onSuccess: () => {
-      toast({ 
+      const toastResult = toast({ 
         title: 'Success', 
-        description: 'Collaborator invited successfully',
-        duration: 2000 
+        description: 'Collaborator invited successfully'
       });
+      // Auto-dismiss toast after 2 seconds
+      setTimeout(() => {
+        toastResult.dismiss();
+      }, 2000);
       createForm.reset();
       setCreateDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['collaborators'] });
@@ -280,7 +283,7 @@ export default function Collaborators() {
                 </div>
               </div>
               {canManageCollaborators && (
-                <Dialog>
+                <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
                   <DialogTrigger asChild>
                     <Button data-testid="button-invite-collaborator">
                       <Plus className="w-4 h-4 mr-2" />
