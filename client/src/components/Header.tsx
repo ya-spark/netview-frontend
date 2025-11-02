@@ -141,7 +141,7 @@ export function Header() {
                           className="text-xs text-muted-foreground"
                           data-testid="text-user-role"
                         >
-                          {user.role}
+                          {user.role} · {user.email}
                         </div>
                         {user.tenantName && (
                           <div

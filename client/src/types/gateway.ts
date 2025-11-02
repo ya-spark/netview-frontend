@@ -76,6 +76,8 @@ export interface GatewayListResponse extends BaseResponse {
 
 export interface GatewaySingleResponse extends BaseResponse {
   data: GatewayResponse;
+  registration_key?: string;
+  message?: string;
 }
 
 export interface ErrorResponse extends BaseResponse {

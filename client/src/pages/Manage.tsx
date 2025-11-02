@@ -278,13 +278,17 @@ export default function Manage() {
       return await GatewayApiService.createGateway(data);
     },
     onSuccess: (response) => {
-      toast({ title: 'Success', description: 'Gateway created successfully' });
+      toast({ title: 'Success', description: response.message || 'Gateway created successfully' });
       refetchGateways();
       gatewayForm.reset();
       
       // Show registration key dialog if gateway was created
       if (response.data) {
         setSelectedGateway(response.data);
+        // Set registration key from response if available
+        if (response.registration_key) {
+          setRegistrationKey(response.registration_key);
+        }
         setKeyCopied(false);
         setRegistrationKeyDialogOpen(true);
       }
