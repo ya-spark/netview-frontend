@@ -20,17 +20,17 @@ The testing configuration system allows you to:
 
 ### Default Configuration
 
-The default testing configuration provides a SuperAdmin user with Demo tenant (tenant 1) access:
+The default testing configuration provides an Owner user with Demo tenant (tenant 1) access:
 
 ```typescript
 {
   enabled: true,
   user: {
-    email: 'superadmin@demo.com',
+    email: 'owner@demo.com',
     tenantId: '1',
-    role: 'SuperAdmin',
-    firstName: 'Super',
-    lastName: 'Admin'
+    role: 'Owner',
+    firstName: 'Owner',
+    lastName: 'Demo'
   }
 }
 ```
@@ -40,18 +40,16 @@ The default testing configuration provides a SuperAdmin user with Demo tenant (t
 These configurations match the users defined in the backend:
 
 **Core Tenant (-919) - System users:**
-- **coreSuperAdmin** - SuperAdmin with Core tenant access (`superadmin@core.com`)
+- **coreSuperAdmin** - SuperAdmin with Core tenant access (`superadmin@core.com`) - *Note: SuperAdmin role is only available for Core tenant*
 - **coreAdmin** - Admin with Core tenant access (`admin@core.com`)
 
-**Demo Tenant (1) - All roles:**
-- **superAdmin1** - SuperAdmin with Demo tenant access (`superadmin@demo.com`)
+**Demo Tenant (1) - All roles (except SuperAdmin):**
 - **owner1** - Owner with Demo tenant access (`owner@demo.com`)
 - **admin1** - Admin with Demo tenant access (`admin@demo.com`)
 - **editor1** - Editor with Demo tenant access (`editor@demo.com`)
 - **viewer1** - Viewer with Demo tenant access (`viewer@demo.com`)
 
-**Enterprise Tenant (2) - All roles:**
-- **superAdmin2** - SuperAdmin with Enterprise tenant access (`superadmin@enterprise.com`)
+**Enterprise Tenant (2) - All roles (except SuperAdmin):**
 - **owner2** - Owner with Enterprise tenant access (`owner@enterprise.com`)
 - **admin2** - Admin with Enterprise tenant access (`admin@enterprise.com`)
 - **editor2** - Editor with Enterprise tenant access (`editor@enterprise.com`)
@@ -70,18 +68,16 @@ The system automatically sets the required headers (`X-User-Email` and `X-Tenant
 import { switchTestingConfig } from '@/config/testing';
 
 // Core Tenant (-919)
-switchTestingConfig('coreSuperAdmin');  // SuperAdmin Core tenant
+switchTestingConfig('coreSuperAdmin');  // SuperAdmin Core tenant (SuperAdmin only available for Core tenant)
 switchTestingConfig('coreAdmin');       // Admin Core tenant
 
 // Demo Tenant (1)
-switchTestingConfig('superAdmin1');     // SuperAdmin Demo tenant
 switchTestingConfig('owner1');          // Owner Demo tenant
 switchTestingConfig('admin1');          // Admin Demo tenant
 switchTestingConfig('editor1');         // Editor Demo tenant
 switchTestingConfig('viewer1');         // Viewer Demo tenant
 
 // Enterprise Tenant (2)
-switchTestingConfig('superAdmin2');     // SuperAdmin Enterprise tenant
 switchTestingConfig('owner2');          // Owner Enterprise tenant
 switchTestingConfig('admin2');          // Admin Enterprise tenant
 switchTestingConfig('editor2');         // Editor Enterprise tenant
@@ -91,7 +87,7 @@ switchTestingConfig('viewer2');         // Viewer Enterprise tenant
 #### In Browser Console (Development)
 ```javascript
 // Available in development mode
-TestingUtils.useSuperAdmin();    // SuperAdmin Demo tenant (1)
+TestingUtils.useSuperAdmin();    // SuperAdmin Core tenant (-919) - SuperAdmin only available for Core tenant
 TestingUtils.useOwner();         // Owner Enterprise tenant (2)
 TestingUtils.useRegularUser();  // Editor Enterprise tenant (2)
 TestingUtils.useViewer();        // Viewer Enterprise tenant (2)
@@ -211,7 +207,7 @@ The system logs testing headers when they're used:
 
 ```
 Using testing headers: {
-  "X-User-Email": "superadmin@demo.com",
+  "X-User-Email": "owner@demo.com",
   "X-Tenant-ID": "1"
 }
 ```
@@ -240,7 +236,7 @@ TestingUtils.logUserInfo();
 ### Wrong User Data
 
 1. Check current configuration: `TestingUtils.getCurrentConfig()`
-2. Switch to correct configuration: `TestingUtils.useSuperAdmin()`
+2. Switch to correct configuration: `TestingUtils.useSuperAdmin()` (for Core tenant) or `TestingUtils.useOwner()` (for other tenants)
 3. Verify the configuration matches your needs
 
 ## Quick Reference
@@ -255,23 +251,21 @@ TestingUtils.isEnabled();  // Check status
 
 ### Switch User Roles
 ```javascript
-TestingUtils.useSuperAdmin();    // SuperAdmin with Demo tenant (superadmin@demo.com)
+TestingUtils.useSuperAdmin();    // SuperAdmin with Core tenant (superadmin@core.com) - SuperAdmin only available for Core tenant
 TestingUtils.useOwner();         // Owner with Enterprise tenant (owner@enterprise.com)
 TestingUtils.useRegularUser();  // Editor with Enterprise tenant (editor@enterprise.com)
 TestingUtils.useViewer();        // Viewer with Enterprise tenant (viewer@enterprise.com)
 
 // Additional configurations available via switchTestingConfig():
 // Core Tenant (-919):
-//   - coreSuperAdmin: SuperAdmin Core tenant (superadmin@core.com)
+//   - coreSuperAdmin: SuperAdmin Core tenant (superadmin@core.com) - SuperAdmin only available for Core tenant
 //   - coreAdmin: Admin Core tenant (admin@core.com)
 // Demo Tenant (1):
-//   - superAdmin1: SuperAdmin Demo tenant (superadmin@demo.com)
 //   - owner1: Owner Demo tenant (owner@demo.com)
 //   - admin1: Admin Demo tenant (admin@demo.com)
 //   - editor1: Editor Demo tenant (editor@demo.com)
 //   - viewer1: Viewer Demo tenant (viewer@demo.com)
 // Enterprise Tenant (2):
-//   - superAdmin2: SuperAdmin Enterprise tenant (superadmin@enterprise.com)
 //   - owner2: Owner Enterprise tenant (owner@enterprise.com)
 //   - admin2: Admin Enterprise tenant (admin@enterprise.com)
 //   - editor2: Editor Enterprise tenant (editor@enterprise.com)
@@ -313,7 +307,9 @@ TestingUtils.listConfigs();      // List available configs
 
 6. **Switch Back**
    ```javascript
-   TestingUtils.useSuperAdmin(); // Back to full access
+   TestingUtils.useSuperAdmin(); // Back to full access (Core tenant SuperAdmin)
+   // or
+   TestingUtils.useOwner(); // For Owner role in other tenants
    ```
 
 7. **Disable Testing When Done**

@@ -235,7 +235,7 @@ export default function Collaborators() {
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  {user?.role === 'SuperAdmin' && <SelectItem value="SuperAdmin">SuperAdmin</SelectItem>}
+                                  {user?.tenantId === '-919' && user?.role === 'SuperAdmin' && <SelectItem value="SuperAdmin">SuperAdmin</SelectItem>}
                                   {(user?.role === 'SuperAdmin' || user?.role === 'Owner') && <SelectItem value="Owner">Owner</SelectItem>}
                                   <SelectItem value="Admin">Admin</SelectItem>
                                   <SelectItem value="Editor">Editor</SelectItem>

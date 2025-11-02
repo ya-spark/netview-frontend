@@ -12,11 +12,11 @@ import { switchTestingConfig, getTestingConfig, testingConfigs, toggleTestingMod
  */
 export const TestingUtils = {
   /**
-   * Switch to SuperAdmin configuration (Demo tenant)
+   * Switch to SuperAdmin configuration (Core tenant only)
    */
   useSuperAdmin: () => {
-    switchTestingConfig('superAdmin1');
-    console.log('🔑 Switched to SuperAdmin testing config');
+    switchTestingConfig('coreSuperAdmin');
+    console.log('🔑 Switched to SuperAdmin testing config (Core tenant)');
   },
 
   /**
@@ -122,7 +122,7 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
   console.log('  TestingUtils.enable() - Enable testing mode');
   console.log('  TestingUtils.disable() - Disable testing mode');
   console.log('  TestingUtils.isEnabled() - Check if testing mode is enabled');
-  console.log('  TestingUtils.useSuperAdmin() - Switch to SuperAdmin');
+  console.log('  TestingUtils.useSuperAdmin() - Switch to SuperAdmin (Core tenant only)');
   console.log('  TestingUtils.useOwner() - Switch to Owner');
   console.log('  TestingUtils.useRegularUser() - Switch to regular user');
   console.log('  TestingUtils.useViewer() - Switch to viewer');

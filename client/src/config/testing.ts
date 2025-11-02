@@ -30,18 +30,18 @@ export interface TestingConfig {
 /**
  * Default testing configuration
  * 
- * This configuration provides a SuperAdmin user with tenant 1 access
+ * This configuration provides an Owner user with tenant 1 access
  * which matches the mock user data in the backend
  */
 export const testingConfig: TestingConfig = {
   enabled: true, // Set to false to disable testing mode
   
   user: {
-    email: 'superadmin@demo.com',
+    email: 'owner@demo.com',
     tenantId: '1',
-    role: 'SuperAdmin',
-    firstName: 'Super',
-    lastName: 'Admin'
+    role: 'Owner',
+    firstName: 'Owner',
+    lastName: 'Demo'
   },
   
   api: {
@@ -88,23 +88,7 @@ export const testingConfigs = {
     }
   },
   
-  // Demo Tenant (1) - All roles
-  /** SuperAdmin with Demo tenant access */
-  superAdmin1: {
-    enabled: true,
-    user: {
-      email: 'superadmin@demo.com',
-      tenantId: '1',
-      role: 'SuperAdmin',
-      firstName: 'Super',
-      lastName: 'Admin'
-    },
-    api: {
-      baseUrl: '/api',
-      includeCredentials: true
-    }
-  },
-  
+  // Demo Tenant (1) - All roles (except SuperAdmin)
   /** Owner with Demo tenant access */
   owner1: {
     enabled: true,
@@ -169,23 +153,7 @@ export const testingConfigs = {
     }
   },
   
-  // Enterprise Tenant (2) - All roles
-  /** SuperAdmin with Enterprise tenant access */
-  superAdmin2: {
-    enabled: true,
-    user: {
-      email: 'superadmin@enterprise.com',
-      tenantId: '2',
-      role: 'SuperAdmin',
-      firstName: 'Super',
-      lastName: 'Admin'
-    },
-    api: {
-      baseUrl: '/api',
-      includeCredentials: true
-    }
-  },
-  
+  // Enterprise Tenant (2) - All roles (except SuperAdmin)
   /** Owner with Enterprise tenant access */
   owner2: {
     enabled: true,
