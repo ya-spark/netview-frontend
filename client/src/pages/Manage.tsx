@@ -259,7 +259,11 @@ export default function Manage() {
       return await GatewayApiService.createGateway(data);
     },
     onSuccess: (response) => {
-      toast({ title: 'Success', description: response.message || 'Gateway created successfully' });
+      toast({ 
+        title: 'Success', 
+        description: response.message || 'Gateway created successfully',
+        duration: 2000
+      });
       refetchGateways();
       gatewayForm.reset();
       
