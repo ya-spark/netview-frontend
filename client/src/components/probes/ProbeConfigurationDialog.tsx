@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -202,11 +202,12 @@ export function ProbeConfigurationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Configure {selectedType} Probe</DialogTitle>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
+        <div className="flex-1 overflow-y-auto px-1">
+          <div className="grid gap-4 py-4">
           {/* Common fields */}
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="probe-name" className="text-right">
@@ -418,8 +419,9 @@ export function ProbeConfigurationDialog({
               </Label>
             </div>
           </div>
+          </div>
         </div>
-        <div className="flex justify-between">
+        <DialogFooter className="flex justify-between">
           {onBack && (
             <Button variant="outline" onClick={onBack}>
               Back
@@ -439,7 +441,7 @@ export function ProbeConfigurationDialog({
               {isPending ? 'Creating...' : 'Create Probe'}
             </Button>
           </div>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

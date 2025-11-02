@@ -9,22 +9,25 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Search, Filter, Settings, Globe, Trash2, Edit, Key, Download, RefreshCw } from 'lucide-react';
+import { Plus, Search, Filter, Settings, Globe, Trash2, Edit, Key, Download, RefreshCw, Mail } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { GatewayApiService, GatewayUtils } from '@/services/gatewayApi';
 import { ProbeApiService, ProbeUtils } from '@/services/probeApi';
+import { NotificationGroupApiService } from '@/services/notificationApi';
 import { ProbeTypeSelectionDialog } from '@/components/probes/ProbeTypeSelectionDialog';
 import { ProbeConfigurationDialog } from '@/components/probes/ProbeConfigurationDialog';
 import { ProbeEditDialog } from '@/components/probes/ProbeEditDialog';
 import type { GatewayResponse } from '@/types/gateway';
 import type { Probe, ProbeCreate, ProbeCategory, ProbeType } from '@/types/probe';
+import type { NotificationGroup, NotificationGroupCreate } from '@/types/notification';
 
 const probeSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -42,8 +45,15 @@ const probeSchema = z.object({
 
 const notificationGroupSchema = z.object({
   name: z.string().min(1, 'Name is required'),
-  emails: z.string().min(1, 'At least one email is required'),
-  alertThreshold: z.number().default(1),
+  emails: z.string().min(1, 'At least one email is required').refine(
+    (val) => {
+      const emailArray = val.split(',').map(e => e.trim()).filter(e => e.length > 0);
+      return emailArray.length > 0 && emailArray.every(email => z.string().email().safeParse(email).success);
+    },
+    { message: 'Must provide at least one valid email address' }
+  ),
+  alert_threshold: z.number().min(1).default(1),
+  is_active: z.boolean().default(true),
 });
 
 const gatewaySchema = z.object({
@@ -81,6 +91,10 @@ export default function Manage() {
   const [editProbeDialogOpen, setEditProbeDialogOpen] = useState(false);
   const [editingProbe, setEditingProbe] = useState<Probe | null>(null);
   
+  // Edit Notification Group Dialog State
+  const [editNotificationDialogOpen, setEditNotificationDialogOpen] = useState(false);
+  const [editingNotificationGroup, setEditingNotificationGroup] = useState<NotificationGroup | null>(null);
+  
   // Listen for hash changes
   useEffect(() => {
     const handleHashChange = () => {
@@ -109,10 +123,15 @@ export default function Manage() {
     },
   });
 
-  const { data: notificationGroups, refetch: refetchNotificationGroups } = useQuery({
-    queryKey: ['/api/notification-groups'],
+  const { data: notificationGroupsResponse, refetch: refetchNotificationGroups } = useQuery({
+    queryKey: ['/api/notifications/groups'],
     enabled: !!user && hash === 'notifications',
+    queryFn: async () => {
+      return await NotificationGroupApiService.listGroups();
+    },
   });
+  
+  const notificationGroups = notificationGroupsResponse?.data || [];
 
   const { data: gateways, refetch: refetchGateways, error: gatewaysError, isLoading: gatewaysLoading } = useQuery({
     queryKey: ['/api/gateways'],
@@ -173,7 +192,18 @@ export default function Manage() {
     defaultValues: {
       name: '',
       emails: '',
-      alertThreshold: 1,
+      alert_threshold: 1,
+      is_active: true,
+    },
+  });
+  
+  const editNotificationForm = useForm<z.infer<typeof notificationGroupSchema>>({
+    resolver: zodResolver(notificationGroupSchema),
+    defaultValues: {
+      name: '',
+      emails: '',
+      alert_threshold: 1,
+      is_active: true,
     },
   });
 
@@ -236,13 +266,14 @@ export default function Manage() {
 
   const createNotificationGroupMutation = useMutation({
     mutationFn: async (data: z.infer<typeof notificationGroupSchema>) => {
-      const emailArray = data.emails.split(',').map(email => email.trim());
-      
-      const response = await apiRequest('POST', '/api/notification-groups', {
-        ...data,
+      const emailArray = data.emails.split(',').map(email => email.trim()).filter(e => e.length > 0);
+      const createData: NotificationGroupCreate = {
+        name: data.name,
         emails: emailArray,
-      });
-      return response.json();
+        alert_threshold: data.alert_threshold,
+        is_active: data.is_active,
+      };
+      return await NotificationGroupApiService.createGroup(createData);
     },
     onSuccess: () => {
       toast({ title: 'Success', description: 'Notification group created successfully' });
@@ -253,6 +284,59 @@ export default function Manage() {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     },
   });
+
+  const updateNotificationGroupMutation = useMutation({
+    mutationFn: async ({ groupId, data }: { groupId: string; data: Partial<z.infer<typeof notificationGroupSchema>> }) => {
+      const updateData: { name?: string; emails?: string[]; alert_threshold?: number; is_active?: boolean } = {};
+      if (data.name !== undefined) updateData.name = data.name;
+      if (data.emails !== undefined) {
+        updateData.emails = data.emails.split(',').map(email => email.trim()).filter(e => e.length > 0);
+      }
+      if (data.alert_threshold !== undefined) updateData.alert_threshold = data.alert_threshold;
+      if (data.is_active !== undefined) updateData.is_active = data.is_active;
+      return await NotificationGroupApiService.updateGroup(groupId, updateData);
+    },
+    onSuccess: () => {
+      toast({ title: 'Success', description: 'Notification group updated successfully' });
+      refetchNotificationGroups();
+      setEditNotificationDialogOpen(false);
+      setEditingNotificationGroup(null);
+      editNotificationForm.reset();
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const deleteNotificationGroupMutation = useMutation({
+    mutationFn: async (groupId: string) => {
+      return await NotificationGroupApiService.deleteGroup(groupId);
+    },
+    onSuccess: () => {
+      toast({ title: 'Success', description: 'Notification group deleted successfully' });
+      refetchNotificationGroups();
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const handleEditNotificationGroup = (group: NotificationGroup) => {
+    setEditingNotificationGroup(group);
+    editNotificationForm.reset({
+      name: group.name,
+      emails: group.emails.join(', '),
+      alert_threshold: group.alert_threshold,
+      is_active: group.is_active,
+    });
+    setEditNotificationDialogOpen(true);
+  };
+
+  const handleDeleteNotificationGroup = (groupId: string) => {
+    if (confirm('Are you sure you want to delete this notification group?')) {
+      deleteNotificationGroupMutation.mutate(groupId);
+    }
+  };
 
   const createGatewayMutation = useMutation({
     mutationFn: async (data: z.infer<typeof gatewaySchema>) => {
@@ -487,13 +571,14 @@ export default function Manage() {
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <h3 className="text-lg font-medium">Notification Groups</h3>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button data-testid="button-create-notification" className="w-full sm:w-auto">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Group
-                  </Button>
-                </DialogTrigger>
+              {(user?.role === 'SuperAdmin' || user?.role === 'Owner' || user?.role === 'Admin') && (
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button data-testid="button-create-notification" className="w-full sm:w-auto">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Group
+                    </Button>
+                  </DialogTrigger>
                 <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Create Notification Group</DialogTitle>
@@ -528,12 +613,28 @@ export default function Manage() {
                       />
                       <FormField
                         control={notificationForm.control}
-                        name="alertThreshold"
+                        name="alert_threshold"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Alert Threshold</FormLabel>
                             <FormControl>
-                              <Input type="number" min="1" {...field} onChange={e => field.onChange(parseInt(e.target.value))} data-testid="input-threshold" />
+                              <Input type="number" min="1" {...field} value={field.value || 1} onChange={e => field.onChange(parseInt(e.target.value) || 1)} data-testid="input-threshold" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={notificationForm.control}
+                        name="is_active"
+                        render={({ field }) => (
+                          <FormItem className="flex items-center justify-between">
+                            <div>
+                              <FormLabel>Active</FormLabel>
+                              <p className="text-sm text-muted-foreground">Enable this notification group</p>
+                            </div>
+                            <FormControl>
+                              <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-is-active" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -546,6 +647,7 @@ export default function Manage() {
                   </Form>
                 </DialogContent>
               </Dialog>
+              )}
             </div>
 
             <Card>
@@ -558,22 +660,47 @@ export default function Manage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {notificationGroups.map((group: any) => (
+                    {notificationGroups.map((group: NotificationGroup) => (
                       <div key={group.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-border rounded-lg gap-4" data-testid={`notification-item-${group.id}`}>
                         <div className="min-w-0 flex-1">
                           <div className="font-medium text-foreground">{group.name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {group.emails?.length || 0} members
+                          <div className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                            <Mail className="w-3 h-3" />
+                            <span>{group.emails?.length || 0} {group.emails?.length === 1 ? 'email' : 'emails'}</span>
                           </div>
-                          <div className="text-xs text-muted-foreground">Threshold: {group.alertThreshold} failures</div>
+                          {group.emails && group.emails.length > 0 && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {group.emails.slice(0, 3).join(', ')}
+                              {group.emails.length > 3 && ` +${group.emails.length - 3} more`}
+                            </div>
+                          )}
+                          <div className="text-xs text-muted-foreground mt-1">Threshold: {group.alert_threshold} {group.alert_threshold === 1 ? 'failure' : 'failures'}</div>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <Badge variant={group.isActive ? "secondary" : "outline"}>
-                            {group.isActive ? 'Active' : 'Inactive'}
+                          <Badge variant={group.is_active ? "secondary" : "outline"}>
+                            {group.is_active ? 'Active' : 'Inactive'}
                           </Badge>
-                          <Button variant="ghost" size="sm" data-testid={`button-edit-notification-${group.id}`}>
-                            <Edit className="w-4 h-4" />
-                          </Button>
+                          {(user?.role === 'SuperAdmin' || user?.role === 'Owner' || user?.role === 'Admin') && (
+                            <>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                data-testid={`button-edit-notification-${group.id}`}
+                                onClick={() => handleEditNotificationGroup(group)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                data-testid={`button-delete-notification-${group.id}`}
+                                onClick={() => handleDeleteNotificationGroup(group.id)}
+                                disabled={deleteNotificationGroupMutation.isPending}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -581,6 +708,100 @@ export default function Manage() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Edit Notification Group Dialog */}
+            <Dialog open={editNotificationDialogOpen} onOpenChange={setEditNotificationDialogOpen}>
+              <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Edit Notification Group</DialogTitle>
+                </DialogHeader>
+                <Form {...editNotificationForm}>
+                  <form onSubmit={editNotificationForm.handleSubmit((data) => {
+                    if (editingNotificationGroup) {
+                      updateNotificationGroupMutation.mutate({ groupId: editingNotificationGroup.id, data });
+                    }
+                  })} className="space-y-4">
+                    <FormField
+                      control={editNotificationForm.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Group Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="DevOps Team" {...field} data-testid="input-edit-group-name" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={editNotificationForm.control}
+                      name="emails"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email Addresses</FormLabel>
+                          <FormControl>
+                            <Textarea placeholder="admin@example.com, devops@example.com" {...field} data-testid="textarea-edit-emails" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={editNotificationForm.control}
+                      name="alert_threshold"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Alert Threshold</FormLabel>
+                          <FormControl>
+                            <Input type="number" min="1" {...field} value={field.value || 1} onChange={e => field.onChange(parseInt(e.target.value) || 1)} data-testid="input-edit-threshold" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={editNotificationForm.control}
+                      name="is_active"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between">
+                          <div>
+                            <FormLabel>Active</FormLabel>
+                            <p className="text-sm text-muted-foreground">Enable this notification group</p>
+                          </div>
+                          <FormControl>
+                            <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-edit-is-active" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="flex gap-2">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        className="flex-1"
+                        onClick={() => {
+                          setEditNotificationDialogOpen(false);
+                          setEditingNotificationGroup(null);
+                          editNotificationForm.reset();
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        type="submit" 
+                        disabled={updateNotificationGroupMutation.isPending} 
+                        className="flex-1" 
+                        data-testid="button-update-notification"
+                      >
+                        {updateNotificationGroupMutation.isPending ? 'Updating...' : 'Update Group'}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
           </div>
         )}
         
