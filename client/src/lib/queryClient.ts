@@ -76,6 +76,11 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
     try {
       const idToken = await auth.currentUser.getIdToken();
       headers['Authorization'] = `Bearer ${idToken}`;
+      
+      // Add X-User-Email header required by backend middleware
+      if (auth.currentUser.email) {
+        headers['X-User-Email'] = auth.currentUser.email;
+      }
     } catch (error) {
       console.error('Failed to get Firebase ID token:', error);
     }

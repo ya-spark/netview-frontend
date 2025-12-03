@@ -45,6 +45,22 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Pre-auth routes: accessible to everyone, no redirects
+function PreAuthRoute({ children }: { children: React.ReactNode }) {
+  const { loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
+
+// Public routes: redirect authenticated users (for login/signup)
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { user, firebaseUser, selectedTenant, loading } = useAuth();
 
@@ -92,9 +108,9 @@ function Router() {
   return (
     <Switch>
       <Route path="/">
-        <PublicRoute>
+        <PreAuthRoute>
           <Landing />
-        </PublicRoute>
+        </PreAuthRoute>
       </Route>
 
       <Route path="/login">
@@ -116,15 +132,21 @@ function Router() {
       </Route>
 
       <Route path="/features">
-        <Features />
+        <PreAuthRoute>
+          <Features />
+        </PreAuthRoute>
       </Route>
 
       <Route path="/pricing">
-        <Pricing />
+        <PreAuthRoute>
+          <Pricing />
+        </PreAuthRoute>
       </Route>
 
       <Route path="/docs">
-        <Docs />
+        <PreAuthRoute>
+          <Docs />
+        </PreAuthRoute>
       </Route>
 
       <Route path="/dashboard">
