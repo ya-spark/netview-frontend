@@ -1,159 +1,110 @@
-# NetView Documentation Index
+# NetView Frontend Documentation Index
 
-This index helps AI assistants quickly locate the right documentation when making changes to the NetView application.
+**Repository Note**: This is a frontend-only repository. Backend code is in a separate repository.
+
+This index helps developers quickly locate the right documentation when working on the NetView frontend application.
 
 ## Quick Reference Guide
 
 ### When Working With...
 
-#### Database & Schema Changes
-→ **Read**: `DATABASE.md`
-- Database tables and relationships
-- Schema patterns and conventions
-- Storage interface methods
-- Insert schemas and types
-
-#### API Endpoints
-→ **Read**: `API.md`
-- All REST API endpoints
-- Authentication requirements
-- Request/response formats
-- Role and scope requirements
-
-#### Development Setup & Workflows
+#### Frontend Development Setup & Workflows
 → **Read**: `DEVELOPMENT.md`
-- Tech stack overview
+- Tech stack overview (React, Vite, TypeScript)
 - Project structure
 - Development workflow
 - Package management
+- Environment variables
 - Common pitfalls
+- Build and deployment
 
 #### Frontend Components & UI
 → **Read**: `COMPONENTS.md`
 - Page components
 - Route protection
-- Form patterns
+- Form patterns (React Hook Form + Zod)
 - State management with TanStack Query
-- Styling guidelines
+- Styling guidelines (Tailwind CSS)
+- Context providers
+- Custom hooks
 
-#### Backend Services & Business Logic
-→ **Read**: `SERVICES.md`
-- Authentication service (Firebase)
-- Stripe payment service
-- Anthropic AI service
-- API Key management
-- Notification system
+#### API Integration
+→ **Read**: `API.md`
+- REST API endpoints (backend reference)
+- Authentication requirements
+- Request/response formats
+- Role and scope requirements
+- How frontend communicates with backend
 
-#### Gateway System & Probe Execution
-→ **Read**: `GATEWAY.md`
-- Gateway architecture
-- Probe execution types
-- Synchronization patterns
-- Deployment guidelines
-
-#### Authentication & Authorization
+#### Authentication & Authorization (Frontend)
 → **Read**: `AUTH.md`
-- Firebase authentication flow
-- API key authentication
-- Role-based access control
-- Scope-based permissions
-- Multi-tenancy patterns
+- Firebase authentication flow (frontend implementation)
+- AuthContext usage
+- Protected routes
+- User session management
+- Role-based UI rendering
 
-#### Logging System
-→ **Read**: `LOGGING.md`
-- Rotating logger configuration
-- Log management
-- Environment variables
-- API endpoints for logs
-
-#### Project Overview & Architecture
-→ **Read**: `DEVELOPMENT.md` and `SERVICES.md`
-- Platform overview
-- Architecture summary
-- User preferences
-- External dependencies
 
 ## Documentation Files
 
-### Core Documentation
+### Core Frontend Documentation
 
 | File | Purpose | When to Use |
 |------|---------|-------------|
-| `DATABASE.md` | Database schema, tables, relations, storage interface | Adding tables, modifying schema, understanding data model |
-| `API.md` | REST API endpoints, authentication, request/response formats | Adding endpoints, understanding API contracts |
-| `DEVELOPMENT.md` | Development setup, workflows, conventions, best practices | Setting up project, following patterns, avoiding pitfalls |
+| `DEVELOPMENT.md` | Frontend development setup, workflows, conventions | Setting up project, following patterns, avoiding pitfalls |
 | `COMPONENTS.md` | Frontend architecture, React patterns, UI components | Building UI, adding pages, managing state |
-| `SERVICES.md` | Backend services, business logic, external integrations | Adding business logic, integrating services |
-| `GATEWAY.md` | Distributed gateway system, probe execution | Working with monitoring probes, gateway deployment |
-| `AUTH.md` | Authentication & authorization flows | Implementing auth, managing permissions |
-| `LOGGING.md` | Logging system configuration | Configuring logs, accessing log data |
+| `API.md` | REST API endpoints reference | Understanding API contracts, integrating with backend |
+| `AUTH.md` | Frontend authentication implementation | Implementing auth flows, using AuthContext |
+
 
 ### Quick Decision Tree
 
 ```
 Need to make a change? Ask yourself:
 
-┌─ Is it about data/database?
-│  └─→ DATABASE.md
-│
-┌─ Is it about API routes/endpoints?
-│  └─→ API.md
-│
 ┌─ Is it about frontend UI/components?
 │  └─→ COMPONENTS.md
 │
-┌─ Is it about backend logic/services?
-│  └─→ SERVICES.md
+┌─ Is it about development setup/workflow?
+│  └─→ DEVELOPMENT.md
 │
-┌─ Is it about authentication/permissions?
+┌─ Is it about API integration?
+│  └─→ API.md
+│
+┌─ Is it about authentication (frontend)?
 │  └─→ AUTH.md
-│
-┌─ Is it about monitoring/gateways?
-│  └─→ GATEWAY.md
-│
-└─ Is it about development setup?
-   └─→ DEVELOPMENT.md
 ```
 
 ## Common Tasks & Documentation
 
-### Adding a New Feature
+### Adding a New Frontend Feature
 
-1. **Define data model** → `DATABASE.md`
-2. **Create API endpoints** → `API.md`
-3. **Implement backend logic** → `SERVICES.md`
-4. **Build frontend UI** → `COMPONENTS.md`
-5. **Add authentication** → `AUTH.md`
-6. **Follow conventions** → `DEVELOPMENT.md`
+1. **Understand API endpoints** → `API.md`
+2. **Build frontend UI** → `COMPONENTS.md`
+3. **Add authentication if needed** → `AUTH.md`
+4. **Follow conventions** → `DEVELOPMENT.md`
 
 ### Debugging Issues
 
-- **Database errors** → `DATABASE.md` (schema, relations)
-- **API errors** → `API.md` (endpoints, auth)
 - **Frontend errors** → `COMPONENTS.md` (React patterns, state)
-- **Auth errors** → `AUTH.md` (token flow, permissions)
-- **Service errors** → `SERVICES.md` (business logic)
-- **Logs** → `LOGGING.md` (log access)
+- **API errors** → `API.md` (endpoints, auth, request/response)
+- **Auth errors** → `AUTH.md` (Firebase flow, token handling)
+- **Build errors** → `DEVELOPMENT.md` (setup, dependencies)
 
 ### Understanding Architecture
 
-- **High-level overview** → `DEVELOPMENT.md` and `SERVICES.md`
-- **Frontend architecture** → `COMPONENTS.md`
-- **Backend architecture** → `SERVICES.md` + `API.md`
-- **Data architecture** → `DATABASE.md`
-- **Auth architecture** → `AUTH.md`
-- **Monitoring architecture** → `GATEWAY.md`
+- **Frontend architecture** → `COMPONENTS.md` + `DEVELOPMENT.md`
+- **API integration** → `API.md`
+- **Authentication flow** → `AUTH.md`
 
 ## Documentation Maintenance
 
 ### When to Update Documentation
 
-- **Schema changes** → Update `DATABASE.md`
-- **New API endpoints** → Update `API.md`
-- **New services** → Update `SERVICES.md`
-- **New components** → Update `COMPONENTS.md`
-- **Auth changes** → Update `AUTH.md`
-- **Gateway changes** → Update `GATEWAY.md`
+- **New frontend components/pages** → Update `COMPONENTS.md`
+- **New API endpoints used** → Update `API.md` (if documenting frontend usage)
+- **Auth flow changes** → Update `AUTH.md`
+- **Development workflow changes** → Update `DEVELOPMENT.md`
 
 ### Documentation Standards
 
@@ -164,42 +115,34 @@ All documentation should include:
 - ✅ Common patterns and anti-patterns
 - ✅ Error handling examples
 - ✅ Best practices
+- ✅ Repository note if backend-related
 
-## Tips for AI Assistants
+## Tips for Developers
 
 1. **Read before writing**: Always check relevant docs before making changes
 2. **Follow patterns**: Use established patterns from documentation
 3. **Stay consistent**: Match existing code style and conventions
 4. **Update docs**: Keep documentation in sync with code changes
-5. **Cross-reference**: Related changes may affect multiple systems
+5. **Remember**: This is frontend-only - backend code is in separate repository
 
 ## Key Patterns to Remember
 
-### Database
-- Use Drizzle ORM with type-safe schemas
-- Storage interface for all DB operations
-- Run `npm run db:push` for migrations
-
 ### Frontend
-- TanStack Query for server state
-- React Hook Form + Zod for forms
-- Wouter for routing
-- shadcn/ui for components
+- **State Management**: TanStack Query for server state, React Context for auth
+- **Forms**: React Hook Form + Zod for validation
+- **Routing**: Wouter for client-side routing
+- **UI Components**: shadcn/ui built on Radix UI
+- **Styling**: Tailwind CSS with dark mode support
+- **Authentication**: Firebase Authentication with Google OAuth
 
-### Backend
-- Express.js with TypeScript
-- Firebase for auth
-- Service layer for business logic
-- Middleware for cross-cutting concerns
+### API Integration
+- **API Requests**: Use `apiRequest()` helper from `@/lib/queryClient`
+- **Query Keys**: Use array format: `['/api/probes', id]`
+- **Token Injection**: Automatic via queryClient
+- **Error Handling**: Check response status, handle errors gracefully
 
-### Authentication
-- Firebase JWT for users
-- API keys for programmatic access
-- Role-based + scope-based authorization
-- Tenant isolation
-
-### Gateway
-- Python Flask for probe execution
-- SQLite for local caching
-- Distributed monitoring network
-- Multiple probe types (Uptime, API, Security, Browser)
+### Development
+- **Environment Variables**: Must be prefixed with `VITE_`
+- **Build Tool**: Vite for development and production builds
+- **TypeScript**: Strict type checking enabled
+- **Proxy**: API requests proxied to `http://localhost:8080` in development

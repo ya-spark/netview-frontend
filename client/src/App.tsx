@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Landing from "@/pages/Landing";
 import Login from "@/pages/Login";
+import SignUp from "@/pages/SignUp";
+import TenantSelection from "@/pages/TenantSelection";
 import Features from "@/pages/Features";
 import Pricing from "@/pages/Pricing";
 import Docs from "@/pages/docs/index";
@@ -19,39 +21,67 @@ import Collaborators from "@/pages/Collaborators";
 import NotFound from "@/pages/not-found";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  // Temporarily disabled authentication
-  // const { user, loading } = useAuth();
+  const { user, selectedTenant, loading } = useAuth();
 
-  // if (loading) {
-  //   return (
-  //     <div className="min-h-screen flex items-center justify-center">
-  //       <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
-  //     </div>
-  //   );
-  // }
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
 
-  // if (!user) {
-  //   return <Redirect to="/login" />;
-  // }
+  if (!user) {
+    return <Redirect to="/login" />;
+  }
+
+  // If user doesn't have a tenant selected, redirect to tenant selection
+  if (!selectedTenant || !user.tenantId) {
+    return <Redirect to="/tenant-selection" />;
+  }
 
   return <>{children}</>;
 }
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
-  // Temporarily disabled authentication
-  // const { user, loading } = useAuth();
+  const { user, firebaseUser, selectedTenant, loading } = useAuth();
 
-  // if (loading) {
-  //   return (
-  //     <div className="min-h-screen flex items-center justify-center">
-  //       <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
-  //     </div>
-  //   );
-  // }
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
 
-  // if (user) {
-  //   return <Redirect to="/dashboard" />;
-  // }
+  // Redirect if user is authenticated
+  if (user || firebaseUser) {
+    // If user has a tenant selected, go to dashboard
+    if (selectedTenant && user?.tenantId) {
+      return <Redirect to="/dashboard" />;
+    }
+    // Otherwise, go to tenant selection
+    return <Redirect to="/tenant-selection" />;
+  }
+
+  return <>{children}</>;
+}
+
+function TenantSelectionRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  // Redirect to login if not authenticated
+  if (!user) {
+    return <Redirect to="/login" />;
+  }
 
   return <>{children}</>;
 }
@@ -69,6 +99,18 @@ function Router() {
         <PublicRoute>
           <Login />
         </PublicRoute>
+      </Route>
+
+      <Route path="/signup">
+        <PublicRoute>
+          <SignUp />
+        </PublicRoute>
+      </Route>
+
+      <Route path="/tenant-selection">
+        <TenantSelectionRoute>
+          <TenantSelection />
+        </TenantSelectionRoute>
       </Route>
 
       <Route path="/features">

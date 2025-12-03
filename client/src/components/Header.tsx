@@ -16,10 +16,13 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export function Header() {
   const [location] = useLocation();
-  const { user, signOut } = useAuth();
+  const { user, firebaseUser, signOut } = useAuth();
   const [notificationCount] = useState(3);
   const { toggleSidebar } = useSidebar();
 
+  // Check both user (backend) and firebaseUser (Firebase auth) to handle cases where
+  // Firebase auth is complete but backend user data hasn't loaded yet
+  const isAuthenticated = !!(user || firebaseUser);
 
   // Different navigation based on login status
   const loggedInNavigation = [
@@ -39,7 +42,7 @@ export function Header() {
     { name: "Docs", href: "/docs", current: location === "/docs" },
   ];
 
-  const navigation = user ? loggedInNavigation : publicNavigation;
+  const navigation = isAuthenticated ? loggedInNavigation : publicNavigation;
 
   const getInitials = (firstName: string, lastName: string) => {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
@@ -50,14 +53,14 @@ export function Header() {
   };
 
   return (
-    <header className="bg-card border-b border-border sticky top-0 z-50 shadow-sm !w-full" style={{ width: '100vw', position: 'relative', left: '50%', marginLeft: '-50vw' }}>
+    <header className="bg-card border-b border-border fixed top-0 left-0 right-0 z-50 shadow-sm w-full">
       <div className="w-full px-4 sm:px-6 py-4">
           {/* Top Row - Logo, Desktop Navigation, User Menu */}
           <div className="flex items-center justify-between">
             {/* Left side - Logo and Mobile Menu */}
             <div className="flex items-center space-x-4">
               {/* Mobile Sidebar Trigger - Always render for logged-in users, control visibility with CSS */}
-              {user && (
+              {isAuthenticated && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -69,7 +72,7 @@ export function Header() {
                 </Button>
               )}
 
-              <Link href={user ? "/dashboard" : "/"}>
+              <Link href={isAuthenticated ? "/dashboard" : "/"}>
                 <div className="flex items-center space-x-2 cursor-pointer">
                   <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                     <span className="text-primary-foreground font-bold text-lg">
@@ -102,7 +105,7 @@ export function Header() {
             </nav>
 
             {/* Right side - User Menu or Sign up button */}
-            {user ? (
+            {isAuthenticated ? (
               <div className="flex items-center space-x-4">
                 {/* Notifications */}
                 <Button
@@ -130,30 +133,62 @@ export function Header() {
                       data-testid="dropdown-user-menu"
                     >
                       <div className="text-right hidden sm:block">
-                        <div
-                          className="text-sm font-medium text-foreground"
-                          data-testid="text-user-name"
-                        >
-                          {user.firstName} {user.lastName}
-                        </div>
-                        <div
-                          className="text-xs text-muted-foreground"
-                          data-testid="text-user-role"
-                        >
-                          {user.role} · {user.email}
-                        </div>
-                        {user.tenantName && (
-                          <div
-                            className="text-xs text-muted-foreground"
-                            data-testid="text-tenant-info"
-                          >
-                           {user.tenantName} ({user.tenantId})
-                          </div>
-                        )}
+                        {user ? (
+                          <>
+                            <div
+                              className="text-sm font-medium text-foreground"
+                              data-testid="text-user-name"
+                            >
+                              {user.firstName} {user.lastName}
+                            </div>
+                            <div
+                              className="text-xs text-muted-foreground"
+                              data-testid="text-user-email"
+                            >
+                              {user.email}
+                            </div>
+                            <div
+                              className="text-xs text-muted-foreground"
+                              data-testid="text-user-role-org"
+                            >
+                              {user.role && user.tenantName 
+                                ? `${user.role} (${user.tenantName})`
+                                : 'NA NA'}
+                            </div>
+                          </>
+                        ) : firebaseUser ? (
+                          <>
+                            <div
+                              className="text-sm font-medium text-foreground"
+                              data-testid="text-user-name"
+                            >
+                              {firebaseUser.displayName || 'User'}
+                            </div>
+                            <div
+                              className="text-xs text-muted-foreground"
+                              data-testid="text-user-email"
+                            >
+                              {firebaseUser.email}
+                            </div>
+                            <div
+                              className="text-xs text-muted-foreground"
+                              data-testid="text-user-role-org"
+                            >
+                              NA NA
+                            </div>
+                          </>
+                        ) : null}
                       </div>
                       <Avatar>
                         <AvatarFallback className="bg-primary text-primary-foreground">
-                          {getInitials(user.firstName, user.lastName)}
+                          {user 
+                            ? getInitials(user.firstName, user.lastName)
+                            : firebaseUser?.displayName
+                            ? getInitials(
+                                firebaseUser.displayName.split(' ')[0] || 'U',
+                                firebaseUser.displayName.split(' ').slice(1).join(' ') || 'U'
+                              )
+                            : 'U'}
                         </AvatarFallback>
                       </Avatar>
                     </div>

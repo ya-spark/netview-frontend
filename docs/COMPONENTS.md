@@ -179,18 +179,24 @@ Use React's `useState` and `useReducer` for component-local state.
 ```tsx
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
-import { insertProbeSchema } from "@shared/schema";
+
+// Define your schema
+const probeSchema = z.object({
+  name: z.string().min(3, "Name must be at least 3 characters"),
+  type: z.enum(["Uptime", "API", "Security", "Browser"]),
+  url: z.string().url("Must be a valid URL"),
+  isActive: z.boolean().default(true),
+});
 
 function ProbeForm() {
   const form = useForm({
-    resolver: zodResolver(insertProbeSchema.extend({
-      // Additional validation
-      name: z.string().min(3, "Name must be at least 3 characters"),
-    })),
+    resolver: zodResolver(probeSchema),
     defaultValues: {
       name: "",
       type: "Uptime",
+      url: "",
       isActive: true,
       // ... all fields with defaults
     }

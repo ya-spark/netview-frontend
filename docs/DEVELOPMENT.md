@@ -2,7 +2,7 @@
 
 ## Repository Note
 
-**This repository contains frontend code only.** The backend code (server/, shared/, gateway/) is located in a separate repository. This documentation describes the full system architecture for reference.
+**This repository contains frontend code only.** The backend API server runs separately and communicates with this frontend via HTTP API calls. The backend code is located in a separate repository.
 
 ## Tech Stack
 
@@ -15,51 +15,20 @@
 - **Routing**: Wouter
 - **Forms**: React Hook Form with Zod validation
 - **Icons**: Lucide React (actions/UI), React Icons (logos)
-
-### Backend
-- **Runtime**: Node.js with Express.js
-- **Language**: TypeScript with ES modules
-- **Database**: PostgreSQL with Drizzle ORM
-- **Auth**: Firebase Admin SDK + Firebase Authentication
-- **Payments**: Stripe
-- **AI**: Anthropic Claude
-- **Logging**: Custom rotating file logger
-
-### Gateway
-- **Language**: Python 3
-- **Framework**: Flask
-- **Storage**: SQLite (local caching)
-- **Libraries**: Requests, DNSPython, Selenium
+- **Authentication**: Firebase Authentication (Google OAuth)
 
 ## Runtime Requirements
 
-### Backend Runtime
-- **Node.js**: Version 20
-- **PostgreSQL**: Version 16
-- **Default Port**: 5000 (configurable via `PORT` environment variable)
+### Frontend Development
+- **Node.js**: Version 18+ recommended
+- **Package Manager**: npm
+- **Default Port**: Configured via `PORT` environment variable (defaults to 5173 for Vite)
 
-### External Service Integrations
-The backend integrates with the following services:
+### External Service Dependencies
+The frontend communicates with:
+- **Backend API**: Runs on `http://localhost:8080` (configurable via proxy)
 - **Firebase**: Authentication and user management
-- **Stripe**: Payment processing
-- **PostgreSQL**: Database (via Neon or other PostgreSQL provider)
-- **Anthropic Claude**: AI-powered probe generation
-
-## Deployment Configuration
-
-### Build and Run Commands
-- **Development**: `npm run dev`
-- **Build**: `npm run build`
-- **Production**: `npm run start`
-
-### Port Configuration
-- Default application port: `5000`
-- Can be configured via `PORT` environment variable
-
-### Deployment Target
-- Supports autoscale deployment
-- Build process runs `npm run build`
-- Production start command: `npm run start`
+  - Requires `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID`
 
 ## Project Structure
 
@@ -68,82 +37,92 @@ The backend integrates with the following services:
 ├── client/
 │   ├── src/
 │   │   ├── components/     # Reusable UI components
+│   │   │   ├── ui/         # shadcn/ui components
+│   │   │   ├── Header.tsx  # Main header component
+│   │   │   ├── Layout.tsx  # Layout wrapper
+│   │   │   ├── Sidebar.tsx # Navigation sidebar
+│   │   │   └── probes/     # Probe-specific components
 │   │   ├── contexts/       # React contexts (AuthContext)
 │   │   ├── hooks/          # Custom React hooks
 │   │   ├── lib/            # Utilities (queryClient, firebase)
 │   │   ├── pages/          # Page components
-│   │   └── App.tsx         # Main app with routing
-├── server/
-│   ├── services/           # Business logic services
-│   ├── middleware/         # Express middleware
-│   ├── utils/              # Utility functions
-│   ├── routes.ts           # API route definitions
-│   ├── storage.ts          # Database interface
-│   ├── db.ts               # Database connection
-│   └── index.ts            # Server entry point
-├── shared/
-│   └── schema.ts           # Shared DB schema and types
-├── gateway/                # Python gateway application
-└── attached_assets/        # User-uploaded assets
+│   │   │   ├── Landing.tsx
+│   │   │   ├── Login.tsx
+│   │   │   ├── Dashboard.tsx
+│   │   │   ├── Manage.tsx
+│   │   │   ├── Monitor.tsx
+│   │   │   ├── Reports.tsx
+│   │   │   ├── Settings.tsx
+│   │   │   ├── Billing.tsx
+│   │   │   ├── Collaborators.tsx
+│   │   │   └── ...
+│   │   ├── services/       # API service functions
+│   │   ├── types/          # TypeScript type definitions
+│   │   ├── utils/          # Utility functions
+│   │   ├── App.tsx         # Main app with routing
+│   │   └── main.tsx        # Entry point
+│   └── index.html          # HTML template
+├── attached_assets/        # Static assets
+├── docs/                   # Documentation
+├── scripts/                # Build and utility scripts
+├── vite.config.ts          # Vite configuration
+├── tailwind.config.ts      # Tailwind CSS configuration
+├── tsconfig.json           # TypeScript configuration
+└── package.json            # Dependencies and scripts
 ```
 
 ## Development Workflow
 
 ### 1. Starting Development
 
-**Run the application**:
+**Prerequisites**:
+1. Ensure backend API server is running on `http://localhost:8080`
+2. Set up Firebase credentials in `.env` file:
+   ```
+   VITE_FIREBASE_API_KEY=your_api_key
+   VITE_FIREBASE_PROJECT_ID=your_project_id
+   VITE_FIREBASE_APP_ID=your_app_id
+   PORT=5173
+   ```
+
+**Run the frontend**:
 ```bash
 npm run dev
 ```
+
 This starts:
-- Express backend on port 5000
-- Vite frontend (proxied through Express)
-- Single port (5000) serves both
+- Vite dev server on the configured port (default: 5173)
+- Hot module replacement (HMR) for instant updates
+- API proxy to backend at `http://localhost:8080`
 
-**Workflows**: The "Start application" workflow is auto-configured
-
-### 2. Database Changes
-
-**Schema modifications**:
-1. Update `shared/schema.ts` with new tables/columns
-2. Update `server/storage.ts` with new methods
-3. Push changes: `npm run db:push`
-4. If data-loss warning: `npm run db:push --force`
-
-**Never**:
-- Write manual SQL migrations
-- Change primary key types (serial ↔ uuid)
-- Edit `drizzle.config.ts`
-
-### 3. Adding New Features
+### 2. Adding New Features
 
 **Order of operations**:
-1. Define data model in `shared/schema.ts`
-2. Create insert schema and types
-3. Update `IStorage` interface in `server/storage.ts`
-4. Implement storage methods
-5. Add API routes in `server/routes.ts`
-6. Create frontend components/pages
-7. Add TanStack Query hooks
+1. Create page component in `client/src/pages/`
+2. Add route in `client/src/App.tsx`
+3. Create API service functions in `client/src/services/` (if needed)
+4. Add TanStack Query hooks for data fetching
+5. Create UI components in `client/src/components/` (if reusable)
+6. Add TypeScript types in `client/src/types/` (if needed)
 
-### 4. Package Management
+### 3. Package Management
 
 **Install packages**:
 ```bash
-# Use packager tool (preferred)
-# DO NOT manually edit package.json
+npm install <package-name>
 ```
 
 **Frontend env variables**:
 - Must be prefixed with `VITE_`
 - Access via `import.meta.env.VITE_VAR_NAME`
+- Example: `import.meta.env.VITE_FIREBASE_API_KEY`
 
 ## Frontend Patterns
 
 ### Routing (Wouter)
 
 **Adding a page**:
-1. Create page in `client/src/pages/`
+1. Create page component in `client/src/pages/`
 2. Register route in `client/src/App.tsx`
 3. Use `<Link>` component or `useLocation()` hook
 
@@ -168,7 +147,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
 
 const form = useForm({
-  resolver: zodResolver(insertProbeSchema.extend({
+  resolver: zodResolver(schema.extend({
     // Add custom validation
   })),
   defaultValues: {
@@ -181,6 +160,8 @@ const form = useForm({
 
 **Queries**:
 ```tsx
+import { useQuery } from "@tanstack/react-query";
+
 const { data, isLoading } = useQuery({
   queryKey: ['/api/probes'],
   enabled: !!user, // Prevent unauthenticated requests
@@ -189,9 +170,13 @@ const { data, isLoading } = useQuery({
 
 **Mutations**:
 ```tsx
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
+
 const mutation = useMutation({
   mutationFn: async (data) => 
-    apiRequest('/api/probes', { method: 'POST', body: data }),
+    apiRequest('POST', '/api/probes', data),
   onSuccess: () => {
     queryClient.invalidateQueries({ queryKey: ['/api/probes'] });
   }
@@ -200,7 +185,7 @@ const mutation = useMutation({
 
 **Key patterns**:
 - Use object form for TanStack Query v5
-- Array query keys for hierarchical caching: `['/api/recipes', id]`
+- Array query keys for hierarchical caching: `['/api/probes', id]`
 - Gate queries with `enabled: !!user`
 - Always invalidate cache after mutations
 - Show loading/skeleton states
@@ -214,10 +199,28 @@ const { user, firebaseUser, loading, signOut } = useAuth();
 ```
 
 **Auth flow**:
-1. Firebase `signInWithRedirect` for Google OAuth
+1. Firebase `signInWithPopup` for Google OAuth
 2. Query client auto-injects Firebase ID token in headers
 3. Backend verifies token via Firebase Admin SDK
 4. User created/fetched and stored in context
+
+### API Requests
+
+**Using apiRequest helper**:
+```tsx
+import { apiRequest } from "@/lib/queryClient";
+
+// GET request
+const response = await apiRequest('GET', '/api/probes');
+const data = await response.json();
+
+// POST request
+const response = await apiRequest('POST', '/api/probes', {
+  name: 'My Probe',
+  type: 'Uptime'
+});
+const result = await response.json();
+```
 
 ### Styling
 
@@ -244,106 +247,43 @@ Add `data-testid` to interactive and display elements:
 <div data-testid={`card-product-${productId}`} />
 ```
 
-## Backend Patterns
-
-### API Routes
-
-**Structure**:
-```typescript
-app.post("/api/resource", 
-  authenticateUser,                    // Auth middleware
-  requireRole(['Owner', 'Admin']),     // Authorization
-  async (req, res) => {
-    const data = insertSchema.parse(req.body);  // Validate
-    const result = await storage.create(data);  // Storage
-    res.json(result);                           // Respond
-  }
-);
-```
-
-**Dual authentication** (User OR API Key):
-```typescript
-app.get("/api/resource",
-  authenticateUserOrApiKey,
-  requireScopes(['resource:read']),
-  handler
-);
-```
-
-### Services
-
-**Location**: `server/services/`
-
-**Available services**:
-- `auth.ts` - Firebase token verification, role checking
-- `stripe.ts` - Payment processing, subscriptions
-- `anthropic.ts` - AI probe generation
-- `api-key-manager.ts` - API key CRUD and validation
-- `notification-manager.ts` - Multi-channel notifications
-
-### Middleware
-
-**API Interceptor** (`server/middleware/api-interceptor.ts`):
-- Logs all API requests
-- Tracks response times, status codes
-- Rate limiting enforcement
-- Analytics collection
-
-**API Auth** (`server/middleware/api-auth.ts`):
-- Dual authentication (session + API keys)
-- Scope-based authorization
-- Token validation
-
-### Logging
-
-**Rotating logger** (`server/utils/rotating-logger.ts`):
-- Auto-rotates log files
-- Configurable size limits
-- Captures all console output
-- See `LOGGING.md` for details
-
-```typescript
-import { logger } from './utils/rotating-logger';
-
-logger.info('Message', 'source');
-logger.error('Error message', 'source');
-```
-
-## Forbidden Changes
-
-**Never modify**:
-- `vite.config.ts` - Build configuration is optimized
-- `server/vite.ts` - Dev server setup
-- `package.json` - Use packager tool instead
-- `drizzle.config.ts` - Database config
-
 ## Environment Variables
 
-### Backend
-- `DATABASE_URL` - PostgreSQL connection
-- `FIREBASE_PROJECT_ID` - Firebase project
-- `FIREBASE_CLIENT_EMAIL` - Firebase service account
-- `FIREBASE_PRIVATE_KEY` - Firebase private key
-- `ANTHROPIC_API_KEY` - Claude API access
-- `STRIPE_SECRET_KEY` - Stripe payments
-- `LOG_MAX_TOTAL_SIZE_MB` - Log storage limit
-- `LOG_MAX_FILE_SIZE_MB` - Individual log file limit
-
 ### Frontend
-- `VITE_FIREBASE_API_KEY` - Firebase config
-- `VITE_FIREBASE_AUTH_DOMAIN` - Firebase config
-- `VITE_FIREBASE_PROJECT_ID` - Firebase config
-- `VITE_STRIPE_PUBLISHABLE_KEY` - Stripe frontend
+- `VITE_FIREBASE_API_KEY` - Firebase API key
+- `VITE_FIREBASE_PROJECT_ID` - Firebase project ID
+- `VITE_FIREBASE_APP_ID` - Firebase app ID
+- `PORT` - Development server port (default: 5173)
+
+**Note**: All frontend environment variables must be prefixed with `VITE_` to be accessible in the browser.
+
+## Build and Deployment
+
+### Development Build
+```bash
+npm run dev
+```
+
+### Production Build
+```bash
+npm run build
+```
+
+This creates optimized production files in `dist/public/`.
+
+### Preview Production Build
+```bash
+npm run preview
+```
 
 ## Common Pitfalls
 
 1. **Import errors**:
-   - Use `@/` prefix for client imports
-   - Use `@shared/` for shared schema
-   - Don't explicitly import React
+   - Use `@/` prefix for client imports (e.g., `@/components/ui/button`)
+   - Don't explicitly import React (not needed in React 17+)
 
 2. **Forms not submitting**:
-   - Log `form.formState.errors`
+   - Log `form.formState.errors` for debugging
    - Check Zod schema validation
    - Ensure all form fields have default values
 
@@ -358,5 +298,11 @@ logger.error('Error message', 'source');
 5. **Toast hook**:
    - Import from `@/hooks/use-toast`, not `@/components/ui/use-toast`
 
-6. **Array columns**:
-   - Use `text().array()` not `array(text())`
+6. **API proxy errors**:
+   - Ensure backend API server is running on `http://localhost:8080`
+   - Check `vite.config.ts` proxy configuration
+
+7. **Firebase auth errors**:
+   - Verify all `VITE_FIREBASE_*` environment variables are set
+   - Check Firebase project configuration
+   - Ensure Firebase Authentication is enabled in Firebase Console

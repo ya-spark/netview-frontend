@@ -1,18 +1,17 @@
 import { useState, useEffect } from 'react';
-import { useLocation } from 'wouter';
+import { useLocation, Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { signInWithGoogle, signInWithEmail, signUpWithEmail, handleRedirectResult } from '@/lib/firebase';
+import { signInWithGoogle, signInWithEmail, handleRedirectResult } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 
 export default function Login() {
   const [, setLocation] = useLocation();
-  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -39,17 +38,23 @@ export default function Login() {
   }, [toast]);
 
   useEffect(() => {
-    // Redirect to dashboard if user is authenticated
+    // Redirect based on authentication and tenant status
     console.log('🚪 Login: Auth state changed:', {
       hasUser: !!user,
       hasFirebaseUser: !!firebaseUser,
       loading,
-      userDetails: user ? { id: user.id, email: user.email, role: user.role } : null
+      userDetails: user ? { id: user.id, email: user.email, role: user.role, tenantId: user.tenantId } : null
     });
     
     if (user) {
-      console.log('✅ Login: User authenticated, redirecting to dashboard...');
-      setLocation('/dashboard');
+      // If user has a tenant, go to dashboard, otherwise go to tenant selection
+      if (user.tenantId) {
+        console.log('✅ Login: User authenticated with tenant, redirecting to dashboard...');
+        setLocation('/dashboard');
+      } else {
+        console.log('✅ Login: User authenticated without tenant, redirecting to tenant selection...');
+        setLocation('/tenant-selection');
+      }
     }
   }, [user, firebaseUser, loading, setLocation]);
 
@@ -59,7 +64,7 @@ export default function Login() {
       setLoading(true);
       const result = await signInWithGoogle();
       console.log('✅ Login: Google sign-in completed successfully');
-      // The AuthContext will handle the user state update automatically
+      // Redirect will be handled by useEffect based on tenant status
     } catch (error: any) {
       console.error('❌ Login: Google sign-in failed:', error);
       toast({
@@ -77,19 +82,12 @@ export default function Login() {
     setLoading(true);
 
     try {
-      if (isSignUp) {
-        await signUpWithEmail(email, password);
-        toast({
-          title: "Account Created",
-          description: "Your account has been created successfully.",
-        });
-      } else {
-        await signInWithEmail(email, password);
-        toast({
-          title: "Welcome Back",
-          description: "You have successfully signed in.",
-        });
-      }
+      await signInWithEmail(email, password);
+      toast({
+        title: "Welcome Back",
+        description: "You have successfully signed in.",
+      });
+      // Redirect will be handled by useEffect based on tenant status
     } catch (error: any) {
       toast({
         title: "Authentication Error",
@@ -113,13 +111,10 @@ export default function Login() {
               <span className="text-xl font-bold text-foreground">NetView</span>
             </div>
             <CardTitle className="text-2xl">
-              {isSignUp ? 'Create Account' : 'Sign In'}
+              Sign In
             </CardTitle>
             <CardDescription>
-              {isSignUp 
-                ? 'Start monitoring your infrastructure today' 
-                : 'Welcome back to NetView'
-              }
+              Welcome back to NetView
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -180,21 +175,20 @@ export default function Login() {
                 disabled={loading}
                 data-testid="button-submit"
               >
-                {loading ? 'Please wait...' : (isSignUp ? 'Create Account' : 'Sign In')}
+                {loading ? 'Please wait...' : 'Sign In'}
               </Button>
             </form>
 
             <div className="text-center">
               <Button
                 variant="link"
-                onClick={() => setIsSignUp(!isSignUp)}
+                asChild
                 className="text-sm"
-                data-testid="button-toggle-mode"
+                data-testid="button-signup-link"
               >
-                {isSignUp 
-                  ? 'Already have an account? Sign in' 
-                  : "Don't have an account? Sign up"
-                }
+                <Link href="/signup">
+                  Don't have an account? Sign up
+                </Link>
               </Button>
             </div>
           </CardContent>

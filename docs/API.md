@@ -2,7 +2,9 @@
 
 ## Overview
 
-NetView provides RESTful APIs with role-based access control. All API routes are defined in `server/routes.ts`.
+**Note**: This is a frontend-only repository. The backend API server runs separately. This documentation describes the API endpoints that the frontend communicates with for reference.
+
+NetView provides RESTful APIs with role-based access control. The frontend communicates with the backend API via HTTP requests, with API proxy configured in `vite.config.ts`.
 
 ## Authentication Methods
 
@@ -20,6 +22,40 @@ NetView provides RESTful APIs with role-based access control. All API routes are
 ## API Endpoints
 
 ### Authentication
+
+#### POST /api/auth/send-verification-code
+Send a 6-digit verification code to an email address for account sign-up.
+
+**Auth**: None (public endpoint)
+**Request Body**:
+```json
+{
+  "email": "string"
+}
+```
+**Response**: Success message
+**Notes**: 
+- Only business email addresses are allowed (public email domains are blocked)
+- Code is valid for 10 minutes
+- Code is 6 digits numeric
+- This endpoint should be called before account creation to verify email ownership
+
+#### POST /api/auth/verify-code
+Verify the 6-digit code sent to an email address.
+
+**Auth**: None (public endpoint)
+**Request Body**:
+```json
+{
+  "email": "string",
+  "code": "string"
+}
+```
+**Response**: Success message
+**Notes**: 
+- Code must match the one sent via `/api/auth/send-verification-code`
+- Code must be verified within 10 minutes of being sent
+- After successful verification, user can proceed with Firebase account creation and registration
 
 #### POST /api/auth/register
 Register a new user with Firebase token.
@@ -39,6 +75,7 @@ Register a new user with Firebase token.
 - Email and UID extracted from Firebase token
 - Auto-creates tenant for non-SuperAdmin users
 - Default SuperAdmins: Yaseen.gem@gmail.com, Asia.Yaseentech@gmail.com, contact@yaseenmd.com
+- For sign-up flow: Email verification should be completed before calling this endpoint
 
 #### GET /api/auth/me
 Get current authenticated user.

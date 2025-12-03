@@ -39,65 +39,6 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 
-// Main Navigation Component for authenticated users
-function MainNavigation() {
-  const [location] = useLocation();
-
-  const mainNavigation = [
-    {
-      name: "Dashboard",
-      href: "/dashboard",
-      icon: BarChart3,
-      current: location === "/dashboard",
-    },
-    {
-      name: "Manage",
-      href: "/manage",
-      icon: Settings,
-      current: location === "/manage",
-    },
-    {
-      name: "Monitor",
-      href: "/monitor",
-      icon: Eye,
-      current: location === "/monitor",
-    },
-    {
-      name: "Reports",
-      href: "/reports",
-      icon: FileBarChart,
-      current: location === "/reports",
-    },
-  ];
-
-  return (
-    <nav className="space-y-1 mb-6">
-      <div className="text-sm font-medium text-foreground mb-3">
-        Main Navigation
-      </div>
-      {mainNavigation.map((item) => {
-        const Icon = item.icon;
-        return (
-          <Link key={item.name} href={item.href}>
-            <Button
-              variant={item.current ? "default" : "ghost"}
-              className={`w-full justify-start ${
-                item.current
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              }`}
-              data-testid={`nav-main-${item.name.toLowerCase()}`}
-            >
-              <Icon className="mr-3 h-4 w-4" />
-              {item.name}
-            </Button>
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
-
 // Dashboard Sidebar Component
 function DashboardSidebar() {
   const { user } = useAuth();
@@ -136,9 +77,6 @@ function DashboardSidebar() {
 
   return (
     <div className="space-y-6">
-      {/* Main Navigation */}
-      <MainNavigation />
-
       {/* Quick Overview */}
       <Card className="bg-accent">
         <CardContent className="p-4">
@@ -295,6 +233,12 @@ function ManageSidebar() {
       current: location === "/billing",
     },
     {
+      name: "Settings",
+      href: "/settings",
+      icon: Settings,
+      current: location === "/settings",
+    },
+    {
       name: "Collaborators",
       href: "/collaborators",
       icon: Users,
@@ -305,9 +249,6 @@ function ManageSidebar() {
 
   return (
     <div className="space-y-6">
-      {/* Main Navigation */}
-      <MainNavigation />
-
       <nav className="space-y-1">
         <div className="text-sm font-medium text-foreground mb-3">
           Configuration
@@ -411,9 +352,6 @@ function MonitorSidebar() {
 
   return (
     <div className="space-y-6">
-      {/* Main Navigation */}
-      <MainNavigation />
-
       <nav className="space-y-1">
         <div className="text-sm font-medium text-foreground mb-3">Monitor</div>
         {monitorNavigation.map((item) => {
@@ -470,9 +408,6 @@ function ReportsSidebar() {
 
   return (
     <div className="space-y-6">
-      {/* Main Navigation */}
-      <MainNavigation />
-
       {/* Report Types */}
       <nav className="space-y-1">
         <div className="text-sm font-medium text-foreground mb-3">
@@ -649,12 +584,14 @@ function PublicSidebar() {
 // Main Sidebar Component
 export function Sidebar() {
   const [location] = useLocation();
-  const { user } = useAuth();
+  const { user, firebaseUser } = useAuth();
 
   // Determine which sidebar content to show based on authentication and current route
   const getSidebarContent = () => {
     // Show public sidebar for non-logged-in users
-    if (!user) {
+    // Check both user (backend) and firebaseUser (Firebase auth) to handle cases where
+    // Firebase auth is complete but backend user data hasn't loaded yet
+    if (!user && !firebaseUser) {
       return <PublicSidebar />;
     }
 
@@ -664,6 +601,7 @@ export function Sidebar() {
     } else if (
       location.startsWith("/manage") ||
       location === "/billing" ||
+      location === "/settings" ||
       location === "/collaborators"
     ) {
       return <ManageSidebar />;
@@ -683,21 +621,23 @@ export function Sidebar() {
         <SidebarHeader>
           <div className="p-0">
             <h2 className="text-lg font-semibold text-foreground">
-              {!user && "Menu"}
-              {user && location.startsWith("/dashboard") && "Dashboard"}
-              {user &&
+              {(!user && !firebaseUser) && "Menu"}
+              {(user || firebaseUser) && location.startsWith("/dashboard") && "Dashboard"}
+              {(user || firebaseUser) &&
                 (location.startsWith("/manage") ||
                   location === "/billing" ||
+                  location === "/settings" ||
                   location === "/collaborators") &&
                 "Configuration"}
-              {user && location.startsWith("/monitor") && "Monitor"}
-              {user && location.startsWith("/reports") && "Reports"}
-              {user &&
+              {(user || firebaseUser) && location.startsWith("/monitor") && "Monitor"}
+              {(user || firebaseUser) && location.startsWith("/reports") && "Reports"}
+              {(user || firebaseUser) &&
                 !location.startsWith("/dashboard") &&
                 !location.startsWith("/manage") &&
                 !location.startsWith("/monitor") &&
                 !location.startsWith("/reports") &&
                 location !== "/billing" &&
+                location !== "/settings" &&
                 location !== "/collaborators" &&
                 "Dashboard"}
             </h2>
