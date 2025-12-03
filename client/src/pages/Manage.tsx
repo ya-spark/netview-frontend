@@ -453,7 +453,7 @@ export default function Manage() {
 
   return (
     <Layout>
-      <div className="p-3 sm:p-4 lg:p-6 overflow-y-auto">
+      <div className="p-3 sm:p-4 lg:p-6">
         <div className="mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2" data-testid="text-page-title">Manage</h1>
           <p className="text-muted-foreground">Configure probes, notification groups, and gateways</p>

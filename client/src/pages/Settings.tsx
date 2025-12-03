@@ -119,7 +119,7 @@ export default function Settings() {
 
   return (
     <Layout>
-      <div className="p-3 sm:p-4 lg:p-6 overflow-y-auto">
+      <div className="p-3 sm:p-4 lg:p-6">
         <div className="mb-6 sm:mb-8">
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground mb-1 sm:mb-2" data-testid="text-page-title">Settings</h1>
           <p className="text-sm sm:text-base text-muted-foreground">Manage your account and organization preferences</p>

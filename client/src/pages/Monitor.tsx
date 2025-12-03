@@ -1006,7 +1006,7 @@ export default function Monitor() {
 
   return (
     <Layout>
-      <div className="p-3 sm:p-4 lg:p-6 overflow-y-auto">
+      <div className="p-3 sm:p-4 lg:p-6">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2" data-testid="text-page-title">Monitor</h1>

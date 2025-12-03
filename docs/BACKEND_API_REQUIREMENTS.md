@@ -20,14 +20,19 @@ This document outlines all backend API endpoints required for a complete authent
 #### POST /api/auth/send-verification-code
 **Purpose**: Send a 6-digit verification code to email address during sign-up
 
-**Authentication**: ❌ **PUBLIC** (No authentication required)
+**Authentication**: ✅ **REQUIRED** (Firebase JWT Token in Authorization header)
+
+**Headers**:
+```
+Authorization: Bearer <firebase-id-token>
+Content-Type: application/json
+```
 
 **Request Body**:
 ```json
-{
-  "email": "user@company.com"
-}
+{}
 ```
+*Note: Email is extracted from Firebase token, request body can be empty*
 
 **Response**: 
 ```json
@@ -38,14 +43,17 @@ This document outlines all backend API endpoints required for a complete authent
 ```
 
 **Requirements**:
+- Verify Firebase token using Firebase Admin SDK
+- Extract `email` from Firebase token (ignore email in request body if provided)
 - Validate email format
 - Check if email is a business email (block public domains like gmail.com, yahoo.com)
 - Generate 6-digit numeric code
 - Store code with expiration (10 minutes)
 - Send email with verification code
-- Rate limiting: Prevent abuse (e.g., max 3 requests per email per hour)
+- Rate limiting: Prevent abuse (e.g., max 3 requests per user per hour)
 
 **Error Responses**:
+- `401`: Invalid or expired Firebase token
 - `400`: Invalid email format
 - `400`: Public email domains not allowed
 - `429`: Too many requests (rate limited)
@@ -56,12 +64,17 @@ This document outlines all backend API endpoints required for a complete authent
 #### POST /api/auth/verify-code
 **Purpose**: Verify the 6-digit code sent to email address
 
-**Authentication**: ❌ **PUBLIC** (No authentication required)
+**Authentication**: ✅ **REQUIRED** (Firebase JWT Token in Authorization header)
+
+**Headers**:
+```
+Authorization: Bearer <firebase-id-token>
+Content-Type: application/json
+```
 
 **Request Body**:
 ```json
 {
-  "email": "user@company.com",
   "code": "123456"
 }
 ```
@@ -75,12 +88,15 @@ This document outlines all backend API endpoints required for a complete authent
 ```
 
 **Requirements**:
+- Verify Firebase token using Firebase Admin SDK
+- Extract `email` from Firebase token (use token email, not request body)
 - Verify code matches stored code for email
 - Check code expiration (10 minutes)
 - Mark email as verified (store verification status)
-- Allow user to proceed with Firebase account creation after verification
+- Allow user to proceed with backend registration after verification
 
 **Error Responses**:
+- `401`: Invalid or expired Firebase token
 - `400`: Invalid code format (must be 6 digits)
 - `400`: Code expired
 - `400`: Invalid code
@@ -148,6 +164,7 @@ Content-Type: application/json
 **Notes**:
 - Email verification should be completed before calling this endpoint
 - Email and UID are extracted from Firebase token (not from request body)
+- User must be authenticated with Firebase before calling this endpoint
 
 ---
 
@@ -365,10 +382,10 @@ All endpoints should return consistent error responses:
 - Extract user identity from verified token only
 
 ### 2. Rate Limiting
-- Implement rate limiting on public endpoints:
-  - `/api/auth/send-verification-code`: Max 3 requests per email per hour
-  - `/api/auth/verify-code`: Max 5 attempts per email per hour
-  - `/api/auth/forgot-password`: Max 3 requests per email per hour
+- Implement rate limiting on endpoints:
+  - `/api/auth/send-verification-code`: Max 3 requests per authenticated user per hour
+  - `/api/auth/verify-code`: Max 5 attempts per authenticated user per hour
+  - `/api/auth/forgot-password`: Max 3 requests per email per hour (public endpoint)
 
 ### 3. Email Validation
 - Validate email format server-side
@@ -421,8 +438,8 @@ All endpoints should return consistent error responses:
 ## Implementation Priority
 
 ### Phase 1: Core Authentication (Required)
-1. ✅ `POST /api/auth/send-verification-code` - Public
-2. ✅ `POST /api/auth/verify-code` - Public
+1. ✅ `POST /api/auth/send-verification-code` - Authenticated
+2. ✅ `POST /api/auth/verify-code` - Authenticated
 3. ✅ `POST /api/auth/register` - Authenticated
 4. ✅ `GET /api/auth/me` - Authenticated
 
@@ -458,9 +475,9 @@ Each endpoint should be tested for:
 ### Frontend Integration Points
 
 1. **Sign-Up Flow** (`SignUp.tsx`):
-   - Step 1: Call `POST /api/auth/send-verification-code` (currently skipped in code)
-   - Step 3: Call `POST /api/auth/verify-code` (currently skipped in code)
-   - After Firebase account creation: `POST /api/auth/register` (handled by AuthContext)
+   - Step 1: Create Firebase account first, then call `POST /api/auth/send-verification-code` (with Firebase token)
+   - Step 3: Call `POST /api/auth/verify-code` (with Firebase token)
+   - After verification: `POST /api/auth/register` (handled by AuthContext)
 
 2. **Login Flow** (`Login.tsx`):
    - After Firebase authentication: `GET /api/auth/me` (handled by AuthContext)
@@ -479,20 +496,20 @@ Each endpoint should be tested for:
 ## Summary
 
 ### Public Endpoints (No Authentication)
-- `POST /api/auth/send-verification-code`
-- `POST /api/auth/verify-code`
 - `POST /api/auth/forgot-password` (optional)
 - `POST /api/auth/reset-password` (optional)
 
 ### Authenticated Endpoints (Firebase JWT Token Required)
+- `POST /api/auth/send-verification-code`
+- `POST /api/auth/verify-code`
 - `POST /api/auth/register`
 - `GET /api/auth/me`
 - `PUT /api/auth/profile` (optional)
 - `GET /api/auth/profile` (optional)
 
 ### Minimum Required for Current Implementation
-1. `POST /api/auth/send-verification-code` (Public)
-2. `POST /api/auth/verify-code` (Public)
+1. `POST /api/auth/send-verification-code` (Authenticated)
+2. `POST /api/auth/verify-code` (Authenticated)
 3. `POST /api/auth/register` (Authenticated)
 4. `GET /api/auth/me` (Authenticated)
 

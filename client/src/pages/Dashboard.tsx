@@ -67,7 +67,7 @@ export default function Dashboard() {
 
   return (
     <Layout>
-      <div className="p-3 sm:p-4 lg:p-6 overflow-y-auto">
+      <div className="p-3 sm:p-4 lg:p-6">
         {/* Page Header */}
         <div className="mb-6 sm:mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-2">
