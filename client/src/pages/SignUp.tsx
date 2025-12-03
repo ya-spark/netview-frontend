@@ -102,6 +102,27 @@ export default function SignUp() {
       // Get form data from step 1
       const signUpData = signUpForm.getValues();
       
+      // Validate password
+      if (signUpData.password.length < 6) {
+        toast({
+          title: "Validation Error",
+          description: "Password must be at least 6 characters long.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      if (signUpData.password !== signUpData.confirmPassword) {
+        toast({
+          title: "Validation Error",
+          description: "Passwords do not match.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+      
       // Store sign-up data in sessionStorage for AuthContext to use
       sessionStorage.setItem('signUpData', JSON.stringify({
         firstName: signUpData.firstName,
@@ -110,7 +131,7 @@ export default function SignUp() {
       
       // Create Firebase account
       console.log('🔥 SignUp: Creating Firebase account...');
-      const firebaseResult = await signUpWithEmail(userEmail, signUpData.password);
+      await signUpWithEmail(userEmail, signUpData.password);
       
       console.log('✅ SignUp: Firebase account created, user will be registered in AuthContext');
 
@@ -125,9 +146,10 @@ export default function SignUp() {
       }, 1000);
     } catch (error: any) {
       console.error('❌ SignUp: Registration failed:', error);
+      const errorMessage = error.message || "Failed to create account. Please try again.";
       toast({
         title: "Registration Error",
-        description: error.message || "Failed to create account. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

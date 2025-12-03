@@ -15,6 +15,12 @@ export default defineConfig(({ mode }) => {
     throw new Error(`PORT environment variable must be a valid number. Got: ${env.PORT}`);
   }
 
+  if (!env.VITE_NETVIEW_API_URL) {
+    throw new Error('VITE_NETVIEW_API_URL environment variable is required. Please set it in your .env file.');
+  }
+
+  const apiUrl = env.VITE_NETVIEW_API_URL;
+
   return {
     plugins: [
       react(),
@@ -39,17 +45,17 @@ export default defineConfig(({ mode }) => {
       },
       proxy: {
         '/api': {
-          target: 'http://localhost:8080',
+          target: apiUrl,
           changeOrigin: true,
           secure: false,
         },
         '/gateways': {
-          target: 'http://localhost:8080',
+          target: apiUrl,
           changeOrigin: true,
           secure: false,
         },
         '/health': {
-          target: 'http://localhost:8080',
+          target: apiUrl,
           changeOrigin: true,
           secure: false,
         },

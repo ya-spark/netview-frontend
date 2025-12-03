@@ -1,6 +1,50 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { auth } from "./firebase";
 
+/**
+ * Get the base API URL from environment variable
+ * In development, this uses the proxy, so relative URLs work
+ * In production, this returns the full API URL
+ */
+function getApiBaseUrl(): string {
+  const apiUrl = import.meta.env.VITE_NETVIEW_API_URL;
+  
+  if (!apiUrl) {
+    throw new Error('VITE_NETVIEW_API_URL environment variable is not set. Please configure it in your .env file.');
+  }
+  
+  // In development with Vite proxy, use relative URLs
+  // In production, use the full URL
+  if (import.meta.env.DEV) {
+    // Return empty string to use relative URLs (proxy handles it)
+    return '';
+  }
+  
+  // In production, return the full API URL
+  return apiUrl;
+}
+
+/**
+ * Build full API URL from a path
+ * @param path - API path (e.g., '/api/auth/me')
+ * @returns Full URL or relative path depending on environment
+ */
+function buildApiUrl(path: string): string {
+  const baseUrl = getApiBaseUrl();
+  
+  // Ensure path starts with /
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  
+  if (baseUrl) {
+    // Remove trailing slash from baseUrl if present
+    const cleanBaseUrl = baseUrl.replace(/\/$/, '');
+    return `${cleanBaseUrl}${normalizedPath}`;
+  }
+  
+  // Return relative path for proxy in development
+  return normalizedPath;
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -42,7 +86,10 @@ export async function apiRequest(
     headers["Content-Type"] = "application/json";
   }
   
-  const res = await fetch(url, {
+  // Build full API URL
+  const fullUrl = buildApiUrl(url);
+  
+  const res = await fetch(fullUrl, {
     method,
     headers,
     body: data ? JSON.stringify(data) : undefined,
@@ -61,7 +108,11 @@ export const getQueryFn: <T>(options: {
   async ({ queryKey }) => {
     const authHeaders = await getAuthHeaders();
     
-    const res = await fetch(queryKey.join("/") as string, {
+    // Build full API URL from query key
+    const path = queryKey.join("/") as string;
+    const fullUrl = buildApiUrl(path);
+    
+    const res = await fetch(fullUrl, {
       headers: authHeaders,
       credentials: "include",
     });

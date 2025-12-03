@@ -62,14 +62,15 @@ export default function Login() {
     console.log('🖱️ Login: Google sign-in button clicked');
     try {
       setLoading(true);
-      const result = await signInWithGoogle();
+      await signInWithGoogle();
       console.log('✅ Login: Google sign-in completed successfully');
       // Redirect will be handled by useEffect based on tenant status
     } catch (error: any) {
       console.error('❌ Login: Google sign-in failed:', error);
+      const errorMessage = error.message || "Failed to sign in with Google. Please try again.";
       toast({
         title: "Sign-in Error",
-        description: error.message || "Failed to sign in with Google",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -79,19 +80,42 @@ export default function Login() {
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Basic validation
+    if (!email.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter your email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!password) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter your password.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
-      await signInWithEmail(email, password);
+      await signInWithEmail(email.trim(), password);
+      console.log('✅ Login: Email/password sign-in successful');
       toast({
         title: "Welcome Back",
         description: "You have successfully signed in.",
       });
       // Redirect will be handled by useEffect based on tenant status
     } catch (error: any) {
+      console.error('❌ Login: Email/password sign-in failed:', error);
+      const errorMessage = error.message || "Failed to sign in. Please check your credentials and try again.";
       toast({
         title: "Authentication Error",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -123,6 +147,7 @@ export default function Login() {
               variant="outline" 
               className="w-full" 
               onClick={handleGoogleSignIn}
+              disabled={loading}
               data-testid="button-google-signin"
             >
               <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">

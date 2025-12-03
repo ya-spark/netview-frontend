@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User as FirebaseUser, onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { getCurrentUser, registerUser } from '@/services/authApi';
 
 // Define User type locally since shared schema is not available
 interface User {
@@ -37,50 +38,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock data storage (in a real app, this would be in localStorage or backend)
-const mockUsers: Record<string, User> = {};
-const mockTenants: Tenant[] = [];
-
-// Mock function to get user by email
-function getMockUser(email: string): User | null {
-  return mockUsers[email] || null;
-}
-
-// Mock function to create user
-function createMockUser(firebaseUser: FirebaseUser, firstName: string, lastName: string, company?: string): User {
-  const user: User = {
-    id: `user_${Date.now()}`,
-    email: firebaseUser.email!,
-    firstName,
-    lastName,
-    role: 'Owner',
-    tenantId: '',
-    tenantName: '',
-    company: company || '',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-  mockUsers[user.email] = user;
-  return user;
-}
-
-// Mock function to get tenants by email
-function getMockTenants(email: string): Tenant[] {
-  return mockTenants.filter(t => t.email === email);
-}
-
-// Mock function to create tenant
-function createMockTenant(name: string, email: string): Tenant {
-  const tenant: Tenant = {
-    id: `tenant_${Date.now()}`,
-    name,
-    email,
-    createdAt: new Date().toISOString(),
-  };
-  mockTenants.push(tenant);
-  return tenant;
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -105,61 +62,97 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const idToken = await firebaseUser.getIdToken();
           console.log('✅ Got Firebase ID token, length:', idToken.length);
           
-          // Check for existing user in mock data
-          const existingUser = getMockUser(firebaseUser.email!);
-          
-          if (existingUser) {
-            console.log('👤 Existing user found:', { id: existingUser.id, email: existingUser.email, role: existingUser.role });
-            setUser(existingUser);
+          // Try to fetch existing user from backend
+          try {
+            const backendUser = await getCurrentUser();
+            console.log('👤 Existing user found in backend:', { 
+              id: backendUser.id, 
+              email: backendUser.email, 
+              role: backendUser.role,
+              tenantId: backendUser.tenantId 
+            });
+            setUser(backendUser);
             
-            // Load tenants for this user
-            const userTenants = getMockTenants(firebaseUser.email!);
-            setTenants(userTenants);
-            
-            // If user has a tenantId, find and set selected tenant
-            if (existingUser.tenantId) {
-              const tenant = userTenants.find(t => t.id === existingUser.tenantId);
-              if (tenant) {
-                setSelectedTenant(tenant);
-              }
+            // Set selected tenant if user has one
+            if (backendUser.tenantId && backendUser.tenantName) {
+              setSelectedTenant({
+                id: backendUser.tenantId,
+                name: backendUser.tenantName,
+                email: backendUser.email,
+                createdAt: backendUser.createdAt || new Date().toISOString(),
+              });
             }
-          } else {
-            // Create new user from Firebase user
-            console.log('📝 Creating new user from Firebase...');
-            
-            // Check if sign-up data is stored in sessionStorage (from sign-up flow)
-            const signUpDataStr = sessionStorage.getItem('signUpData');
-            let firstName = 'User';
-            let lastName = '';
-            
-            if (signUpDataStr) {
-              try {
-                const signUpData = JSON.parse(signUpDataStr);
-                firstName = signUpData.firstName || firstName;
-                lastName = signUpData.lastName || lastName;
-                // Clear sign-up data after use
-                sessionStorage.removeItem('signUpData');
-              } catch (e) {
-                console.warn('Failed to parse sign-up data:', e);
-              }
-            }
-            
-            // Fallback to displayName if no sign-up data
-            if (!signUpDataStr) {
-              const displayName = firebaseUser.displayName || '';
-              const nameParts = displayName.split(' ');
-              firstName = nameParts[0] || firstName;
-              lastName = nameParts.slice(1).join(' ') || '';
-            }
-            
-            const newUser = createMockUser(firebaseUser, firstName, lastName);
-            console.log('✅ New user created:', { id: newUser.id, email: newUser.email, role: newUser.role });
-            setUser(newUser);
             setTenants([]);
+          } catch (error: any) {
+            // Check if error is 404 (user not found) or contains 404/Not Found
+            const isNotFound = error.message?.includes('404') || 
+                              error.message?.includes('Not Found') ||
+                              error.message?.includes('not found');
+            
+            if (isNotFound) {
+              console.log('📝 User not found in backend, registering new user...');
+              
+              // Check if sign-up data is stored in sessionStorage (from sign-up flow)
+              const signUpDataStr = sessionStorage.getItem('signUpData');
+              let firstName = 'User';
+              let lastName = '';
+              let company: string | undefined;
+              
+              if (signUpDataStr) {
+                try {
+                  const signUpData = JSON.parse(signUpDataStr);
+                  firstName = signUpData.firstName || firstName;
+                  lastName = signUpData.lastName || lastName;
+                  company = signUpData.company;
+                  // Clear sign-up data after use
+                  sessionStorage.removeItem('signUpData');
+                } catch (e) {
+                  console.warn('Failed to parse sign-up data:', e);
+                }
+              }
+              
+              // Fallback to displayName if no sign-up data
+              if (!signUpDataStr) {
+                const displayName = firebaseUser.displayName || '';
+                const nameParts = displayName.split(' ');
+                firstName = nameParts[0] || firstName;
+                lastName = nameParts.slice(1).join(' ') || '';
+              }
+              
+              try {
+                // Register user with backend
+                const newUser = await registerUser(firstName, lastName, company);
+                console.log('✅ New user registered in backend:', { 
+                  id: newUser.id, 
+                  email: newUser.email, 
+                  role: newUser.role 
+                });
+                setUser(newUser);
+                
+                // Set selected tenant if user has one (auto-created during registration)
+                if (newUser.tenantId && newUser.tenantName) {
+                  setSelectedTenant({
+                    id: newUser.tenantId,
+                    name: newUser.tenantName,
+                    email: newUser.email,
+                    createdAt: newUser.createdAt || new Date().toISOString(),
+                  });
+                }
+                setTenants([]);
+              } catch (registerError) {
+                console.error('❌ Error registering user with backend:', registerError);
+                throw registerError;
+              }
+            } else {
+              // Other error (network, server error, etc.)
+              console.error('❌ Error fetching user from backend:', error);
+              throw error;
+            }
           }
         } catch (error) {
           console.error('❌ Authentication error:', error);
           setUser(null);
+          setSelectedTenant(null);
           setTenants([]);
         }
       } else {
@@ -185,37 +178,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const createTenant = async (name: string): Promise<Tenant> => {
-    if (!user) {
+    if (!user || !firebaseUser) {
       throw new Error('User must be authenticated to create a tenant');
     }
     
     console.log('🏢 Creating tenant:', name);
-    const tenant = createMockTenant(name, user.email);
     
-    // Update user with tenant info
-    const updatedUser = {
-      ...user,
-      tenantId: tenant.id,
-      tenantName: tenant.name,
-      updatedAt: new Date().toISOString(),
-    };
-    mockUsers[user.email] = updatedUser;
-    setUser(updatedUser);
-    
-    // Update tenants list
-    const updatedTenants = [...tenants, tenant];
-    setTenants(updatedTenants);
-    setSelectedTenant(tenant);
-    
-    console.log('✅ Tenant created:', tenant);
-    return tenant;
+    // Note: Tenant creation is handled by backend during user registration
+    // For existing users, tenant should already exist
+    // This function is kept for compatibility but tenant creation should happen via backend API
+    throw new Error('Tenant creation should be handled through backend API. Please contact support.');
   };
 
   const loadTenants = async (email: string): Promise<Tenant[]> => {
+    if (!user) {
+      throw new Error('User must be authenticated to load tenants');
+    }
+    
     console.log('📋 Loading tenants for:', email);
-    const userTenants = getMockTenants(email);
-    setTenants(userTenants);
-    return userTenants;
+    
+    // For regular users, tenant is included in user object
+    // For SuperAdmins, use /api/admin/tenants endpoint
+    // For now, return empty array as tenant info is in user object
+    const tenantList: Tenant[] = [];
+    
+    if (user.tenantId && user.tenantName) {
+      tenantList.push({
+        id: user.tenantId,
+        name: user.tenantName,
+        email: user.email,
+        createdAt: user.createdAt,
+      });
+    }
+    
+    setTenants(tenantList);
+    return tenantList;
   };
 
   const handleSetSelectedTenant = (tenant: Tenant | null) => {
@@ -225,7 +222,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     setSelectedTenant(tenant);
     
-    // Update user with selected tenant
+    // Update user state with selected tenant
+    // Note: Actual tenant selection should be handled by backend API
     if (tenant) {
       const updatedUser = {
         ...user,
@@ -233,7 +231,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         tenantName: tenant.name,
         updatedAt: new Date().toISOString(),
       };
-      mockUsers[user.email] = updatedUser;
       setUser(updatedUser);
     }
   };
