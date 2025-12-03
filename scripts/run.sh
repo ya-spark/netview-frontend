@@ -32,8 +32,15 @@ if [ "package-lock.json" -nt "node_modules" ]; then
     npm install
 fi
 
+# Load PORT from .env file if it exists
+if [ -f ".env" ]; then
+    export $(grep -v '^#' .env | xargs)
+fi
+
+PORT=${PORT:-11000}
+
 echo "🔧 Starting Vite development server..."
-echo "🌐 Server will be available at: http://localhost:5173"
+echo "🌐 Server will be available at: http://localhost:${PORT}"
 echo "📝 Press Ctrl+C to stop the server"
 echo ""
 

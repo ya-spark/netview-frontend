@@ -67,12 +67,19 @@ npx update-browserslist-db@latest 2>/dev/null || echo "⚠️  Could not update 
 echo "🔧 Making scripts executable..."
 chmod +x scripts/run.sh scripts/clean.sh scripts/setup.sh 2>/dev/null || true
 
+# Load PORT from .env file if it exists
+if [ -f ".env" ]; then
+    export $(grep -v '^#' .env | xargs)
+fi
+
+PORT=${PORT:-11000}
+
 echo ""
 echo "✅ Setup completed successfully!"
 echo ""
 echo "🚀 Next steps:"
 echo "  1. Run './scripts/run.sh' to start the development server"
-echo "  2. Open http://localhost:5173 in your browser"
+echo "  2. Open http://localhost:${PORT} in your browser"
 echo "  3. Start developing!"
 echo ""
 echo "📚 Available commands:"
