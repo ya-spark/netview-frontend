@@ -1,9 +1,11 @@
 import { Switch, Route, Redirect } from "wouter";
-import { queryClient } from "./lib/queryClient";
+import { queryClient, setGlobalErrorHandler } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ErrorDisplay } from "@/components/ErrorDisplay";
+import { useEffect } from "react";
 import Landing from "@/pages/Landing";
 import Login from "@/pages/Login";
 import SignUp from "@/pages/SignUp";
@@ -172,13 +174,32 @@ function Router() {
   );
 }
 
+function AppContent() {
+  const { error, clearError, setError } = useAuth();
+
+  // Set up global error handler for API errors
+  useEffect(() => {
+    setGlobalErrorHandler((apiError: Error) => {
+      console.error('Global API error:', apiError);
+      setError(apiError);
+    });
+  }, [setError]);
+
+  // Show error display if there's an error
+  if (error) {
+    return <ErrorDisplay error={error} onDismiss={clearError} />;
+  }
+
+  return <Router />;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
           <Toaster />
-          <Router />
+          <AppContent />
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>

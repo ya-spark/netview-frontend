@@ -30,10 +30,13 @@ interface AuthContextType {
   selectedTenant: Tenant | null;
   tenants: Tenant[];
   loading: boolean;
+  error: Error | null;
   signOut: () => Promise<void>;
   setSelectedTenant: (tenant: Tenant | null) => void;
   createTenant: (name: string) => Promise<Tenant>;
   loadTenants: (email: string) => Promise<Tenant[]>;
+  clearError: () => void;
+  setError: (error: Error | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -44,6 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -146,11 +150,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             } else {
               // Other error (network, server error, etc.)
               console.error('❌ Error fetching user from backend:', error);
+              const authError = error instanceof Error ? error : new Error(String(error));
+              setError(authError);
               throw error;
             }
           }
         } catch (error) {
           console.error('❌ Authentication error:', error);
+          const authError = error instanceof Error ? error : new Error(String(error));
+          setError(authError);
           setUser(null);
           setSelectedTenant(null);
           setTenants([]);
@@ -175,6 +183,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setFirebaseUser(null);
     setSelectedTenant(null);
     setTenants([]);
+    setError(null);
+  };
+
+  const clearError = () => {
+    setError(null);
   };
 
   const createTenant = async (name: string): Promise<Tenant> => {
@@ -241,11 +254,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user, 
       selectedTenant,
       tenants,
-      loading, 
+      loading,
+      error,
       signOut,
       setSelectedTenant: handleSetSelectedTenant,
       createTenant,
       loadTenants,
+      clearError,
+      setError,
     }}>
       {children}
     </AuthContext.Provider>

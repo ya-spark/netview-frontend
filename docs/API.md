@@ -74,7 +74,6 @@ Register a new user with Firebase token.
 **Notes**: 
 - Email and UID extracted from Firebase token
 - Auto-creates tenant for non-SuperAdmin users
-- Default SuperAdmins: Yaseen.gem@gmail.com, Asia.Yaseentech@gmail.com, contact@yaseenmd.com
 - For sign-up flow: Email verification should be completed before calling this endpoint
 
 #### GET /api/auth/me

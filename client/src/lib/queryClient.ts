@@ -45,10 +45,26 @@ function buildApiUrl(path: string): string {
   return normalizedPath;
 }
 
+// Store error handler callback
+let globalErrorHandler: ((error: Error) => void) | null = null;
+
+export function setGlobalErrorHandler(handler: (error: Error) => void) {
+  globalErrorHandler = handler;
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    const error = new Error(`${res.status}: ${text}`);
+    
+    // For critical errors (401, 403, 500), trigger global error handler
+    if (res.status === 401 || res.status === 403 || res.status === 500) {
+      if (globalErrorHandler) {
+        globalErrorHandler(error);
+      }
+    }
+    
+    throw error;
   }
 }
 
