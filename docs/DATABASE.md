@@ -1,8 +1,14 @@
 # Database Schema Documentation
 
+## Repository Note
+
+**This is a frontend-only repository.** The backend code (including database connections, schema definitions, and storage implementations) is located in a separate repository. This documentation describes the full system architecture for reference.
+
 ## Overview
 
-NetView uses PostgreSQL with Drizzle ORM for type-safe database operations. The database implements a multi-tenant architecture with tenant-based data isolation.
+NetView uses **PostgreSQL** with Drizzle ORM for type-safe database operations. The database implements a multi-tenant architecture with tenant-based data isolation.
+
+**Database System**: PostgreSQL (Version 16)
 
 ## Database Management
 

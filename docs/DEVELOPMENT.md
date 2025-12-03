@@ -1,5 +1,9 @@
 # Development Guidelines
 
+## Repository Note
+
+**This repository contains frontend code only.** The backend code (server/, shared/, gateway/) is located in a separate repository. This documentation describes the full system architecture for reference.
+
 ## Tech Stack
 
 ### Frontend
@@ -26,6 +30,36 @@
 - **Framework**: Flask
 - **Storage**: SQLite (local caching)
 - **Libraries**: Requests, DNSPython, Selenium
+
+## Runtime Requirements
+
+### Backend Runtime
+- **Node.js**: Version 20
+- **PostgreSQL**: Version 16
+- **Default Port**: 5000 (configurable via `PORT` environment variable)
+
+### External Service Integrations
+The backend integrates with the following services:
+- **Firebase**: Authentication and user management
+- **Stripe**: Payment processing
+- **PostgreSQL**: Database (via Neon or other PostgreSQL provider)
+- **Anthropic Claude**: AI-powered probe generation
+
+## Deployment Configuration
+
+### Build and Run Commands
+- **Development**: `npm run dev`
+- **Build**: `npm run build`
+- **Production**: `npm run start`
+
+### Port Configuration
+- Default application port: `5000`
+- Can be configured via `PORT` environment variable
+
+### Deployment Target
+- Supports autoscale deployment
+- Build process runs `npm run build`
+- Production start command: `npm run start`
 
 ## Project Structure
 

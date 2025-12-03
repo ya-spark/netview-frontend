@@ -1,6 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { auth } from "./firebase";
-import { getTestingHeaders, isTestingModeEnabled } from "@/config/testing";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -12,21 +11,13 @@ async function throwIfResNotOk(res: Response) {
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const headers: Record<string, string> = {};
   
-  // Check if testing mode is enabled
-  if (isTestingModeEnabled()) {
-    // Use testing configuration headers
-    const testingHeaders = getTestingHeaders();
-    Object.assign(headers, testingHeaders);
-    console.log('Using testing headers:', testingHeaders);
-  } else {
-    // Use Firebase authentication
-    if (auth.currentUser) {
-      try {
-        const idToken = await auth.currentUser.getIdToken();
-        headers['Authorization'] = `Bearer ${idToken}`;
-      } catch (error) {
-        console.error('Failed to get Firebase ID token:', error);
-      }
+  // Use Firebase authentication
+  if (auth.currentUser) {
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      headers['Authorization'] = `Bearer ${idToken}`;
+    } catch (error) {
+      console.error('Failed to get Firebase ID token:', error);
     }
   }
   

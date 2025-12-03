@@ -5,12 +5,18 @@
 
 set -e  # Exit on any error
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Change to project root (parent of scripts directory)
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$PROJECT_ROOT"
+
 echo "🧹 Cleaning NetView Frontend Project..."
 echo "======================================"
 
 # Check if we're in the right directory
 if [ ! -f "package.json" ]; then
-    echo "❌ Error: package.json not found. Please run this script from the project root."
+    echo "❌ Error: package.json not found. Please ensure the project structure is correct."
     exit 1
 fi
 
@@ -58,5 +64,5 @@ find . -name ".DS_Store" -delete 2>/dev/null || true
 
 echo "✅ Cleanup completed!"
 echo ""
-echo "💡 To reinstall dependencies, run: ./setup.sh"
-echo "💡 To start development server, run: ./run.sh"
+echo "💡 To reinstall dependencies, run: ./scripts/setup.sh"
+echo "💡 To start development server, run: ./scripts/run.sh"

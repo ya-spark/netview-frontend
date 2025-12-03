@@ -67,7 +67,7 @@ This index helps AI assistants quickly locate the right documentation when makin
 - API endpoints for logs
 
 #### Project Overview & Architecture
-→ **Read**: `replit.md`
+→ **Read**: `DEVELOPMENT.md` and `SERVICES.md`
 - Platform overview
 - Architecture summary
 - User preferences
@@ -87,7 +87,6 @@ This index helps AI assistants quickly locate the right documentation when makin
 | `GATEWAY.md` | Distributed gateway system, probe execution | Working with monitoring probes, gateway deployment |
 | `AUTH.md` | Authentication & authorization flows | Implementing auth, managing permissions |
 | `LOGGING.md` | Logging system configuration | Configuring logs, accessing log data |
-| `replit.md` | Project overview, architecture summary | Understanding overall system |
 
 ### Quick Decision Tree
 
@@ -112,11 +111,8 @@ Need to make a change? Ask yourself:
 ┌─ Is it about monitoring/gateways?
 │  └─→ GATEWAY.md
 │
-┌─ Is it about development setup?
-│  └─→ DEVELOPMENT.md
-│
-└─ Need general overview?
-   └─→ replit.md
+└─ Is it about development setup?
+   └─→ DEVELOPMENT.md
 ```
 
 ## Common Tasks & Documentation
@@ -141,7 +137,7 @@ Need to make a change? Ask yourself:
 
 ### Understanding Architecture
 
-- **High-level overview** → `replit.md`
+- **High-level overview** → `DEVELOPMENT.md` and `SERVICES.md`
 - **Frontend architecture** → `COMPONENTS.md`
 - **Backend architecture** → `SERVICES.md` + `API.md`
 - **Data architecture** → `DATABASE.md`
@@ -158,7 +154,6 @@ Need to make a change? Ask yourself:
 - **New components** → Update `COMPONENTS.md`
 - **Auth changes** → Update `AUTH.md`
 - **Gateway changes** → Update `GATEWAY.md`
-- **User preferences** → Update `replit.md`
 
 ### Documentation Standards
 
