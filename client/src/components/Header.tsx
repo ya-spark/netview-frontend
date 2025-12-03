@@ -44,8 +44,10 @@ export function Header() {
 
   const navigation = isAuthenticated ? loggedInNavigation : publicNavigation;
 
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  const getInitials = (firstName?: string | null, lastName?: string | null) => {
+    const first = (firstName || '').charAt(0) || 'U';
+    const last = (lastName || '').charAt(0) || 'U';
+    return `${first}${last}`.toUpperCase();
   };
 
   const handleSignOut = async () => {
@@ -181,12 +183,12 @@ export function Header() {
                       </div>
                       <Avatar>
                         <AvatarFallback className="bg-primary text-primary-foreground">
-                          {user 
+                          {user && (user.firstName || user.lastName)
                             ? getInitials(user.firstName, user.lastName)
                             : firebaseUser?.displayName
                             ? getInitials(
-                                firebaseUser.displayName.split(' ')[0] || 'U',
-                                firebaseUser.displayName.split(' ').slice(1).join(' ') || 'U'
+                                firebaseUser.displayName.split(' ')[0],
+                                firebaseUser.displayName.split(' ').slice(1).join(' ')
                               )
                             : 'U'}
                         </AvatarFallback>

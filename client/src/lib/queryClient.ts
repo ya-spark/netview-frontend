@@ -52,13 +52,75 @@ export function setGlobalErrorHandler(handler: (error: Error) => void) {
   globalErrorHandler = handler;
 }
 
-async function throwIfResNotOk(res: Response) {
+/**
+ * Custom error class for API errors with structured error information
+ */
+export class ApiError extends Error {
+  status: number;
+  code?: string;
+  details?: any;
+
+  constructor(status: number, message: string, code?: string, details?: any) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.code = code;
+    this.details = details;
+  }
+}
+
+async function throwIfResNotOk(res: Response, url?: string) {
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    const error = new Error(`${res.status}: ${text}`);
+    let errorMessage = res.statusText;
+    let errorCode: string | undefined;
+    let errorDetails: any;
+
+    try {
+      // Try to parse JSON error response
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const errorData = await res.json();
+        console.log('📦 Parsed error response:', errorData);
+        
+        // Handle different error response formats
+        if (errorData.error) {
+          errorMessage = errorData.error.message || errorMessage;
+          errorCode = errorData.error.code;
+          errorDetails = errorData.error.details || errorData.error;
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+          errorCode = errorData.code;
+          errorDetails = errorData.details || errorData;
+        } else {
+          // Fallback: use the whole response as details
+          errorDetails = errorData;
+        }
+      } else {
+        // Not JSON, read as text
+        const text = await res.text();
+        errorMessage = text || errorMessage;
+      }
+    } catch (parseError) {
+      // If parsing fails, read as text
+      try {
+        const text = await res.text();
+        errorMessage = text || res.statusText;
+      } catch {
+        // Fallback to status text
+        errorMessage = res.statusText;
+      }
+    }
+    
+    console.log('🔍 Error parsed:', { status: res.status, code: errorCode, message: errorMessage, details: errorDetails });
+
+    const error = new ApiError(res.status, errorMessage, errorCode, errorDetails);
     
     // For critical errors (401, 403, 500), trigger global error handler
-    if (res.status === 401 || res.status === 403 || res.status === 500) {
+    // But skip for EMAIL_NOT_VERIFIED and verification-related endpoints as they're handled specially
+    const isVerificationEndpoint = url ? (url.includes('/send-verification-code') || url.includes('/verify-code')) : false;
+    if ((res.status === 401 || res.status === 403 || res.status === 500) && 
+        errorCode !== 'EMAIL_NOT_VERIFIED' && 
+        !isVerificationEndpoint) {
       if (globalErrorHandler) {
         globalErrorHandler(error);
       }
@@ -117,7 +179,7 @@ export async function apiRequest(
     credentials: "include",
   });
 
-  await throwIfResNotOk(res);
+  await throwIfResNotOk(res, fullUrl);
   return res;
 }
 
@@ -143,7 +205,7 @@ export const getQueryFn: <T>(options: {
     //   return null;
     // }
 
-    await throwIfResNotOk(res);
+    await throwIfResNotOk(res, fullUrl);
     return await res.json();
   };
 

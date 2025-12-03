@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User as FirebaseUser, onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { getCurrentUser, registerUser } from '@/services/authApi';
+import { ApiError } from '@/lib/queryClient';
 
 // Define User type locally since shared schema is not available
 interface User {
@@ -24,6 +25,13 @@ interface Tenant {
   createdAt: string;
 }
 
+interface EmailVerificationState {
+  email: string;
+  firstName: string;
+  lastName: string;
+  company?: string;
+}
+
 interface AuthContextType {
   firebaseUser: FirebaseUser | null;
   user: User | null;
@@ -31,12 +39,15 @@ interface AuthContextType {
   tenants: Tenant[];
   loading: boolean;
   error: Error | null;
+  emailVerification: EmailVerificationState | null;
   signOut: () => Promise<void>;
   setSelectedTenant: (tenant: Tenant | null) => void;
   createTenant: (name: string) => Promise<Tenant>;
   loadTenants: (email: string) => Promise<Tenant[]>;
   clearError: () => void;
   setError: (error: Error | null) => void;
+  retryRegistration: () => Promise<void>;
+  clearEmailVerification: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -48,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [emailVerification, setEmailVerification] = useState<EmailVerificationState | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -69,6 +81,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Try to fetch existing user from backend
           try {
             const backendUser = await getCurrentUser();
+            
+            // Validate user data - must have at least id or email
+            if (!backendUser || (!backendUser.id && !backendUser.email)) {
+              console.warn('⚠️ Invalid user data received, treating as user not found');
+              throw new Error('Invalid user data');
+            }
+            
             console.log('👤 Existing user found in backend:', { 
               id: backendUser.id, 
               email: backendUser.email, 
@@ -132,6 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   role: newUser.role 
                 });
                 setUser(newUser);
+                setEmailVerification(null); // Clear verification state on success
                 
                 // Set selected tenant if user has one (auto-created during registration)
                 if (newUser.tenantId && newUser.tenantName) {
@@ -143,8 +163,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   });
                 }
                 setTenants([]);
-              } catch (registerError) {
+              } catch (registerError: any) {
                 console.error('❌ Error registering user with backend:', registerError);
+                console.log('Error details:', {
+                  isApiError: registerError instanceof ApiError,
+                  status: registerError.status,
+                  code: registerError.code,
+                  message: registerError.message,
+                  details: registerError.details,
+                });
+                
+                // Check if error is EMAIL_NOT_VERIFIED (403 with code EMAIL_NOT_VERIFIED)
+                // Also check error message as fallback in case code format differs
+                const errorMessageLower = registerError.message?.toLowerCase() || '';
+                const isEmailNotVerified = registerError instanceof ApiError && 
+                    registerError.status === 403 && 
+                    (registerError.code === 'EMAIL_NOT_VERIFIED' ||
+                     (errorMessageLower.includes('email') && errorMessageLower.includes('verification')));
+                
+                if (isEmailNotVerified) {
+                  console.log('📧 Email verification required');
+                  
+                  // Extract email from error details or use Firebase user email
+                  const email = registerError.details?.email || firebaseUser.email;
+                  
+                  if (email) {
+                    console.log('📧 Setting email verification state for:', email);
+                    // Store verification state
+                    setEmailVerification({
+                      email,
+                      firstName,
+                      lastName,
+                      company,
+                    });
+                    // Clear any error state so EmailVerification page shows instead of ErrorDisplay
+                    setError(null);
+                    // Don't throw error, let the verification page handle it
+                    return;
+                  } else {
+                    console.error('❌ No email found for verification:', {
+                      errorDetails: registerError.details,
+                      firebaseEmail: firebaseUser.email,
+                    });
+                  }
+                }
+                
                 throw registerError;
               }
             } else {
@@ -188,6 +251,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clearError = () => {
     setError(null);
+  };
+
+  const clearEmailVerification = () => {
+    setEmailVerification(null);
+  };
+
+  const retryRegistration = async () => {
+    if (!emailVerification || !firebaseUser) {
+      throw new Error('No pending registration to retry');
+    }
+
+    try {
+      console.log('🔄 Retrying registration after email verification...');
+      const newUser = await registerUser(
+        emailVerification.firstName,
+        emailVerification.lastName,
+        emailVerification.company
+      );
+      
+      // Validate user data
+      if (!newUser || !newUser.id) {
+        console.error('❌ Invalid user data received:', newUser);
+        throw new Error('Registration succeeded but user data is invalid. Please try again.');
+      }
+      
+      console.log('✅ User registered successfully after verification:', { 
+        id: newUser.id, 
+        email: newUser.email, 
+        role: newUser.role 
+      });
+      
+      setUser(newUser);
+      setEmailVerification(null);
+      setError(null); // Clear any error state
+      
+      // Set selected tenant if user has one (auto-created during registration)
+      if (newUser.tenantId && newUser.tenantName) {
+        setSelectedTenant({
+          id: newUser.tenantId,
+          name: newUser.tenantName,
+          email: newUser.email,
+          createdAt: newUser.createdAt || new Date().toISOString(),
+        });
+      }
+      setTenants([]);
+    } catch (error: any) {
+      console.error('❌ Error retrying registration:', error);
+      
+      // If still EMAIL_NOT_VERIFIED, keep verification state
+      if (error instanceof ApiError && 
+          error.status === 403 && 
+          error.code === 'EMAIL_NOT_VERIFIED') {
+        // Keep verification state, user can try again
+        throw error;
+      }
+      
+      // For other errors, set error state but keep verification state so user can retry
+      const errorMessage = error.message || 'Failed to complete registration. Please try again.';
+      setError(new Error(errorMessage));
+      throw error;
+    }
   };
 
   const createTenant = async (name: string): Promise<Tenant> => {
@@ -256,12 +380,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       tenants,
       loading,
       error,
+      emailVerification,
       signOut,
       setSelectedTenant: handleSetSelectedTenant,
       createTenant,
       loadTenants,
       clearError,
       setError,
+      retryRegistration,
+      clearEmailVerification,
     }}>
       {children}
     </AuthContext.Provider>

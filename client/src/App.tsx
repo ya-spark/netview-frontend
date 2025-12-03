@@ -9,6 +9,8 @@ import { useEffect } from "react";
 import Landing from "@/pages/Landing";
 import Login from "@/pages/Login";
 import SignUp from "@/pages/SignUp";
+import EmailVerification from "@/pages/EmailVerification";
+import PublicEmailError from "@/pages/PublicEmailError";
 import TenantSelection from "@/pages/TenantSelection";
 import Features from "@/pages/Features";
 import Pricing from "@/pages/Pricing";
@@ -21,6 +23,7 @@ import Settings from "@/pages/Settings";
 import Billing from "@/pages/Billing";
 import Collaborators from "@/pages/Collaborators";
 import NotFound from "@/pages/not-found";
+import { isBusinessEmail } from "@/utils/emailValidation";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, selectedTenant, loading } = useAuth();
@@ -197,7 +200,7 @@ function Router() {
 }
 
 function AppContent() {
-  const { error, clearError, setError } = useAuth();
+  const { error, clearError, setError, emailVerification, retryRegistration, firebaseUser } = useAuth();
 
   // Set up global error handler for API errors
   useEffect(() => {
@@ -206,6 +209,33 @@ function AppContent() {
       setError(apiError);
     });
   }, [setError]);
+
+  // Show email verification page if verification is required
+  if (emailVerification && firebaseUser) {
+    // Check if the email is a public email (not a business email)
+    if (!isBusinessEmail(emailVerification.email)) {
+      return (
+        <PublicEmailError email={emailVerification.email} />
+      );
+    }
+    
+    // Show verification page for business emails
+    return (
+      <EmailVerification
+        email={emailVerification.email}
+        onVerificationSuccess={async () => {
+          try {
+            await retryRegistration();
+            // After successful registration, AuthContext will update user state
+            // and the Router will handle navigation
+          } catch (error: any) {
+            console.error('Failed to retry registration:', error);
+            // Error will be handled by AuthContext and verification state will remain
+          }
+        }}
+      />
+    );
+  }
 
   // Show error display if there's an error
   if (error) {
