@@ -136,9 +136,7 @@ function App() {
       <TooltipProvider>
         <AuthProvider>
           <Toaster />
-          <div className="w-full max-w-[1200px] mx-auto">
-            <Router />
-          </div>
+          <Router />
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>

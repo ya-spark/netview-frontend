@@ -61,7 +61,7 @@ export default function Pricing() {
       <div className="min-h-screen">
         {/* Pricing Section */}
         <section className="py-20">
-          <div className="container mx-auto px-6">
+          <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6">
             <div className="text-center mb-16">
               <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
                 Simple, Transparent Pricing

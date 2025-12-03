@@ -59,7 +59,7 @@ export default function Docs() {
       <div className="min-h-screen">
         {/* Header Section */}
         <section className="py-12 bg-muted/20">
-          <div className="container mx-auto px-6">
+          <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6">
             <div className="text-center">
               <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
                 NetView Documentation
@@ -85,7 +85,7 @@ export default function Docs() {
 
         {/* Introduction Section */}
         <section className="py-16">
-          <div className="container mx-auto px-6">
+          <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6">
             <div className="max-w-4xl mx-auto">
               <h2 className="text-3xl font-bold text-foreground mb-6">
                 Welcome to NetView
@@ -132,7 +132,7 @@ export default function Docs() {
 
         {/* Table of Contents */}
         <section className="py-16 bg-muted/20">
-          <div className="container mx-auto px-6">
+          <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6">
             <div className="text-center mb-12">
               <h2 className="text-3xl font-bold text-foreground mb-4">
                 Documentation Sections
@@ -182,7 +182,7 @@ export default function Docs() {
 
         {/* Get Started CTA */}
         <section className="py-16">
-          <div className="container mx-auto px-6 text-center">
+          <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 text-center">
             <div className="max-w-2xl mx-auto">
               <h2 className="text-3xl font-bold text-foreground mb-4">
                 Ready to Get Started?

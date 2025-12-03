@@ -50,9 +50,8 @@ export function Header() {
   };
 
   return (
-    <header className="bg-card border-b border-border sticky top-0 z-50 shadow-sm">
-      <div className="w-full">
-        <div className="px-6 py-4 w-full">
+    <header className="bg-card border-b border-border sticky top-0 z-50 shadow-sm !w-full" style={{ width: '100vw', position: 'relative', left: '50%', marginLeft: '-50vw' }}>
+      <div className="w-full px-4 sm:px-6 py-4">
           {/* Top Row - Logo, Desktop Navigation, User Menu */}
           <div className="flex items-center justify-between">
             {/* Left side - Logo and Mobile Menu */}
@@ -191,7 +190,6 @@ export function Header() {
               </div>
             )}
           </div>
-        </div>
       </div>
     </header>
   );

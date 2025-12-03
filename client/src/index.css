@@ -83,9 +83,18 @@
     @apply border-border;
   }
 
+  html, body {
+    @apply w-full;
+  }
+
   body {
     @apply font-sans antialiased bg-background text-foreground;
     font-family: var(--font-sans);
+  }
+
+  header {
+    width: 100% !important;
+    max-width: 100% !important;
   }
 }
 

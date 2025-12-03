@@ -4,13 +4,26 @@ import { Users } from "lucide-react";
 import { Layout } from "@/components/Layout";
 
 export default function Landing() {
+  const contactEmail = import.meta.env.VITE_CONTACT_EMAIL;
+  const linkedInLink = import.meta.env.VITE_LINKEDIN_LINK;
+
+  if (!contactEmail) {
+    throw new Error('VITE_CONTACT_EMAIL environment variable is required');
+  }
+
+  if (!linkedInLink) {
+    throw new Error('VITE_LINKEDIN_LINK environment variable is required');
+  }
+
+  // Ensure LinkedIn link has https:// protocol
+  const linkedInUrl = linkedInLink.startsWith('http') ? linkedInLink : `https://${linkedInLink}`;
 
   return (
     <Layout showSidebar={false}>
       <div className="min-h-screen">
         {/* Hero Section */}
         <section className="bg-gradient-to-b from-primary/5 to-background py-20">
-          <div className="container mx-auto px-6 text-center">
+          <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 text-center">
             <div className="max-w-4xl mx-auto">
               <h1 className="text-4xl md:text-6xl font-bold text-foreground mb-6">
                 Monitor Your Digital Infrastructure
@@ -42,7 +55,7 @@ export default function Landing() {
 
         {/* CTA Section */}
         <section className="py-20 bg-primary text-primary-foreground">
-          <div className="container mx-auto px-6 text-center">
+          <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 text-center">
             <div className="max-w-3xl mx-auto">
               <Users className="h-16 w-16 mx-auto mb-6" />
               <h2 className="text-3xl md:text-4xl font-bold mb-4">
@@ -66,7 +79,7 @@ export default function Landing() {
 
         {/* Footer */}
         <footer className="bg-card border-t border-border py-12">
-          <div className="container mx-auto px-6">
+          <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6">
             <div className="flex flex-col md:flex-row justify-between items-center">
               <div className="flex items-center space-x-2 mb-4 md:mb-0">
                 <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
@@ -81,14 +94,14 @@ export default function Landing() {
 
               <div className="flex items-center space-x-6 text-sm text-muted-foreground">
                 <a
-                  href={`mailto:${import.meta.env.VITE_CONTACT_EMAIL || "contact@yaseenmd.com"}`}
+                  href={`mailto:${contactEmail}`}
                   className="hover:text-foreground transition-colors"
                   data-testid="link-contact-email"
                 >
-                  {import.meta.env.VITE_CONTACT_EMAIL || "contact@yaseenmd.com"}
+                  {contactEmail}
                 </a>
                 <a
-                  href="https://linkedin.com/in/yaseenmd"
+                  href={linkedInUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-foreground transition-colors"
