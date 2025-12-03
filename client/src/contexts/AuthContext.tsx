@@ -42,11 +42,11 @@ interface AuthContextType {
   emailVerification: EmailVerificationState | null;
   signOut: () => Promise<void>;
   setSelectedTenant: (tenant: Tenant | null) => void;
-  createTenant: (name: string) => Promise<Tenant>;
+  createTenant: (name: string, tenantId?: string) => Promise<Tenant>;
   loadTenants: (email: string) => Promise<Tenant[]>;
   clearError: () => void;
   setError: (error: Error | null) => void;
-  retryRegistration: () => Promise<void>;
+  retryRegistration: () => Promise<User>;
   clearEmailVerification: () => void;
 }
 
@@ -117,13 +117,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               
               // Check if sign-up data is stored in sessionStorage (from sign-up flow)
               const signUpDataStr = sessionStorage.getItem('signUpData');
+              console.log('📦 Sign-up data from sessionStorage:', signUpDataStr);
+              
               let firstName = 'User';
               let lastName = '';
               let company: string | undefined;
               
+              // Priority 1: Use sessionStorage data (from initial sign-up)
               if (signUpDataStr) {
                 try {
                   const signUpData = JSON.parse(signUpDataStr);
+                  console.log('📦 Parsed sign-up data:', signUpData);
                   firstName = signUpData.firstName || firstName;
                   lastName = signUpData.lastName || lastName;
                   company = signUpData.company;
@@ -134,13 +138,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 }
               }
               
-              // Fallback to displayName if no sign-up data
-              if (!signUpDataStr) {
+              // Priority 2: Use emailVerification state (if available, e.g., after email verification)
+              if ((!firstName || firstName === 'User' || !lastName || lastName.trim() === '') && emailVerification) {
+                console.log('📦 Using emailVerification state for registration data:', emailVerification);
+                firstName = emailVerification.firstName || firstName;
+                lastName = emailVerification.lastName || lastName;
+                company = emailVerification.company || company;
+              }
+              
+              // Priority 3: Fallback to displayName if no other data available
+              if ((!firstName || firstName === 'User' || !lastName || lastName.trim() === '') && !signUpDataStr && !emailVerification) {
+                console.log('⚠️ No sign-up data found, using displayName fallback');
                 const displayName = firebaseUser.displayName || '';
                 const nameParts = displayName.split(' ');
                 firstName = nameParts[0] || firstName;
                 lastName = nameParts.slice(1).join(' ') || '';
               }
+              
+              // Validate required fields before registration
+              if (!firstName || !lastName || firstName.trim() === '' || lastName.trim() === '') {
+                const errorMessage = !lastName || lastName.trim() === '' 
+                  ? 'Last name is required for registration. Please sign up again with your full name.'
+                  : 'First name is required for registration. Please sign up again with your full name.';
+                console.error('❌ Missing required registration data:', { firstName, lastName });
+                const registrationError = new Error(errorMessage);
+                setError(registrationError);
+                setUser(null);
+                setSelectedTenant(null);
+                setTenants([]);
+                return;
+              }
+              
+              console.log('📝 Registering with data:', { firstName, lastName, company: company || 'none' });
               
               try {
                 // Register user with backend
@@ -257,7 +286,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setEmailVerification(null);
   };
 
-  const retryRegistration = async () => {
+  const retryRegistration = async (): Promise<User> => {
     if (!emailVerification || !firebaseUser) {
       throw new Error('No pending registration to retry');
     }
@@ -296,6 +325,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       }
       setTenants([]);
+      
+      // Return the user for navigation purposes
+      return newUser;
     } catch (error: any) {
       console.error('❌ Error retrying registration:', error);
       
@@ -314,17 +346,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const createTenant = async (name: string): Promise<Tenant> => {
+  const createTenant = async (name: string, tenantId?: string): Promise<Tenant> => {
     if (!user || !firebaseUser) {
       throw new Error('User must be authenticated to create a tenant');
     }
     
-    console.log('🏢 Creating tenant:', name);
+    console.log('🏢 Creating tenant:', { name, tenantId });
     
-    // Note: Tenant creation is handled by backend during user registration
-    // For existing users, tenant should already exist
-    // This function is kept for compatibility but tenant creation should happen via backend API
-    throw new Error('Tenant creation should be handled through backend API. Please contact support.');
+    // Import tenant API service
+    const { createTenant: createTenantApi } = await import('@/services/tenantApi');
+    
+    try {
+      const newTenant = await createTenantApi(name, tenantId);
+      
+      // Convert API response to Tenant type
+      const tenant: Tenant = {
+        id: newTenant.id || newTenant.tenantId,
+        name: newTenant.name,
+        email: user.email,
+        createdAt: newTenant.createdAt || new Date().toISOString(),
+      };
+      
+      // Update user state with new tenant
+      if (user) {
+        const updatedUser = {
+          ...user,
+          tenantId: tenant.id,
+          tenantName: tenant.name,
+          updatedAt: new Date().toISOString(),
+        };
+        setUser(updatedUser);
+        setSelectedTenant(tenant);
+        
+        // Update tenants list
+        const updatedTenants = [...tenants, tenant];
+        setTenants(updatedTenants);
+      }
+      
+      console.log('✅ Tenant created successfully:', tenant);
+      return tenant;
+    } catch (error: any) {
+      console.error('❌ Error creating tenant:', error);
+      throw error;
+    }
   };
 
   const loadTenants = async (email: string): Promise<Tenant[]> => {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,27 +10,96 @@ import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
-import { Building2, Plus, Check } from 'lucide-react';
+import { Building2, Plus, Check, Loader2 } from 'lucide-react';
+import { generateTenantId, validateTenantIdAvailability } from '@/services/tenantApi';
 
-const tenantNameSchema = z.object({
-  name: z.string().min(1, 'Organization name is required').min(3, 'Organization name must be at least 3 characters'),
+const tenantSchema = z.object({
+  name: z.string()
+    .min(1, 'Organization name is required')
+    .min(3, 'Organization name must be at least 3 characters'),
+  tenantId: z.string()
+    .min(1, 'Tenant ID is required')
+    .min(3, 'Tenant ID must be at least 3 characters')
+    .max(50, 'Tenant ID must be at most 50 characters')
+    .regex(/^[a-z0-9-]+$/, 'Tenant ID can only contain lowercase letters, numbers, and hyphens'),
 });
 
-type TenantNameFormData = z.infer<typeof tenantNameSchema>;
+type TenantFormData = z.infer<typeof tenantSchema>;
 
 export default function TenantSelection() {
   const [, setLocation] = useLocation();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [validatingTenantId, setValidatingTenantId] = useState(false);
+  const [tenantIdError, setTenantIdError] = useState<string | null>(null);
+  const [isTenantIdManuallyEdited, setIsTenantIdManuallyEdited] = useState(false);
   const { toast } = useToast();
   const { user, tenants, selectedTenant, loadTenants, createTenant, setSelectedTenant } = useAuth();
 
-  const tenantForm = useForm<TenantNameFormData>({
-    resolver: zodResolver(tenantNameSchema),
+  const tenantForm = useForm<TenantFormData>({
+    resolver: zodResolver(tenantSchema),
     defaultValues: {
       name: '',
+      tenantId: '',
     },
   });
+
+  const orgName = tenantForm.watch('name');
+  const tenantIdValue = tenantForm.watch('tenantId');
+
+  // Auto-generate tenant ID when organization name changes (if not manually edited)
+  useEffect(() => {
+    if (!isTenantIdManuallyEdited && orgName) {
+      const generatedId = generateTenantId(orgName);
+      if (generatedId) {
+        tenantForm.setValue('tenantId', generatedId, { shouldValidate: false });
+        // Clear any previous validation errors when auto-generating
+        setTenantIdError(null);
+      }
+    }
+  }, [orgName, isTenantIdManuallyEdited, tenantForm]);
+
+  // Validate tenant ID when it changes (debounced)
+  useEffect(() => {
+    if (!tenantIdValue || tenantIdValue.trim().length === 0) {
+      setTenantIdError(null);
+      return;
+    }
+
+    // Validate format first
+    const formatValidation = tenantSchema.shape.tenantId.safeParse(tenantIdValue);
+    if (!formatValidation.success) {
+      setTenantIdError(formatValidation.error.errors[0]?.message || 'Invalid tenant ID format');
+      return;
+    }
+
+    // Debounce backend validation
+    const timeoutId = setTimeout(async () => {
+      setValidatingTenantId(true);
+      setTenantIdError(null);
+
+      try {
+        const validation = await validateTenantIdAvailability(tenantIdValue);
+        if (!validation.available) {
+          setTenantIdError(validation.message || 'This tenant ID is not available');
+        } else {
+          setTenantIdError(null);
+        }
+      } catch (error: any) {
+        console.error('Error validating tenant ID:', error);
+        setTenantIdError('Failed to validate tenant ID. Please try again.');
+      } finally {
+        setValidatingTenantId(false);
+      }
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [tenantIdValue]);
+
+  const handleTenantIdChange = useCallback((value: string) => {
+    setIsTenantIdManuallyEdited(true);
+    tenantForm.setValue('tenantId', value, { shouldValidate: true });
+  }, [tenantForm]);
 
   useEffect(() => {
     // Redirect to login if not authenticated
@@ -55,13 +124,49 @@ export default function TenantSelection() {
     }
   }, [user, selectedTenant, setLocation]);
 
-  const handleCreateTenant = async (data: TenantNameFormData) => {
+  const handleCreateTenant = async (data: TenantFormData) => {
     if (!user) return;
+
+    // Final validation before submission
+    if (tenantIdError) {
+      toast({
+        title: "Validation Error",
+        description: tenantIdError,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate tenant ID availability one more time before creating
+    setValidatingTenantId(true);
+    try {
+      const validation = await validateTenantIdAvailability(data.tenantId);
+      if (!validation.available) {
+        setTenantIdError(validation.message || 'This tenant ID is not available');
+        toast({
+          title: "Validation Error",
+          description: validation.message || 'This tenant ID is not available',
+          variant: "destructive",
+        });
+        setValidatingTenantId(false);
+        return;
+      }
+    } catch (error: any) {
+      console.error('❌ Error validating tenant ID before creation:', error);
+      toast({
+        title: "Validation Error",
+        description: 'Failed to validate tenant ID. Please try again.',
+        variant: "destructive",
+      });
+      setValidatingTenantId(false);
+      return;
+    }
+    setValidatingTenantId(false);
     
     setLoading(true);
     try {
-      console.log('🏢 Creating tenant:', data.name);
-      const tenant = await createTenant(data.name);
+      console.log('🏢 Creating tenant:', { name: data.name, tenantId: data.tenantId });
+      const tenant = await createTenant(data.name, data.tenantId);
       
       toast({
         title: "Organization Created",
@@ -82,7 +187,9 @@ export default function TenantSelection() {
     } finally {
       setLoading(false);
       setShowCreateForm(false);
+      setIsTenantIdManuallyEdited(false);
       tenantForm.reset();
+      setTenantIdError(null);
     }
   };
 
@@ -222,6 +329,44 @@ export default function TenantSelection() {
                       )}
                     />
 
+                    <FormField
+                      control={tenantForm.control}
+                      name="tenantId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Tenant ID</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <Input 
+                                placeholder="acme-inc" 
+                                {...field}
+                                onChange={(e) => {
+                                  field.onChange(e);
+                                  handleTenantIdChange(e.target.value);
+                                }}
+                                data-testid="input-tenant-id"
+                                className={tenantIdError ? 'border-destructive' : ''}
+                              />
+                              {validatingTenantId && (
+                                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+                              )}
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                          {tenantIdError && (
+                            <p className="text-xs text-destructive mt-1">{tenantIdError}</p>
+                          )}
+                          {!tenantIdError && !validatingTenantId && tenantIdValue && (
+                            <p className="text-xs text-green-600 mt-1">✓ Tenant ID is available</p>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            A unique identifier for your organization. Auto-generated from organization name, but you can customize it.
+                            Only lowercase letters, numbers, and hyphens are allowed.
+                          </p>
+                        </FormItem>
+                      )}
+                    />
+
                     <div className="flex space-x-3">
                       <Button
                         type="button"
@@ -229,6 +374,8 @@ export default function TenantSelection() {
                         className="flex-1"
                         onClick={() => {
                           setShowCreateForm(false);
+                          setIsTenantIdManuallyEdited(false);
+                          setTenantIdError(null);
                           tenantForm.reset();
                         }}
                         data-testid="button-cancel"
@@ -238,10 +385,10 @@ export default function TenantSelection() {
                       <Button 
                         type="submit" 
                         className="flex-1" 
-                        disabled={loading}
+                        disabled={loading || validatingTenantId || !!tenantIdError}
                         data-testid="button-create"
                       >
-                        {loading ? 'Creating...' : 'Create Organization'}
+                        {loading ? 'Creating...' : validatingTenantId ? 'Validating...' : 'Create Organization'}
                       </Button>
                     </div>
                   </form>

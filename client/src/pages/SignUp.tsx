@@ -59,10 +59,16 @@ export default function SignUp() {
 
     try {
       // Store sign-up data in sessionStorage for AuthContext to use
-      sessionStorage.setItem('signUpData', JSON.stringify({
+      const signUpData = {
         firstName: data.firstName,
         lastName: data.lastName,
-      }));
+      };
+      console.log('💾 Storing sign-up data in sessionStorage:', signUpData);
+      sessionStorage.setItem('signUpData', JSON.stringify(signUpData));
+      
+      // Verify it was stored
+      const stored = sessionStorage.getItem('signUpData');
+      console.log('✅ Verified sign-up data stored:', stored);
       
       // Create Firebase account
       console.log('🔥 SignUp: Creating Firebase account...');
@@ -74,6 +80,8 @@ export default function SignUp() {
       // the EmailVerification page. Otherwise, user will be redirected to dashboard.
     } catch (error: any) {
       console.error('❌ SignUp: Registration failed:', error);
+      // Don't clear sessionStorage on error - let AuthContext handle it
+      // This allows retry if needed
       const errorMessage = error.message || "Failed to create account. Please try again.";
       toast({
         title: "Registration Error",

@@ -1,4 +1,4 @@
-import { Switch, Route, Redirect } from "wouter";
+import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient, setGlobalErrorHandler } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -65,7 +65,7 @@ function PreAuthRoute({ children }: { children: React.ReactNode }) {
 
 // Public routes: redirect authenticated users (for login/signup)
 function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { user, firebaseUser, selectedTenant, loading } = useAuth();
+  const { user, firebaseUser, selectedTenant, loading, emailVerification } = useAuth();
 
   if (loading) {
     return (
@@ -73,6 +73,11 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
         <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
       </div>
     );
+  }
+
+  // Don't redirect if email verification is pending - AppContent will handle showing verification page
+  if (emailVerification && firebaseUser) {
+    return <>{children}</>;
   }
 
   // Redirect if user is authenticated
@@ -200,17 +205,24 @@ function Router() {
 }
 
 function AppContent() {
-  const { error, clearError, setError, emailVerification, retryRegistration, firebaseUser } = useAuth();
+  const { error, clearError, setError, emailVerification, retryRegistration, firebaseUser, user, selectedTenant } = useAuth();
+  const [, setLocation] = useLocation();
 
   // Set up global error handler for API errors
   useEffect(() => {
     setGlobalErrorHandler((apiError: Error) => {
+      // Don't set error if email verification is pending - let verification page handle it
+      if (emailVerification && firebaseUser) {
+        console.log('📧 Skipping global error handler - email verification in progress');
+        return;
+      }
       console.error('Global API error:', apiError);
       setError(apiError);
     });
-  }, [setError]);
+  }, [setError, emailVerification, firebaseUser]);
 
   // Show email verification page if verification is required
+  // This check must come FIRST to prevent error display or routing interference
   if (emailVerification && firebaseUser) {
     // Check if the email is a public email (not a business email)
     if (!isBusinessEmail(emailVerification.email)) {
@@ -225,9 +237,19 @@ function AppContent() {
         email={emailVerification.email}
         onVerificationSuccess={async () => {
           try {
-            await retryRegistration();
-            // After successful registration, AuthContext will update user state
-            // and the Router will handle navigation
+            const newUser = await retryRegistration();
+            console.log('✅ Email verification successful, registration retried');
+            
+            // Navigate based on user's tenant status
+            if (newUser && newUser.tenantId) {
+              // User has a tenant, go to dashboard
+              console.log('✅ Navigating to dashboard after successful registration');
+              setLocation('/dashboard');
+            } else {
+              // User doesn't have a tenant, go to tenant selection
+              console.log('✅ Navigating to tenant selection after successful registration');
+              setLocation('/tenant-selection');
+            }
           } catch (error: any) {
             console.error('Failed to retry registration:', error);
             // Error will be handled by AuthContext and verification state will remain
@@ -237,8 +259,8 @@ function AppContent() {
     );
   }
 
-  // Show error display if there's an error
-  if (error) {
+  // Show error display if there's an error (but not if verification is pending)
+  if (error && !emailVerification) {
     return <ErrorDisplay error={error} onDismiss={clearError} />;
   }
 
