@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Shield, Activity, Globe, Zap } from "lucide-react";
-import { Layout } from "@/components/Layout";
+import { PublicLayout } from "@/components/PublicLayout";
 
 export default function Features() {
   const features = [
@@ -31,7 +31,7 @@ export default function Features() {
   ];
 
   return (
-    <Layout showSidebar={false}>
+    <PublicLayout>
       <div className="min-h-screen">
         {/* Features Section */}
         <section className="py-20 bg-muted/20">
@@ -73,6 +73,6 @@ export default function Features() {
           </div>
         </section>
       </div>
-    </Layout>
+    </PublicLayout>
   );
 }

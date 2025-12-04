@@ -1,5 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useLocation } from 'wouter';
+import { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { sendVerificationCode, verifyCode } from '@/services/authApi';
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
-import { Mail, ArrowLeft, Loader2 } from 'lucide-react';
+import { Mail, Loader2 } from 'lucide-react';
 
 const verifyCodeSchema = z.object({
   code: z.string().length(6, 'Verification code must be 6 digits').regex(/^\d+$/, 'Code must be numeric'),
@@ -25,10 +24,8 @@ interface EmailVerificationProps {
 }
 
 export default function EmailVerification({ email, onVerificationSuccess }: EmailVerificationProps) {
-  const [, setLocation] = useLocation();
   const [loading, setLoading] = useState(false);
   const [sendingCode, setSendingCode] = useState(false);
-  const { firebaseUser } = useAuth();
   const { toast } = useToast();
 
   const verifyCodeForm = useForm<VerifyCodeFormData>({
@@ -39,15 +36,6 @@ export default function EmailVerification({ email, onVerificationSuccess }: Emai
   });
 
   const handleSendCode = useCallback(async () => {
-    if (!firebaseUser) {
-      toast({
-        title: "Error",
-        description: "You must be authenticated to send a verification code.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setSendingCode(true);
     try {
       await sendVerificationCode();
@@ -66,25 +54,14 @@ export default function EmailVerification({ email, onVerificationSuccess }: Emai
     } finally {
       setSendingCode(false);
     }
-  }, [firebaseUser, email, toast]);
+  }, [email, toast]);
 
   // Automatically send verification code when component mounts
   useEffect(() => {
-    if (firebaseUser) {
-      handleSendCode();
-    }
-  }, [firebaseUser, handleSendCode]);
+    handleSendCode();
+  }, [handleSendCode]);
 
   const handleVerifyCode = async (data: VerifyCodeFormData) => {
-    if (!firebaseUser) {
-      toast({
-        title: "Error",
-        description: "You must be authenticated to verify the code.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setLoading(true);
     try {
       await verifyCode(data.code);
@@ -204,16 +181,6 @@ export default function EmailVerification({ email, onVerificationSuccess }: Emai
                 )}
               </Button>
 
-              <Button
-                type="button"
-                variant="ghost"
-                className="w-full"
-                onClick={() => setLocation('/login')}
-                data-testid="button-back-to-login"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Login
-              </Button>
             </div>
           </CardContent>
         </Card>

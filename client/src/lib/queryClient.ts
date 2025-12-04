@@ -1,5 +1,4 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-import { auth } from "./firebase";
 
 /**
  * Get the base API URL from environment variable
@@ -133,20 +132,8 @@ async function throwIfResNotOk(res: Response, url?: string) {
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const headers: Record<string, string> = {};
   
-  // Use Firebase authentication
-  if (auth.currentUser) {
-    try {
-      const idToken = await auth.currentUser.getIdToken();
-      headers['Authorization'] = `Bearer ${idToken}`;
-      
-      // Add X-User-Email header required by backend middleware
-      if (auth.currentUser.email) {
-        headers['X-User-Email'] = auth.currentUser.email;
-      }
-    } catch (error) {
-      console.error('Failed to get Firebase ID token:', error);
-    }
-  }
+  // Authentication will be handled by backend via session/cookies
+  // No token-based auth needed
   
   return headers;
 }

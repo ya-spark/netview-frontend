@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User as FirebaseUser, onAuthStateChanged } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { useLocation } from 'wouter';
 import { getCurrentUser, registerUser } from '@/services/authApi';
 import { ApiError } from '@/lib/queryClient';
 
@@ -33,7 +32,6 @@ interface EmailVerificationState {
 }
 
 interface AuthContextType {
-  firebaseUser: FirebaseUser | null;
   user: User | null;
   selectedTenant: Tenant | null;
   tenants: Tenant[];
@@ -53,229 +51,141 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
+  const [location] = useLocation();
   const [user, setUser] = useState<User | null>(null);
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
   const [tenants, setTenants] = useState<Tenant[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [emailVerification, setEmailVerification] = useState<EmailVerificationState | null>(null);
 
+  // List of public routes that don't need auth initialization
+  const publicRoutes = ['/', '/features', '/pricing', '/docs'];
+  const isPublicRoute = publicRoutes.includes(location);
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log('🔥 Firebase auth state changed:', {
-        uid: firebaseUser?.uid,
-        email: firebaseUser?.email,
-        displayName: firebaseUser?.displayName,
-        isSignedIn: !!firebaseUser
-      });
-      
-      setFirebaseUser(firebaseUser);
-      
-      if (firebaseUser) {
-        try {
-          console.log('🔑 Getting Firebase ID token...');
-          const idToken = await firebaseUser.getIdToken();
-          console.log('✅ Got Firebase ID token, length:', idToken.length);
+    // Skip auth initialization for public pages
+    if (isPublicRoute) {
+      setLoading(false);
+      return;
+    }
+
+    // Initialize auth for non-public pages (signup, protected routes, etc.)
+    setLoading(true);
+    
+    // Check authentication status with backend
+    const checkAuth = async () => {
+      try {
+        // Try to fetch existing user from backend
+        const backendUser = await getCurrentUser();
+        
+        // Validate user data - must have at least id or email
+        if (!backendUser || (!backendUser.id && !backendUser.email)) {
+          console.warn('⚠️ Invalid user data received, treating as user not found');
+          throw new Error('Invalid user data');
+        }
+        
+        console.log('👤 Existing user found in backend:', { 
+          id: backendUser.id, 
+          email: backendUser.email, 
+          role: backendUser.role,
+          tenantId: backendUser.tenantId 
+        });
+        setUser(backendUser);
+        
+        // Set selected tenant if user has one
+        if (backendUser.tenantId && backendUser.tenantName) {
+          setSelectedTenant({
+            id: backendUser.tenantId,
+            name: backendUser.tenantName,
+            email: backendUser.email,
+            createdAt: backendUser.createdAt || new Date().toISOString(),
+          });
+        }
+        setTenants([]);
+      } catch (error: any) {
+        // Check if error is 403 EMAIL_NOT_VERIFIED - user exists but email not verified
+        const errorMessageLower = error.message?.toLowerCase() || '';
+        const isEmailNotVerified = error instanceof ApiError && 
+            error.status === 403 && 
+            (error.code === 'EMAIL_NOT_VERIFIED' ||
+             (errorMessageLower.includes('email') && errorMessageLower.includes('verification')));
+        
+        if (isEmailNotVerified) {
+          console.log('📧 Email verification required for existing user');
           
-          // Try to fetch existing user from backend
-          try {
-            const backendUser = await getCurrentUser();
+          // Extract email from error details
+          const email = error.details?.email;
+          
+          if (email) {
+            console.log('📧 Setting email verification state for:', email);
+            // Store verification state
+            const firstName = error.details?.firstName || 'User';
+            const lastName = error.details?.lastName || '';
+            const company = error.details?.company;
             
-            // Validate user data - must have at least id or email
-            if (!backendUser || (!backendUser.id && !backendUser.email)) {
-              console.warn('⚠️ Invalid user data received, treating as user not found');
-              throw new Error('Invalid user data');
-            }
-            
-            console.log('👤 Existing user found in backend:', { 
-              id: backendUser.id, 
-              email: backendUser.email, 
-              role: backendUser.role,
-              tenantId: backendUser.tenantId 
+            setEmailVerification({
+              email,
+              firstName,
+              lastName,
+              company,
             });
-            setUser(backendUser);
-            
-            // Set selected tenant if user has one
-            if (backendUser.tenantId && backendUser.tenantName) {
-              setSelectedTenant({
-                id: backendUser.tenantId,
-                name: backendUser.tenantName,
-                email: backendUser.email,
-                createdAt: backendUser.createdAt || new Date().toISOString(),
-              });
-            }
+            setError(null);
+            setUser(null);
+            setSelectedTenant(null);
             setTenants([]);
-          } catch (error: any) {
-            // Check if error is 404 (user not found) or contains 404/Not Found
-            const isNotFound = error.message?.includes('404') || 
-                              error.message?.includes('Not Found') ||
-                              error.message?.includes('not found');
-            
-            if (isNotFound) {
-              console.log('📝 User not found in backend, registering new user...');
-              
-              // Check if sign-up data is stored in sessionStorage (from sign-up flow)
-              const signUpDataStr = sessionStorage.getItem('signUpData');
-              console.log('📦 Sign-up data from sessionStorage:', signUpDataStr);
-              
-              let firstName = 'User';
-              let lastName = '';
-              let company: string | undefined;
-              
-              // Priority 1: Use sessionStorage data (from initial sign-up)
-              if (signUpDataStr) {
-                try {
-                  const signUpData = JSON.parse(signUpDataStr);
-                  console.log('📦 Parsed sign-up data:', signUpData);
-                  firstName = signUpData.firstName || firstName;
-                  lastName = signUpData.lastName || lastName;
-                  company = signUpData.company;
-                  // Clear sign-up data after use
-                  sessionStorage.removeItem('signUpData');
-                } catch (e) {
-                  console.warn('Failed to parse sign-up data:', e);
-                }
-              }
-              
-              // Priority 2: Use emailVerification state (if available, e.g., after email verification)
-              if ((!firstName || firstName === 'User' || !lastName || lastName.trim() === '') && emailVerification) {
-                console.log('📦 Using emailVerification state for registration data:', emailVerification);
-                firstName = emailVerification.firstName || firstName;
-                lastName = emailVerification.lastName || lastName;
-                company = emailVerification.company || company;
-              }
-              
-              // Priority 3: Fallback to displayName if no other data available
-              if ((!firstName || firstName === 'User' || !lastName || lastName.trim() === '') && !signUpDataStr && !emailVerification) {
-                console.log('⚠️ No sign-up data found, using displayName fallback');
-                const displayName = firebaseUser.displayName || '';
-                const nameParts = displayName.split(' ');
-                firstName = nameParts[0] || firstName;
-                lastName = nameParts.slice(1).join(' ') || '';
-              }
-              
-              // Validate required fields before registration
-              if (!firstName || !lastName || firstName.trim() === '' || lastName.trim() === '') {
-                const errorMessage = !lastName || lastName.trim() === '' 
-                  ? 'Last name is required for registration. Please sign up again with your full name.'
-                  : 'First name is required for registration. Please sign up again with your full name.';
-                console.error('❌ Missing required registration data:', { firstName, lastName });
-                const registrationError = new Error(errorMessage);
-                setError(registrationError);
-                setUser(null);
-                setSelectedTenant(null);
-                setTenants([]);
-                return;
-              }
-              
-              console.log('📝 Registering with data:', { firstName, lastName, company: company || 'none' });
-              
-              try {
-                // Register user with backend
-                const newUser = await registerUser(firstName, lastName, company);
-                console.log('✅ New user registered in backend:', { 
-                  id: newUser.id, 
-                  email: newUser.email, 
-                  role: newUser.role 
-                });
-                setUser(newUser);
-                setEmailVerification(null); // Clear verification state on success
-                
-                // Set selected tenant if user has one (auto-created during registration)
-                if (newUser.tenantId && newUser.tenantName) {
-                  setSelectedTenant({
-                    id: newUser.tenantId,
-                    name: newUser.tenantName,
-                    email: newUser.email,
-                    createdAt: newUser.createdAt || new Date().toISOString(),
-                  });
-                }
-                setTenants([]);
-              } catch (registerError: any) {
-                console.error('❌ Error registering user with backend:', registerError);
-                console.log('Error details:', {
-                  isApiError: registerError instanceof ApiError,
-                  status: registerError.status,
-                  code: registerError.code,
-                  message: registerError.message,
-                  details: registerError.details,
-                });
-                
-                // Check if error is EMAIL_NOT_VERIFIED (403 with code EMAIL_NOT_VERIFIED)
-                // Also check error message as fallback in case code format differs
-                const errorMessageLower = registerError.message?.toLowerCase() || '';
-                const isEmailNotVerified = registerError instanceof ApiError && 
-                    registerError.status === 403 && 
-                    (registerError.code === 'EMAIL_NOT_VERIFIED' ||
-                     (errorMessageLower.includes('email') && errorMessageLower.includes('verification')));
-                
-                if (isEmailNotVerified) {
-                  console.log('📧 Email verification required');
-                  
-                  // Extract email from error details or use Firebase user email
-                  const email = registerError.details?.email || firebaseUser.email;
-                  
-                  if (email) {
-                    console.log('📧 Setting email verification state for:', email);
-                    // Store verification state
-                    setEmailVerification({
-                      email,
-                      firstName,
-                      lastName,
-                      company,
-                    });
-                    // Clear any error state so EmailVerification page shows instead of ErrorDisplay
-                    setError(null);
-                    // Don't throw error, let the verification page handle it
-                    return;
-                  } else {
-                    console.error('❌ No email found for verification:', {
-                      errorDetails: registerError.details,
-                      firebaseEmail: firebaseUser.email,
-                    });
-                  }
-                }
-                
-                throw registerError;
-              }
-            } else {
-              // Other error (network, server error, etc.)
-              console.error('❌ Error fetching user from backend:', error);
-              const authError = error instanceof Error ? error : new Error(String(error));
-              setError(authError);
-              throw error;
-            }
+            setLoading(false);
+            return;
           }
-        } catch (error) {
-          console.error('❌ Authentication error:', error);
+        }
+        
+        // Check if error is 404 (user not found) or 401 (unauthorized)
+        const isNotFound = error.message?.includes('404') || 
+                          error.message?.includes('Not Found') ||
+                          error.message?.includes('not found');
+        const isUnauthorized = error instanceof ApiError && error.status === 401;
+        
+        if (isNotFound || isUnauthorized) {
+          // Check if sign-up data is stored in sessionStorage (from sign-up flow)
+          const signUpDataStr = sessionStorage.getItem('signUpData');
+          
+          if (signUpDataStr) {
+            // User is in sign-up flow, don't set error
+            console.log('📝 User not found, but sign-up data exists - waiting for registration');
+            setLoading(false);
+            return;
+          }
+          
+          // No sign-up in progress, user is not authenticated
+          console.log('🚪 User not authenticated');
+          setUser(null);
+          setSelectedTenant(null);
+          setTenants([]);
+        } else {
+          // Other error (network, server error, etc.)
+          console.error('❌ Error fetching user from backend:', error);
           const authError = error instanceof Error ? error : new Error(String(error));
           setError(authError);
           setUser(null);
           setSelectedTenant(null);
           setTenants([]);
         }
-      } else {
-        console.log('🚪 User signed out');
-        setUser(null);
-        setSelectedTenant(null);
-        setTenants([]);
+      } finally {
+        setLoading(false);
       }
-      
-      console.log('⏱️ Setting loading to false');
-      setLoading(false);
-    });
+    };
 
-    return unsubscribe;
-  }, []);
+    checkAuth();
+  }, [isPublicRoute, location]);
 
   const signOut = async () => {
-    await auth.signOut();
+    // Call backend signout endpoint if needed
+    // For now, just clear local state
     setUser(null);
-    setFirebaseUser(null);
     setSelectedTenant(null);
     setTenants([]);
     setError(null);
+    setEmailVerification(null);
   };
 
   const clearError = () => {
@@ -287,7 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const retryRegistration = async (): Promise<User> => {
-    if (!emailVerification || !firebaseUser) {
+    if (!emailVerification) {
       throw new Error('No pending registration to retry');
     }
 
@@ -347,7 +257,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const createTenant = async (name: string, tenantId?: string): Promise<Tenant> => {
-    if (!user || !firebaseUser) {
+    if (!user) {
       throw new Error('User must be authenticated to create a tenant');
     }
     
@@ -438,7 +348,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{ 
-      firebaseUser, 
       user, 
       selectedTenant,
       tenants,

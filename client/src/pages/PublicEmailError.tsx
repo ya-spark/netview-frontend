@@ -2,7 +2,7 @@ import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Layout } from '@/components/Layout';
-import { Mail, ArrowLeft, XCircle } from 'lucide-react';
+import { Mail, XCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface PublicEmailErrorProps {
@@ -70,16 +70,6 @@ export default function PublicEmailError({ email }: PublicEmailErrorProps) {
                 Sign Out & Create New Account
               </Button>
 
-              <Button
-                type="button"
-                variant="ghost"
-                className="w-full"
-                onClick={() => setLocation('/login')}
-                data-testid="button-back-to-login"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Login
-              </Button>
             </div>
           </CardContent>
         </Card>

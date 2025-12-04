@@ -18,11 +18,11 @@ export function ErrorDisplay({ error, onDismiss }: ErrorDisplayProps) {
   const handleLogout = async () => {
     try {
       await signOut();
-      setLocation('/login');
+      setLocation('/signup');
     } catch (logoutError) {
       console.error('Error during logout:', logoutError);
       // Force redirect even if logout fails
-      setLocation('/login');
+      setLocation('/signup');
     }
   };
 

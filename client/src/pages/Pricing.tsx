@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle } from "lucide-react";
-import { Layout } from "@/components/Layout";
+import { PublicLayout } from "@/components/PublicLayout";
 
 export default function Pricing() {
   const pricing = [
@@ -57,7 +57,7 @@ export default function Pricing() {
   ];
 
   return (
-    <Layout showSidebar={false}>
+    <PublicLayout>
       <div className="min-h-screen">
         {/* Pricing Section */}
         <section className="py-20">
@@ -151,7 +151,7 @@ export default function Pricing() {
                         asChild
                         data-testid={`button-select-${plan.name.toLowerCase()}`}
                       >
-                        <Link href="/login">Get Started</Link>
+                        <Link href="/signup">Get Started</Link>
                       </Button>
                     )}
                   </CardContent>
@@ -161,6 +161,6 @@ export default function Pricing() {
           </div>
         </section>
       </div>
-    </Layout>
+    </PublicLayout>
   );
 }

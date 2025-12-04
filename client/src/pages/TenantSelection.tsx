@@ -102,27 +102,13 @@ export default function TenantSelection() {
   }, [tenantForm]);
 
   useEffect(() => {
-    // Redirect to login if not authenticated
-    if (!user) {
-      console.log('🚪 TenantSelection: No user, redirecting to login...');
-      setLocation('/login');
-      return;
-    }
-
-    // Load tenants for this user
-    if (user.email) {
+    // Load tenants when component mounts
+    // Auth check is handled by TenantSelectionRoute
+    if (user?.email) {
       console.log('📋 TenantSelection: Loading tenants for:', user.email);
       loadTenants(user.email);
     }
-  }, [user, loadTenants, setLocation]);
-
-  useEffect(() => {
-    // If user already has a selected tenant, redirect to dashboard
-    if (user && selectedTenant && user.tenantId === selectedTenant.id) {
-      console.log('✅ TenantSelection: Tenant already selected, redirecting to dashboard...');
-      setLocation('/dashboard');
-    }
-  }, [user, selectedTenant, setLocation]);
+  }, [user, loadTenants]);
 
   const handleCreateTenant = async (data: TenantFormData) => {
     if (!user) return;

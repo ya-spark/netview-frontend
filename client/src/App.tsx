@@ -7,7 +7,6 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { useEffect } from "react";
 import Landing from "@/pages/Landing";
-import Login from "@/pages/Login";
 import SignUp from "@/pages/SignUp";
 import EmailVerification from "@/pages/EmailVerification";
 import PublicEmailError from "@/pages/PublicEmailError";
@@ -26,7 +25,7 @@ import NotFound from "@/pages/not-found";
 import { isBusinessEmail } from "@/utils/emailValidation";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, selectedTenant, loading } = useAuth();
+  const { user, selectedTenant, loading, emailVerification } = useAuth();
 
   if (loading) {
     return (
@@ -36,8 +35,20 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // Check if email verification is pending - block access to protected routes
+  if (emailVerification) {
+    // Check if the email is a public email (not a business email)
+    if (!isBusinessEmail(emailVerification.email)) {
+      // Redirect to public email error page
+      return <Redirect to="/public-email-error" />;
+    } else {
+      // Redirect to email verification page for business emails
+      return <Redirect to="/email-verification" />;
+    }
+  }
+
   if (!user) {
-    return <Redirect to="/login" />;
+    return <Redirect to="/signup" />;
   }
 
   // If user doesn't have a tenant selected, redirect to tenant selection
@@ -49,41 +60,32 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 // Pre-auth routes: accessible to everyone, no redirects
+// These pages should load immediately without waiting for auth state
 function PreAuthRoute({ children }: { children: React.ReactNode }) {
-  const { loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
-      </div>
-    );
-  }
-
+  // Don't wait for loading - public pages should be accessible immediately
   return <>{children}</>;
 }
 
-// Public routes: redirect authenticated users (for login/signup)
+// Auth routes: redirect authenticated users (for signup)
+// Only check auth when user tries to access these pages
 function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { user, firebaseUser, selectedTenant, loading, emailVerification } = useAuth();
+  const { user, emailVerification, loading } = useAuth();
 
+  // Don't redirect while loading - wait for auth state to settle
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
-      </div>
-    );
-  }
-
-  // Don't redirect if email verification is pending - AppContent will handle showing verification page
-  if (emailVerification && firebaseUser) {
     return <>{children}</>;
   }
 
-  // Redirect if user is authenticated
-  if (user || firebaseUser) {
-    // If user has a tenant selected, go to dashboard
-    if (selectedTenant && user?.tenantId) {
+  // Don't redirect if email verification is pending - let user complete verification
+  if (emailVerification) {
+    return <>{children}</>;
+  }
+
+  // Only redirect if backend user is set
+  // This ensures we have complete user data before redirecting
+  if (user) {
+    // If user has a tenant, go to dashboard
+    if (user.tenantId) {
       return <Redirect to="/dashboard" />;
     }
     // Otherwise, go to tenant selection
@@ -94,7 +96,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 }
 
 function TenantSelectionRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, emailVerification } = useAuth();
 
   if (loading) {
     return (
@@ -104,9 +106,21 @@ function TenantSelectionRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Redirect to login if not authenticated
+  // Check if email verification is pending - block access
+  if (emailVerification) {
+    // Check if the email is a public email (not a business email)
+    if (!isBusinessEmail(emailVerification.email)) {
+      // Redirect to public email error page
+      return <Redirect to="/public-email-error" />;
+    } else {
+      // Redirect to email verification page for business emails
+      return <Redirect to="/email-verification" />;
+    }
+  }
+
+  // Redirect to signup if not authenticated
   if (!user) {
-    return <Redirect to="/login" />;
+    return <Redirect to="/signup" />;
   }
 
   return <>{children}</>;
@@ -121,16 +135,22 @@ function Router() {
         </PreAuthRoute>
       </Route>
 
-      <Route path="/login">
-        <PublicRoute>
-          <Login />
-        </PublicRoute>
-      </Route>
-
       <Route path="/signup">
         <PublicRoute>
           <SignUp />
         </PublicRoute>
+      </Route>
+
+      <Route path="/public-email-error">
+        <PreAuthRoute>
+          <PublicEmailErrorRoute />
+        </PreAuthRoute>
+      </Route>
+
+      <Route path="/email-verification">
+        <PreAuthRoute>
+          <EmailVerificationRoute />
+        </PreAuthRoute>
       </Route>
 
       <Route path="/tenant-selection">
@@ -204,63 +224,80 @@ function Router() {
   );
 }
 
-function AppContent() {
-  const { error, clearError, setError, emailVerification, retryRegistration, firebaseUser, user, selectedTenant } = useAuth();
+// Component to handle PublicEmailError route
+function PublicEmailErrorRoute() {
+  const { emailVerification } = useAuth();
   const [, setLocation] = useLocation();
+
+  // Redirect to signup if no email verification state
+  useEffect(() => {
+    if (!emailVerification) {
+      setLocation('/signup');
+    }
+  }, [emailVerification, setLocation]);
+
+  if (!emailVerification) {
+    return null;
+  }
+
+  return <PublicEmailError email={emailVerification.email} />;
+}
+
+// Component to handle EmailVerification route
+function EmailVerificationRoute() {
+  const { emailVerification, retryRegistration } = useAuth();
+  const [, setLocation] = useLocation();
+
+  // Redirect to signup if no email verification state or if email is not a business email
+  useEffect(() => {
+    if (!emailVerification) {
+      setLocation('/signup');
+      return;
+    }
+    if (!isBusinessEmail(emailVerification.email)) {
+      setLocation('/public-email-error');
+    }
+  }, [emailVerification, setLocation]);
+
+  if (!emailVerification || !isBusinessEmail(emailVerification.email)) {
+    return null;
+  }
+
+  return (
+    <EmailVerification
+      email={emailVerification.email}
+      onVerificationSuccess={async () => {
+        try {
+          const newUser = await retryRegistration();
+          console.log('✅ Email verification successful, registration retried');
+          
+          // Always go to tenant selection after verification
+          // User may not have tenant info if they're new, or tenant may not have been created
+          // Tenant selection page allows user to create a tenant if needed
+          console.log('✅ Navigating to tenant selection after successful email verification');
+          setLocation('/tenant-selection');
+        } catch (error: any) {
+          console.error('Failed to retry registration:', error);
+          // Error will be handled by AuthContext and verification state will remain
+        }
+      }}
+    />
+  );
+}
+
+function AppContent() {
+  const { error, clearError, setError } = useAuth();
 
   // Set up global error handler for API errors
   useEffect(() => {
     setGlobalErrorHandler((apiError: Error) => {
-      // Don't set error if email verification is pending - let verification page handle it
-      if (emailVerification && firebaseUser) {
-        console.log('📧 Skipping global error handler - email verification in progress');
-        return;
-      }
       console.error('Global API error:', apiError);
       setError(apiError);
     });
-  }, [setError, emailVerification, firebaseUser]);
+  }, [setError]);
 
-  // Show email verification page if verification is required
-  // This check must come FIRST to prevent error display or routing interference
-  if (emailVerification && firebaseUser) {
-    // Check if the email is a public email (not a business email)
-    if (!isBusinessEmail(emailVerification.email)) {
-      return (
-        <PublicEmailError email={emailVerification.email} />
-      );
-    }
-    
-    // Show verification page for business emails
-    return (
-      <EmailVerification
-        email={emailVerification.email}
-        onVerificationSuccess={async () => {
-          try {
-            const newUser = await retryRegistration();
-            console.log('✅ Email verification successful, registration retried');
-            
-            // Navigate based on user's tenant status
-            if (newUser && newUser.tenantId) {
-              // User has a tenant, go to dashboard
-              console.log('✅ Navigating to dashboard after successful registration');
-              setLocation('/dashboard');
-            } else {
-              // User doesn't have a tenant, go to tenant selection
-              console.log('✅ Navigating to tenant selection after successful registration');
-              setLocation('/tenant-selection');
-            }
-          } catch (error: any) {
-            console.error('Failed to retry registration:', error);
-            // Error will be handled by AuthContext and verification state will remain
-          }
-        }}
-      />
-    );
-  }
-
-  // Show error display if there's an error (but not if verification is pending)
-  if (error && !emailVerification) {
+  // Show error display if there's an error
+  if (error) {
     return <ErrorDisplay error={error} onDismiss={clearError} />;
   }
 

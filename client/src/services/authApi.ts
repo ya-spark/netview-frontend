@@ -4,7 +4,6 @@ import { apiRequest } from '../lib/queryClient';
 
 /**
  * Send verification code to email address
- * Email is extracted from Firebase token, so no email parameter needed
  * @returns Promise that resolves when code is sent
  */
 export async function sendVerificationCode(): Promise<void> {
@@ -15,7 +14,6 @@ export async function sendVerificationCode(): Promise<void> {
 
 /**
  * Verify the code sent to email address
- * Email is extracted from Firebase token, so only code is needed
  * @param code - 6-digit verification code
  * @returns Promise that resolves when code is verified
  */

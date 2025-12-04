@@ -16,13 +16,11 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export function Header() {
   const [location] = useLocation();
-  const { user, firebaseUser, signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const [notificationCount] = useState(3);
   const { toggleSidebar } = useSidebar();
 
-  // Check both user (backend) and firebaseUser (Firebase auth) to handle cases where
-  // Firebase auth is complete but backend user data hasn't loaded yet
-  const isAuthenticated = !!(user || firebaseUser);
+  const isAuthenticated = !!user;
 
   // Different navigation based on login status
   const loggedInNavigation = [
@@ -158,38 +156,12 @@ export function Header() {
                                 : 'NA NA'}
                             </div>
                           </>
-                        ) : firebaseUser ? (
-                          <>
-                            <div
-                              className="text-sm font-medium text-foreground"
-                              data-testid="text-user-name"
-                            >
-                              {firebaseUser.displayName || 'User'}
-                            </div>
-                            <div
-                              className="text-xs text-muted-foreground"
-                              data-testid="text-user-email"
-                            >
-                              {firebaseUser.email}
-                            </div>
-                            <div
-                              className="text-xs text-muted-foreground"
-                              data-testid="text-user-role-org"
-                            >
-                              NA NA
-                            </div>
-                          </>
                         ) : null}
                       </div>
                       <Avatar>
                         <AvatarFallback className="bg-primary text-primary-foreground">
                           {user && (user.firstName || user.lastName)
                             ? getInitials(user.firstName, user.lastName)
-                            : firebaseUser?.displayName
-                            ? getInitials(
-                                firebaseUser.displayName.split(' ')[0],
-                                firebaseUser.displayName.split(' ').slice(1).join(' ')
-                              )
                             : 'U'}
                         </AvatarFallback>
                       </Avatar>
@@ -217,9 +189,6 @@ export function Header() {
               <div className="flex items-center space-x-4">
                 <Button asChild variant="ghost" data-testid="button-demo">
                   <Link href="/demo">Demo</Link>
-                </Button>
-                <Button asChild variant="outline" data-testid="button-login">
-                  <Link href="/login">Login</Link>
                 </Button>
                 <Button asChild data-testid="button-sign-up">
                   <Link href="/signup">Sign Up</Link>

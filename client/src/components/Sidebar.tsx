@@ -33,7 +33,6 @@ import {
   FileQuestion,
   DollarSign,
   Play,
-  LogIn,
   UserPlus,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -513,13 +512,6 @@ function PublicSidebar() {
       current: location === "/demo",
     },
     {
-      name: "Login",
-      href: "/login",
-      icon: LogIn,
-      variant: "outline" as const,
-      current: location === "/login",
-    },
-    {
       name: "Sign Up",
       href: "/signup",
       icon: UserPlus,
@@ -584,14 +576,12 @@ function PublicSidebar() {
 // Main Sidebar Component
 export function Sidebar() {
   const [location] = useLocation();
-  const { user, firebaseUser } = useAuth();
+  const { user } = useAuth();
 
   // Determine which sidebar content to show based on authentication and current route
   const getSidebarContent = () => {
     // Show public sidebar for non-logged-in users
-    // Check both user (backend) and firebaseUser (Firebase auth) to handle cases where
-    // Firebase auth is complete but backend user data hasn't loaded yet
-    if (!user && !firebaseUser) {
+    if (!user) {
       return <PublicSidebar />;
     }
 
@@ -621,17 +611,17 @@ export function Sidebar() {
         <SidebarHeader>
           <div className="p-0">
             <h2 className="text-lg font-semibold text-foreground">
-              {(!user && !firebaseUser) && "Menu"}
-              {(user || firebaseUser) && location.startsWith("/dashboard") && "Dashboard"}
-              {(user || firebaseUser) &&
+              {!user && "Menu"}
+              {user && location.startsWith("/dashboard") && "Dashboard"}
+              {user &&
                 (location.startsWith("/manage") ||
                   location === "/billing" ||
                   location === "/settings" ||
                   location === "/collaborators") &&
                 "Configuration"}
-              {(user || firebaseUser) && location.startsWith("/monitor") && "Monitor"}
-              {(user || firebaseUser) && location.startsWith("/reports") && "Reports"}
-              {(user || firebaseUser) &&
+              {user && location.startsWith("/monitor") && "Monitor"}
+              {user && location.startsWith("/reports") && "Reports"}
+              {user &&
                 !location.startsWith("/dashboard") &&
                 !location.startsWith("/manage") &&
                 !location.startsWith("/monitor") &&

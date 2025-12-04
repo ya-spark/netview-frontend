@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { useLocation } from 'wouter';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,8 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import { signUpWithEmail } from '@/lib/firebase';
-import { useAuth } from '@/contexts/AuthContext';
+import { registerUser } from '@/services/authApi';
 import { Layout } from '@/components/Layout';
 import { isBusinessEmail } from '@/utils/emailValidation';
 
@@ -29,10 +27,8 @@ const signUpSchema = z.object({
 type SignUpFormData = z.infer<typeof signUpSchema>;
 
 export default function SignUp() {
-  const [, setLocation] = useLocation();
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const { user } = useAuth();
 
   const signUpForm = useForm<SignUpFormData>({
     resolver: zodResolver(signUpSchema),
@@ -44,14 +40,6 @@ export default function SignUp() {
       confirmPassword: '',
     },
   });
-
-  useEffect(() => {
-    // Redirect to dashboard if user is authenticated
-    if (user) {
-      console.log('✅ SignUp: User authenticated, redirecting to dashboard...');
-      setLocation('/dashboard');
-    }
-  }, [user, setLocation]);
 
   const handleSubmit = async (data: SignUpFormData) => {
     console.log('📝 SignUp: Form submitted:', data.email);
@@ -70,11 +58,11 @@ export default function SignUp() {
       const stored = sessionStorage.getItem('signUpData');
       console.log('✅ Verified sign-up data stored:', stored);
       
-      // Create Firebase account
-      console.log('🔥 SignUp: Creating Firebase account...');
-      await signUpWithEmail(data.email, data.password);
+      // Register user with backend
+      console.log('📝 SignUp: Registering user with backend...');
+      await registerUser(data.firstName, data.lastName);
       
-      console.log('✅ SignUp: Firebase account created, user will be registered in AuthContext');
+      console.log('✅ SignUp: User registered, redirecting...');
       
       // Note: If email verification is required, AuthContext will handle showing
       // the EmailVerification page. Otherwise, user will be redirected to dashboard.
@@ -216,14 +204,6 @@ export default function SignUp() {
             </Form>
 
             <div className="text-center">
-              <Button
-                variant="link"
-                onClick={() => setLocation('/login')}
-                className="text-sm"
-                data-testid="button-back-to-login"
-              >
-                Already have an account? Sign in
-              </Button>
             </div>
           </CardContent>
         </Card>

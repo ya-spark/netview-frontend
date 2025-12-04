@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Book, ArrowRight, Clock, Users, Shield, BarChart } from "lucide-react";
-import { Layout } from "@/components/Layout";
+import { PublicLayout } from "@/components/PublicLayout";
 
 export default function Docs() {
   const tableOfContents = [
@@ -55,7 +55,7 @@ export default function Docs() {
   ];
 
   return (
-    <Layout showSidebar={false}>
+    <PublicLayout>
       <div className="min-h-screen">
         {/* Header Section */}
         <section className="py-12 bg-muted/20">
@@ -190,7 +190,7 @@ export default function Docs() {
               <p className="text-xl text-muted-foreground mb-8">
                 Set up your first monitoring probe in less than 5 minutes
               </p>
-              <Link href="/login">
+              <Link href="/signup">
                 <Card className="inline-block hover:shadow-lg transition-shadow cursor-pointer" data-testid="card-get-started">
                   <CardContent className="p-6 flex items-center space-x-4">
                     <div className="flex-grow text-left">
@@ -205,6 +205,6 @@ export default function Docs() {
           </div>
         </section>
       </div>
-    </Layout>
+    </PublicLayout>
   );
 }
