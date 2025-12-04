@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,34 +6,213 @@ import { Input } from '@/components/ui/input';
 import { Layout } from '@/components/Layout';
 import { BarChart3, AlertTriangle, CheckCircle, DollarSign, RefreshCw, Plus, Search, Filter } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { ProbeApiService, ProbeUtils } from '@/services/probeApi';
+import { ProbeUtils } from '@/services/probeApi';
 import type { Probe } from '@/types/probe';
+
+// Mock data
+const mockStats = {
+  totalProbes: 8,
+  activeAlerts: 2,
+  overallUptime: 99.5,
+};
+
+const mockProbes = {
+  data: [
+    {
+      id: '1',
+      name: 'Main Website',
+      url: 'https://example.com',
+      type: 'Uptime',
+      status: 'Up',
+      responseTime: 245,
+      lastCheck: new Date().toISOString(),
+      tenant_id: 1,
+      category: 'Uptime' as const,
+      probe_type: 'HTTP/HTTPS' as const,
+      gateway_type: 'Core' as const,
+      gateway_id: null,
+      notification_group_id: null,
+      check_interval: 300,
+      timeout: 30,
+      retries: 3,
+      configuration: { url: 'https://example.com' },
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: '2',
+      name: 'API Endpoint',
+      url: 'https://api.example.com/health',
+      type: 'API',
+      status: 'Up',
+      responseTime: 128,
+      lastCheck: new Date(Date.now() - 60000).toISOString(),
+      tenant_id: 1,
+      category: 'API' as const,
+      probe_type: 'HTTP/HTTPS' as const,
+      gateway_type: 'Core' as const,
+      gateway_id: null,
+      notification_group_id: null,
+      check_interval: 300,
+      timeout: 30,
+      retries: 3,
+      configuration: { url: 'https://api.example.com/health' },
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: '3',
+      name: 'Database Server',
+      url: 'db.example.com',
+      type: 'Uptime',
+      status: 'Down',
+      responseTime: null,
+      lastCheck: new Date(Date.now() - 300000).toISOString(),
+      tenant_id: 1,
+      category: 'Uptime' as const,
+      probe_type: 'ICMP/Ping' as const,
+      gateway_type: 'Core' as const,
+      gateway_id: null,
+      notification_group_id: null,
+      check_interval: 300,
+      timeout: 30,
+      retries: 3,
+      configuration: { host: 'db.example.com' },
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: '4',
+      name: 'SSL Certificate',
+      url: 'https://secure.example.com',
+      type: 'Security',
+      status: 'Up',
+      responseTime: 89,
+      lastCheck: new Date(Date.now() - 120000).toISOString(),
+      tenant_id: 1,
+      category: 'Security' as const,
+      probe_type: 'SSL/TLS' as const,
+      gateway_type: 'Core' as const,
+      gateway_id: null,
+      notification_group_id: null,
+      check_interval: 3600,
+      timeout: 30,
+      retries: 3,
+      configuration: { url: 'https://secure.example.com' },
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: '5',
+      name: 'Payment Gateway',
+      url: 'https://payments.example.com',
+      type: 'API',
+      status: 'Warning',
+      responseTime: 1250,
+      lastCheck: new Date(Date.now() - 180000).toISOString(),
+      tenant_id: 1,
+      category: 'API' as const,
+      probe_type: 'HTTP/HTTPS' as const,
+      gateway_type: 'Core' as const,
+      gateway_id: null,
+      notification_group_id: null,
+      check_interval: 300,
+      timeout: 30,
+      retries: 3,
+      configuration: { url: 'https://payments.example.com' },
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: '6',
+      name: 'DNS Resolution',
+      url: 'example.com',
+      type: 'Security',
+      status: 'Up',
+      responseTime: 45,
+      lastCheck: new Date(Date.now() - 240000).toISOString(),
+      tenant_id: 1,
+      category: 'Security' as const,
+      probe_type: 'DNS Resolution' as const,
+      gateway_type: 'Core' as const,
+      gateway_id: null,
+      notification_group_id: null,
+      check_interval: 600,
+      timeout: 30,
+      retries: 3,
+      configuration: { domain: 'example.com' },
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: '7',
+      name: 'User Dashboard',
+      url: 'https://dashboard.example.com',
+      type: 'Browser',
+      status: 'Up',
+      responseTime: 567,
+      lastCheck: new Date(Date.now() - 90000).toISOString(),
+      tenant_id: 1,
+      category: 'Browser' as const,
+      probe_type: 'HTTP/HTTPS' as const,
+      gateway_type: 'Core' as const,
+      gateway_id: null,
+      notification_group_id: null,
+      check_interval: 300,
+      timeout: 30,
+      retries: 3,
+      configuration: { url: 'https://dashboard.example.com' },
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: '8',
+      name: 'Backup Service',
+      url: 'https://backup.example.com/status',
+      type: 'API',
+      status: 'Down',
+      responseTime: null,
+      lastCheck: new Date(Date.now() - 600000).toISOString(),
+      tenant_id: 1,
+      category: 'API' as const,
+      probe_type: 'HTTP/HTTPS' as const,
+      gateway_type: 'Core' as const,
+      gateway_id: null,
+      notification_group_id: null,
+      check_interval: 300,
+      timeout: 30,
+      retries: 3,
+      configuration: { url: 'https://backup.example.com/status' },
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+  ],
+};
 
 export default function Dashboard() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
 
-  const { data: stats, refetch: refetchStats } = useQuery({
-    queryKey: ['/api/dashboard/stats'],
-    enabled: !!user?.tenantId,
-  });
-
-  const { data: probes, refetch: refetchProbes } = useQuery({
-    queryKey: ['/api/probes'],
-    enabled: !!user,
-    queryFn: async () => {
-      return await ProbeApiService.listProbes();
-    },
-  });
+  // Using mock data instead of API calls
+  const stats = mockStats;
+  const probes = mockProbes;
 
   const handleRefresh = () => {
-    refetchStats();
-    refetchProbes();
+    // Mock refresh - no API calls
+    console.log('Refresh clicked (mock mode)');
   };
 
-  const filteredProbes = (probes?.data || []).filter((probe: Probe) =>
+  const filteredProbes = (probes.data || []).filter((probe: any) =>
     probe.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    ProbeUtils.getConfigDisplay(probe).toLowerCase().includes(searchTerm.toLowerCase())
+    ProbeUtils.getConfigDisplay(probe as Probe).toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getStatusBadge = (status: string) => {
@@ -97,7 +275,7 @@ export default function Dashboard() {
                 <div className="flex-1 min-w-0">
                   <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Probes</p>
                   <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground mt-1" data-testid="text-total-probes">
-                    {(stats as any)?.totalProbes || 0}
+                    {stats.totalProbes}
                   </p>
                   <p className="text-xs text-secondary mt-1">
                     <span className="inline-flex items-center">
@@ -119,7 +297,7 @@ export default function Dashboard() {
                 <div className="flex-1 min-w-0">
                   <p className="text-xs sm:text-sm font-medium text-muted-foreground">Active Alerts</p>
                   <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-destructive mt-1" data-testid="text-active-alerts">
-                    {(stats as any)?.activeAlerts || 0}
+                    {stats.activeAlerts}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">Requires attention</p>
                 </div>
@@ -136,7 +314,7 @@ export default function Dashboard() {
                 <div className="flex-1 min-w-0">
                   <p className="text-xs sm:text-sm font-medium text-muted-foreground">Overall Uptime</p>
                   <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-secondary mt-1" data-testid="text-uptime">
-                    {(stats as any)?.overallUptime ? `${(stats as any).overallUptime}%` : '100%'}
+                    {stats.overallUptime}%
                   </p>
                   <p className="text-xs text-secondary mt-1">Last 30 days</p>
                 </div>
