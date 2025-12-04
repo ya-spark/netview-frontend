@@ -1,0 +1,284 @@
+# NetView Frontend Cursor Rules
+
+## IMPORTANT: Full-Stack Feature Development
+# When implementing any feature, ensure changes are done in both backend (controller) and frontend as needed.
+# The controller is the backend API that serves this frontend application.
+# Always consider API contract changes, new endpoints, and data model updates that may require backend updates.
+
+## Project Structure
+- `client/src/pages/` - Page components (route-level components)
+- `client/src/components/` - Reusable UI components
+  - `client/src/components/ui/` - shadcn/ui components
+- `client/src/contexts/` - React contexts (AuthContext)
+- `client/src/hooks/` - Custom React hooks
+- `client/src/lib/` - Utilities (queryClient, firebase)
+- `client/src/services/` - API service functions
+- `client/src/types/` - TypeScript type definitions
+- `client/src/utils/` - Utility functions
+- `client/src/App.tsx` - Main app with routing
+- `client/src/main.tsx` - Entry point
+
+## Code Style & Conventions
+
+### TypeScript
+- Use TypeScript for all files
+- Define types in `client/src/types/`
+- Use strict type checking
+- Avoid `any` type, use proper types or `unknown`
+
+### React Patterns
+- Use functional components with hooks
+- Don't explicitly import React (not needed in React 17+)
+- Use proper dependency arrays in hooks
+- Extract reusable logic into custom hooks
+
+### Import Paths
+- Use `@/` prefix for client imports (e.g., `@/components/ui/button`)
+- Example: `import { Button } from "@/components/ui/button"`
+- Example: `import { useAuth } from "@/contexts/AuthContext"`
+
+## Component Development
+
+### Pages (`client/src/pages/`)
+- Create page components for route-level views
+- Register routes in `client/src/App.tsx`
+- Use `ProtectedRoute` wrapper for authenticated pages
+- Use `PublicRoute` wrapper for public pages that redirect authenticated users
+
+### UI Components (`client/src/components/ui/`)
+- Use shadcn/ui components from `@/components/ui/`
+- Don't modify shadcn components directly
+- Create wrapper components if customization needed
+- Follow Radix UI patterns for accessibility
+
+### Custom Components
+- Create reusable components in `client/src/components/`
+- Use TypeScript interfaces for props
+- Add `data-testid` attributes for testing
+- Support dark mode with Tailwind classes
+
+## State Management
+
+### Server State (TanStack Query)
+- Use TanStack Query for all server state
+- Use object form for TanStack Query v5: `useQuery({ queryKey: [...] })`
+- Gate queries with `enabled: !!user` to prevent unauthenticated requests
+- Use hierarchical query keys: `['/api/probes', id]`
+- Always invalidate cache after mutations
+- Show loading/skeleton states
+
+### Local State
+- Use `useState` for component-local state
+- Use `useReducer` for complex local state
+- Use React Hook Form for form state
+
+### Authentication Context
+- Use `useAuth()` hook from `@/contexts/AuthContext`
+- Access `user`, `firebaseUser`, `loading`, `signOut`
+- Check `loading` before accessing `user`
+- Handle unauthenticated state gracefully
+
+## Forms
+
+### React Hook Form + Zod
+- Always use React Hook Form with Zod validation
+- Provide `defaultValues` for all form fields
+- Use `zodResolver` for validation
+- Use `.extend()` to add custom validation to insert schemas
+- Check `form.formState.errors` for debugging
+
+### Form Components
+- Use shadcn form components: `Form`, `FormField`, `FormItem`, `FormLabel`, `FormControl`, `FormMessage`
+- Always provide `value` prop to `<SelectItem>`
+- Handle form submission with `form.handleSubmit(onSubmit)`
+
+## API Integration
+
+### API Requests
+- Use `apiRequest` helper from `@/lib/queryClient`
+- All requests automatically include Firebase ID token
+- Handle errors gracefully with toast notifications
+- Use proper HTTP methods (GET, POST, PUT, DELETE)
+
+### TanStack Query Patterns
+
+**Queries:**
+```tsx
+const { data, isLoading, error } = useQuery({
+  queryKey: ['/api/probes'],
+  enabled: !!user, // Only fetch when authenticated
+});
+```
+
+**Mutations:**
+```tsx
+const mutation = useMutation({
+  mutationFn: (data) => apiRequest('POST', '/api/probes', data),
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['/api/probes'] });
+    toast({ title: "Success" });
+  },
+  onError: (error) => {
+    toast({ title: "Error", description: error.message, variant: "destructive" });
+  }
+});
+```
+
+## Routing
+
+### Wouter
+- Use Wouter for routing
+- Register routes in `client/src/App.tsx`
+- Use `<Link>` component for navigation
+- Use `useLocation()` hook for programmatic navigation
+
+### Route Protection
+- Wrap protected routes with `<ProtectedRoute>`
+- Wrap public routes (that redirect authenticated users) with `<PublicRoute>`
+- Always show loading state while checking authentication
+
+## Styling
+
+### Tailwind CSS
+- Use Tailwind utility classes
+- Always specify both light and dark variants: `bg-white dark:bg-slate-900`
+- Use design system colors from `index.css`
+- Use semantic color names: `bg-background`, `text-foreground`, `text-primary`, `text-muted-foreground`
+
+### Dark Mode
+- Always support dark mode
+- Use `dark:` prefix for dark mode styles
+- Test both light and dark modes
+
+### Icons
+- Use Lucide React for UI/action icons: `import { Check, X } from "lucide-react"`
+- Use React Icons for logos: `import { SiGoogle } from "react-icons/si"`
+- Use consistent icon sizes: `h-4 w-4` for small, `h-5 w-5` for medium
+
+## Testing
+
+### Data Test IDs
+- Add `data-testid` to all interactive elements
+- Add `data-testid` to meaningful display elements
+- Use naming convention: `{action}-{target}` for interactive, `{type}-{content}` for display
+- Append unique ID for dynamic elements: `card-probe-${probe.id}`
+
+**Examples:**
+```tsx
+<Button data-testid="button-create-probe">Create</Button>
+<Input data-testid="input-email" />
+<div data-testid={`card-probe-${probe.id}`}>
+```
+
+## Error Handling
+
+### Loading States
+- Show skeleton loaders or spinners during data fetching
+- Use TanStack Query `isLoading` state
+- Handle `loading` from AuthContext
+
+### Error States
+- Show error messages with toast notifications
+- Use Alert components for error display
+- Handle TanStack Query `error` state
+- Provide user-friendly error messages
+
+### Empty States
+- Show empty state UI when no data
+- Provide actions to create new resources
+- Use consistent empty state patterns
+
+## Environment Variables
+
+### Frontend Variables
+- All frontend env variables must be prefixed with `VITE_`
+- Access via `import.meta.env.VITE_VAR_NAME`
+- Required variables:
+  - `VITE_FIREBASE_API_KEY`
+  - `VITE_FIREBASE_PROJECT_ID`
+  - `VITE_FIREBASE_APP_ID`
+  - `PORT` (development server port)
+
+### Keep in Sync
+- Always keep `.env` and `.env.example` in sync
+- Document all environment variables in `.env.example`
+
+## Common Patterns
+
+### Toast Notifications
+- Import from `@/hooks/use-toast` (not `@/components/ui/use-toast`)
+- Use toast for success and error messages
+- Provide descriptive titles and descriptions
+
+### API Proxy
+- Backend API runs on `http://localhost:8080`
+- Vite proxy configured in `vite.config.ts`
+- Ensure backend is running during development
+
+### Authentication Flow
+1. Firebase `signInWithPopup` for Google OAuth
+2. Query client auto-injects Firebase ID token in headers
+3. Backend verifies token via Firebase Admin SDK
+4. User created/fetched and stored in context
+
+## Code Quality
+
+### No Fallbacks or Mock Values
+- Do not create fallback, default, or mock values
+- Use values from environment variables
+- Throw errors if required values are missing
+- Handle missing data gracefully in UI
+
+### Code Reusability
+- Check for existing components before creating new ones
+- Reuse shadcn/ui components
+- Extract common patterns into custom hooks
+- Avoid code duplication
+
+### Code Security
+- Never expose API keys or secrets in frontend code
+- Validate all user inputs
+- Sanitize data before rendering
+- Use secure authentication patterns
+
+### Code Conciseness
+- Keep components focused and small
+- Extract reusable logic into hooks
+- Remove redundant code after refactoring
+- Optimize bundle size
+
+## Documentation
+
+### Code Documentation
+- Add JSDoc comments for complex functions
+- Document component props with TypeScript interfaces
+- Update component documentation when adding features
+
+### Documentation Updates
+- Update relevant documentation files after code changes
+- Keep `docs/` directory in sync with code
+- Document breaking changes
+
+## Common Pitfalls to Avoid
+
+1. **Import errors**: Use `@/` prefix for client imports
+2. **Forms not submitting**: Check `form.formState.errors`, ensure all fields have defaults
+3. **Query issues**: Use object form, enable only when authenticated, invalidate after mutations
+4. **SelectItem errors**: Always provide `value` prop
+5. **Toast hook**: Import from `@/hooks/use-toast`
+6. **API proxy errors**: Ensure backend is running on `http://localhost:8080`
+7. **Firebase auth errors**: Verify all `VITE_FIREBASE_*` environment variables are set
+
+## Git Workflow
+
+### Branch Naming
+- `feature/feature-name` - New features
+- `bugfix/bug-name` - Bug fixes
+- `hotfix/issue-name` - Critical fixes
+- `refactor/component-name` - Refactoring
+
+### Commit Messages
+- Use descriptive commit messages
+- Follow conventional commit format when possible
+- Include context about changes
+
