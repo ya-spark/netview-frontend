@@ -12,6 +12,7 @@ import {
   GoogleAuthProvider, 
   signInWithPopup, 
   signInWithEmailAndPassword,
+  createUserWithEmailAndPassword as firebaseCreateUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   User,
   onAuthStateChanged,
@@ -81,6 +82,39 @@ export async function signInWithGoogle(): Promise<User> {
     }
     
     throw new Error(error.message || 'Failed to sign in with Google');
+  }
+}
+
+/**
+ * Create a new user account with email and password
+ * @param email - User's email address
+ * @param password - User's password
+ * @returns Promise that resolves with Firebase User
+ */
+export async function createUserWithEmailAndPassword(
+  email: string,
+  password: string
+): Promise<User> {
+  try {
+    console.log('🔐 Creating Firebase account with email/password...');
+    const result = await firebaseCreateUserWithEmailAndPassword(auth, email, password);
+    console.log('✅ Firebase account created successfully:', result.user.email);
+    return result.user;
+  } catch (error: any) {
+    console.error('❌ Firebase account creation error:', error);
+    
+    // Handle specific Firebase errors
+    if (error.code === 'auth/email-already-in-use') {
+      throw new Error('An account with this email already exists. Please login instead.');
+    } else if (error.code === 'auth/invalid-email') {
+      throw new Error('Invalid email address format.');
+    } else if (error.code === 'auth/weak-password') {
+      throw new Error('Password is too weak. Please use a stronger password.');
+    } else if (error.code === 'auth/network-request-failed') {
+      throw new Error('Network error. Please check your connection and try again.');
+    }
+    
+    throw new Error(error.message || 'Failed to create account');
   }
 }
 

@@ -1,5 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-import { getIdToken } from "./firebase";
+import { getIdToken, getCurrentUser } from "./firebase";
 
 /**
  * Get the base API URL from environment variable
@@ -130,6 +130,13 @@ async function throwIfResNotOk(res: Response, url?: string) {
   }
 }
 
+// Global store for user info (updated by AuthContext)
+let currentUserInfo: { email?: string; tenantId?: string } = {};
+
+export function setCurrentUserInfo(email?: string, tenantId?: string) {
+  currentUserInfo = { email, tenantId };
+}
+
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const headers: Record<string, string> = {};
   
@@ -137,6 +144,21 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   const token = await getIdToken();
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  // In dev mode, backend middleware requires X-User-Email and X-Tenant-ID headers
+  // Try to get email from Firebase user
+  const firebaseUser = getCurrentUser();
+  if (firebaseUser?.email) {
+    headers['X-User-Email'] = firebaseUser.email;
+  } else if (currentUserInfo.email) {
+    // Fallback to stored user info
+    headers['X-User-Email'] = currentUserInfo.email;
+  }
+  
+  // Get tenant ID from stored user info
+  if (currentUserInfo.tenantId) {
+    headers['X-Tenant-ID'] = currentUserInfo.tenantId;
   }
   
   return headers;

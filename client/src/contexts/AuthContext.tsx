@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useLocation } from 'wouter';
 import { getCurrentUser, registerUser } from '@/services/authApi';
-import { ApiError } from '@/lib/queryClient';
+import { ApiError, setCurrentUserInfo } from '@/lib/queryClient';
 import { 
   onAuthStateChange, 
   getCurrentUser as getFirebaseUser,
@@ -57,6 +57,7 @@ interface AuthContextType {
   setError: (error: Error | null) => void;
   retryRegistration: () => Promise<User>;
   clearEmailVerification: () => void;
+  syncBackendUser: (firebaseUser: FirebaseUser | null) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -105,6 +106,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         tenantId: backendUser.tenantId 
       });
       setUser(backendUser);
+      
+      // Update global user info for API headers (dev mode requires X-User-Email and X-Tenant-ID)
+      setCurrentUserInfo(backendUser.email, backendUser.tenantId);
       
       // Set selected tenant if user has one
       if (backendUser.tenantId && backendUser.tenantName) {
@@ -232,6 +236,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSelectedTenant(null);
     setTenants([]);
     setError(null);
+    // Clear global user info for API headers
+    setCurrentUserInfo();
     setEmailVerification(null);
   };
 
@@ -442,6 +448,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError,
       retryRegistration,
       clearEmailVerification,
+      syncBackendUser,
     }}>
       {children}
     </AuthContext.Provider>

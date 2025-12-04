@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,8 @@ import { useToast } from '@/hooks/use-toast';
 import { registerUser } from '@/services/authApi';
 import { Layout } from '@/components/Layout';
 import { isBusinessEmail } from '@/utils/emailValidation';
+import { createUserWithEmailAndPassword } from '@/lib/firebase';
+import { useAuth } from '@/contexts/AuthContext';
 
 const signUpSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -28,8 +30,10 @@ const signUpSchema = z.object({
 type SignUpFormData = z.infer<typeof signUpSchema>;
 
 export default function SignUp() {
+  const [, setLocation] = useLocation();
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const signUpForm = useForm<SignUpFormData>({
     resolver: zodResolver(signUpSchema),
@@ -47,7 +51,13 @@ export default function SignUp() {
     setLoading(true);
 
     try {
-      // Store sign-up data in sessionStorage for AuthContext to use
+      // Step 1: Create Firebase account
+      console.log('🔐 Creating Firebase account...');
+      await createUserWithEmailAndPassword(data.email, data.password);
+      console.log('✅ Firebase account created successfully');
+      
+      // Step 2: Store signup data for onboarding/registration
+      // This will be used during onboarding to register with backend after email verification
       const signUpData = {
         firstName: data.firstName,
         lastName: data.lastName,
@@ -55,25 +65,26 @@ export default function SignUp() {
       console.log('💾 Storing sign-up data in sessionStorage:', signUpData);
       sessionStorage.setItem('signUpData', JSON.stringify(signUpData));
       
-      // Verify it was stored
-      const stored = sessionStorage.getItem('signUpData');
-      console.log('✅ Verified sign-up data stored:', stored);
-      
-      // Register user with backend
-      console.log('📝 SignUp: Registering user with backend...');
-      await registerUser(data.firstName, data.lastName);
-      
-      console.log('✅ SignUp: User registered, redirecting...');
-      
-      // Note: If email verification is required, AuthContext will handle showing
-      // the EmailVerification page. Otherwise, user will be redirected to dashboard.
+      // Step 3: Redirect to onboarding
+      // Onboarding will handle email verification and registration
+      console.log('✅ Redirecting to onboarding for email verification and registration');
+      setLocation('/onboarding');
     } catch (error: any) {
-      console.error('❌ SignUp: Registration failed:', error);
-      // Don't clear sessionStorage on error - let AuthContext handle it
-      // This allows retry if needed
-      const errorMessage = error.message || "Failed to create account. Please try again.";
+      console.error('❌ SignUp: Account creation failed:', error);
+      
+      // Handle specific Firebase errors
+      let errorMessage = error.message || "Failed to create account. Please try again.";
+      
+      if (error.code === 'auth/email-already-in-use') {
+        errorMessage = 'An account with this email already exists. Please login instead.';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'Invalid email address format.';
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = 'Password is too weak. Please use a stronger password.';
+      }
+      
       toast({
-        title: "Registration Error",
+        title: "Account Creation Error",
         description: errorMessage,
         variant: "destructive",
       });

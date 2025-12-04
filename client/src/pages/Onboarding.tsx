@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +10,8 @@ import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { Layout } from '@/components/Layout';
 import { useAuth } from '@/contexts/AuthContext';
-import { sendVerificationCode, verifyCode } from '@/services/authApi';
+import { sendVerificationCode, verifyCode, registerUser } from '@/services/authApi';
+import { createTenant } from '@/services/tenantApi';
 import { isBusinessEmail } from '@/utils/emailValidation';
 import { CheckCircle2, XCircle, Loader2, Mail, Building2 } from 'lucide-react';
 
@@ -29,14 +30,21 @@ type Step = 1 | 2 | 3;
 
 export default function Onboarding() {
   const [, setLocation] = useLocation();
-  const { firebaseUser, user, loading: authLoading, emailVerification, createTenant: createTenantViaContext } = useAuth();
+  const { firebaseUser, user, loading: authLoading, emailVerification, syncBackendUser } = useAuth();
   const [currentStep, setCurrentStep] = useState<Step>(1);
   const [loading, setLoading] = useState(false);
   const [checkingTenant, setCheckingTenant] = useState(true);
   const [sendingCode, setSendingCode] = useState(false);
   const [emailValid, setEmailValid] = useState<boolean | null>(null);
   const [tenantCreated, setTenantCreated] = useState(false);
+  const [codeVerified, setCodeVerified] = useState(false);
+  const [codeSent, setCodeSent] = useState(false); // Track if code has been sent
+  const [resendCooldown, setResendCooldown] = useState(0); // Countdown timer in seconds
   const { toast } = useToast();
+  
+  // Use useRef to track if we've already attempted to send (persists across re-renders)
+  const hasAttemptedSend = useRef(false);
+  const resendTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const verifyCodeForm = useForm<VerifyCodeFormData>({
     resolver: zodResolver(verifyCodeSchema),
@@ -88,68 +96,219 @@ export default function Onboarding() {
     setEmailValid(isValid);
   }, [firebaseUser, user, authLoading, emailVerification, setLocation]);
 
-  // Auto-send verification code when step 2 is reached
+  // Auto-progress from step 1 to step 2 if email is valid
   useEffect(() => {
-    if (currentStep === 2 && firebaseUser) {
-      handleSendCode();
+    if (currentStep === 1 && emailValid === true) {
+      const timer = setTimeout(() => {
+        console.log('✅ Auto-progressing to step 2 after email validation');
+        setCurrentStep(2);
+      }, 2000);
+      return () => clearTimeout(timer);
     }
-  }, [currentStep]);
+  }, [currentStep, emailValid]);
 
-  const handleSendCode = async () => {
+  // Memoize handleSendCode to prevent recreation on every render
+  const handleSendCode = useCallback(async () => {
+    // Prevent multiple simultaneous calls - only check sendingCode and cooldown
+    // Don't check codeSent or hasAttemptedSend here - they're reset when cooldown expires
+    if (sendingCode || resendCooldown > 0) {
+      console.log('⚠️ Code sending in progress or cooldown active, skipping...', { 
+        sendingCode, 
+        resendCooldown
+      });
+      return;
+    }
+    
+    // Set ref immediately to prevent race conditions
+    hasAttemptedSend.current = true;
     setSendingCode(true);
+    
     try {
+      console.log('📧 Sending verification code (API call)...');
       await sendVerificationCode();
+      console.log('✅ Verification code sent successfully');
+      setCodeSent(true); // Mark as sent to prevent duplicate sends
+      
+      // Start 1-minute cooldown timer
+      setResendCooldown(60);
+      resendTimerRef.current = setInterval(() => {
+        setResendCooldown((prev) => {
+          if (prev <= 1) {
+            if (resendTimerRef.current) {
+              clearInterval(resendTimerRef.current);
+              resendTimerRef.current = null;
+            }
+            // Reset flags when cooldown expires to allow resend
+            setCodeSent(false);
+            hasAttemptedSend.current = false;
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      
       toast({
         title: "Verification Code Sent",
         description: `A 6-digit code has been sent to ${firebaseUser?.email}. Please check your inbox.`,
       });
     } catch (error: any) {
       console.error('❌ Failed to send verification code:', error);
+      // Reset ref on error so user can retry
+      hasAttemptedSend.current = false;
       const errorMessage = error.message || "Failed to send verification code. Please try again.";
       toast({
         title: "Error",
         description: errorMessage,
         variant: "destructive",
       });
+      // Don't set codeSent on error, so user can retry
     } finally {
       setSendingCode(false);
     }
-  };
+  }, [sendingCode, codeSent, firebaseUser?.email, toast, resendCooldown]);
+
+  // Auto-send verification code when step 2 is reached (only once)
+  useEffect(() => {
+    // Only send if step 2 is reached and we haven't attempted yet
+    // handleSendCode has its own guards for sendingCode and codeSent
+    if (currentStep === 2 && firebaseUser && !hasAttemptedSend.current) {
+      console.log('📧 Auto-sending verification code (useEffect triggered)...', {
+        currentStep,
+        hasFirebaseUser: !!firebaseUser,
+        hasAttemptedSend: hasAttemptedSend.current
+      });
+      // Call handleSendCode - it will check sendingCode and codeSent internally
+      handleSendCode();
+    }
+    
+    // Reset flag when leaving step 2
+    if (currentStep !== 2) {
+      console.log('🔄 Resetting code send flags (leaving step 2)');
+      hasAttemptedSend.current = false;
+      setCodeSent(false); // Also reset codeSent when leaving step 2
+      setResendCooldown(0); // Reset cooldown timer
+      if (resendTimerRef.current) {
+        clearInterval(resendTimerRef.current);
+        resendTimerRef.current = null;
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep, firebaseUser]); // Only depend on currentStep and firebaseUser to prevent re-runs
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (resendTimerRef.current) {
+        clearInterval(resendTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Check if user got a tenant after registration (step 2 -> step 3 transition)
+  useEffect(() => {
+    if (currentStep === 2 && user?.tenantId) {
+      console.log('✅ User has tenant after registration, redirecting to dashboard');
+      setTenantCreated(true);
+      setTimeout(() => {
+        setLocation('/dashboard');
+      }, 2000);
+    }
+  }, [currentStep, user?.tenantId, setLocation]);
 
   const handleVerifyCode = async (data: VerifyCodeFormData) => {
     setLoading(true);
     try {
+      // Step 1: Verify the code
       await verifyCode(data.code);
+      setCodeVerified(true);
       toast({
         title: "Code Verified",
         description: "Your email has been verified successfully.",
       });
       
-      // Wait a bit for AuthContext to sync backend state after verification
-      setTimeout(() => {
-        // Check if tenant was auto-created during verification (via AuthContext)
-        if (user?.tenantId) {
-          console.log('✅ Tenant was auto-created during verification');
-          setTenantCreated(true);
-          setCurrentStep(3);
-          // Auto-redirect after 2 seconds
-          setTimeout(() => {
-            setLocation('/dashboard');
-          }, 2000);
-        } else {
-          // Move to step 3 to create tenant
-          setCurrentStep(3);
-          // Pre-fill tenant name from email domain
-          const email = firebaseUser?.email || '';
-          const domain = email.split('@')[1];
-          if (domain) {
-            const suggestedName = domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1);
-            tenantNameForm.setValue('tenantName', suggestedName);
+      // Step 2: Register user with backend (always, if not already registered)
+      let registeredUser = user;
+      if (!user) {
+        try {
+          let firstName = '';
+          let lastName = '';
+          
+          // Check if signup data exists in sessionStorage (from email/password signup)
+          const signUpDataStr = sessionStorage.getItem('signUpData');
+          if (signUpDataStr) {
+            const signUpData = JSON.parse(signUpDataStr);
+            firstName = signUpData.firstName || '';
+            lastName = signUpData.lastName || '';
+            // Clear signup data after use
+            sessionStorage.removeItem('signUpData');
+          } else {
+            // For Google login users, extract name from Firebase user
+            if (firebaseUser?.displayName) {
+              const nameParts = firebaseUser.displayName.trim().split(/\s+/);
+              firstName = nameParts[0] || '';
+              lastName = nameParts.slice(1).join(' ') || '';
+            } else if (firebaseUser?.email) {
+              // Fallback: use email prefix as firstName
+              const emailPrefix = firebaseUser.email.split('@')[0];
+              firstName = emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
+              lastName = '';
+            } else {
+              // Last resort: use defaults
+              firstName = 'User';
+              lastName = '';
+            }
+          }
+          
+          console.log('📝 Registering user with backend after email verification...', { firstName, lastName });
+          registeredUser = await registerUser(firstName, lastName);
+          console.log('✅ User registered successfully');
+        } catch (registerError: any) {
+          console.error('❌ Failed to register user:', registerError);
+          // Check if user already exists (that's okay)
+          if (registerError.message?.includes('already exists') || registerError.status === 409) {
+            console.log('ℹ️ User already exists, will sync backend state...');
+          } else {
+            // For other errors, show warning but continue
+            console.warn('⚠️ Registration failed, but continuing with onboarding');
+            toast({
+              title: "Registration Warning",
+              description: "Could not complete registration, but you can continue.",
+              variant: "default",
+            });
           }
         }
-      }, 500);
+      }
+      
+      // Sync backend user state to update AuthContext (always do this after verification)
+      if (firebaseUser && syncBackendUser) {
+        console.log('🔄 Syncing backend user state after email verification...');
+        try {
+          await syncBackendUser(firebaseUser);
+          // Get updated user from context after sync
+          // Note: We'll check user state in useEffect or after timeout
+        } catch (syncError: any) {
+          console.error('❌ Failed to sync backend user:', syncError);
+          // Continue anyway - user might not exist yet
+        }
+      }
+      
+      // Step 3: Auto-progress to step 3 after 2 seconds
+      setTimeout(() => {
+        // Check if tenant was auto-created during verification/registration
+        // The user state will be updated by syncBackendUser, so we check it via useEffect
+        // For now, always proceed to step 3 - if tenant exists, useEffect will handle redirect
+        console.log('✅ Auto-progressing to step 3 after email verification');
+        setCurrentStep(3);
+        const email = firebaseUser?.email || '';
+        const domain = email.split('@')[1];
+        if (domain) {
+          const suggestedName = domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1);
+          tenantNameForm.setValue('tenantName', suggestedName);
+        }
+      }, 2000); // Wait 2 seconds before moving to next step
     } catch (error: any) {
       console.error('❌ Failed to verify code:', error);
+      setCodeVerified(false);
       const errorMessage = error.message || "Invalid verification code. Please try again.";
       toast({
         title: "Verification Failed",
@@ -165,8 +324,16 @@ export default function Onboarding() {
   const handleCreateTenant = async (data: TenantNameFormData) => {
     setLoading(true);
     try {
-      // Use AuthContext's createTenant to ensure state is updated
-      await createTenantViaContext(data.tenantName);
+      // Call tenant API directly (backend uses Firebase auth, doesn't require backend user)
+      console.log('🏢 Creating tenant:', data.tenantName);
+      await createTenant(data.tenantName);
+      
+      // Sync backend user state to update AuthContext with tenant info
+      if (firebaseUser && syncBackendUser) {
+        console.log('🔄 Syncing backend user state after tenant creation...');
+        await syncBackendUser(firebaseUser);
+      }
+      
       toast({
         title: "Tenant Created",
         description: "Your organization has been created successfully.",
@@ -288,12 +455,9 @@ export default function Onboarding() {
                 </div>
 
                 {emailValid === true && (
-                  <Button
-                    onClick={() => setCurrentStep(2)}
-                    className="w-full"
-                  >
-                    Continue
-                  </Button>
+                  <div className="text-center text-sm text-muted-foreground">
+                    <p>Moving to next step...</p>
+                  </div>
                 )}
               </div>
             )}
@@ -342,12 +506,17 @@ export default function Onboarding() {
                     <Button 
                       type="submit" 
                       className="w-full" 
-                      disabled={loading}
+                      disabled={loading || codeVerified}
                     >
                       {loading ? (
                         <>
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                           Verifying...
+                        </>
+                      ) : codeVerified ? (
+                        <>
+                          <CheckCircle2 className="w-4 h-4 mr-2" />
+                          Verified
                         </>
                       ) : (
                         'Verify Code'
@@ -356,25 +525,47 @@ export default function Onboarding() {
                   </form>
                 </Form>
 
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={handleSendCode}
-                  disabled={sendingCode}
-                >
-                  {sendingCode ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Sending...
-                    </>
-                  ) : (
-                    <>
-                      <Mail className="w-4 h-4 mr-2" />
-                      Resend Code
-                    </>
-                  )}
-                </Button>
+                {codeVerified && (
+                  <div className="text-center text-sm text-muted-foreground">
+                    <p>Moving to next step...</p>
+                  </div>
+                )}
+
+                {!codeVerified && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      setCodeSent(false); // Reset flag to allow resend
+                      hasAttemptedSend.current = false; // Reset ref flag
+                      setResendCooldown(0); // Reset cooldown
+                      if (resendTimerRef.current) {
+                        clearInterval(resendTimerRef.current);
+                        resendTimerRef.current = null;
+                      }
+                      handleSendCode();
+                    }}
+                    disabled={sendingCode || resendCooldown > 0}
+                  >
+                    {sendingCode ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Sending...
+                      </>
+                    ) : resendCooldown > 0 ? (
+                      <>
+                        <Mail className="w-4 h-4 mr-2" />
+                        Resend Code ({resendCooldown}s)
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="w-4 h-4 mr-2" />
+                        Resend Code
+                      </>
+                    )}
+                  </Button>
+                )}
               </div>
             )}
 
