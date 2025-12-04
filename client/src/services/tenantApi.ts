@@ -96,25 +96,21 @@ export async function createTenant(name: string, tenantId?: string): Promise<any
   console.log('🏢 Creating tenant:', { name, tenantId: finalTenantId });
 
   try {
-    // TODO: Uncomment when backend endpoint is ready
-    // const response = await apiRequest('POST', '/api/tenants', {
-    //   name,
-    //   tenantId: finalTenantId,
-    // });
-    // 
-    // const responseData = await response.json();
-    // const tenant = responseData.data || responseData;
-    // 
-    // if (!tenant || !tenant.id) {
-    //   console.error('❌ Invalid tenant creation response:', responseData);
-    //   throw new Error('Invalid response from tenant creation endpoint. Tenant data is missing.');
-    // }
-    // 
-    // console.log('✅ Tenant created successfully:', { id: tenant.id, name: tenant.name, tenantId: tenant.tenantId });
-    // return tenant;
-
-    // Placeholder: Throw error indicating backend integration is needed
-    throw new Error('Tenant creation endpoint not yet integrated with backend. Please implement POST /api/tenants endpoint.');
+    const response = await apiRequest('POST', '/api/tenants', {
+      name,
+      tenantId: finalTenantId || undefined,
+    });
+    
+    const responseData = await response.json();
+    const tenant = responseData.data || responseData;
+    
+    if (!tenant || !tenant.id) {
+      console.error('❌ Invalid tenant creation response:', responseData);
+      throw new Error('Invalid response from tenant creation endpoint. Tenant data is missing.');
+    }
+    
+    console.log('✅ Tenant created successfully:', { id: tenant.id, name: tenant.name });
+    return tenant;
   } catch (error: any) {
     console.error('❌ Error creating tenant:', error);
     throw error;

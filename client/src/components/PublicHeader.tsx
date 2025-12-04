@@ -53,6 +53,9 @@ export function PublicHeader() {
             <Button asChild variant="ghost" data-testid="button-demo">
               <Link href="/demo">Demo</Link>
             </Button>
+            <Button asChild variant="ghost" data-testid="button-login">
+              <Link href="/login">Login</Link>
+            </Button>
             <Button asChild data-testid="button-sign-up">
               <Link href="/signup">Sign Up</Link>
             </Button>

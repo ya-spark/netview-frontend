@@ -28,6 +28,14 @@ export default function Landing() {
                   size="lg"
                   variant="outline"
                   asChild
+                  data-testid="button-login"
+                >
+                  <Link href="/login">Login</Link>
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  asChild
                   data-testid="button-demo"
                 >
                   <Link href="/demo">Demo</Link>

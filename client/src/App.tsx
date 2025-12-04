@@ -8,6 +8,8 @@ import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { useEffect } from "react";
 import Landing from "@/pages/Landing";
 import SignUp from "@/pages/SignUp";
+import Login from "@/pages/Login";
+import Onboarding from "@/pages/Onboarding";
 import EmailVerification from "@/pages/EmailVerification";
 import PublicEmailError from "@/pages/PublicEmailError";
 import TenantSelection from "@/pages/TenantSelection";
@@ -95,6 +97,58 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Login route: redirect authenticated users
+function LoginRoute({ children }: { children: React.ReactNode }) {
+  const { firebaseUser, user, loading } = useAuth();
+
+  // Don't redirect while loading
+  if (loading) {
+    return <>{children}</>;
+  }
+
+  // If Firebase user is authenticated
+  if (firebaseUser) {
+    // If backend user exists with tenant, go to dashboard
+    if (user?.tenantId) {
+      return <Redirect to="/dashboard" />;
+    }
+    // If backend user exists without tenant, go to onboarding
+    if (user) {
+      return <Redirect to="/onboarding" />;
+    }
+    // If Firebase user but no backend user, go to onboarding
+    return <Redirect to="/onboarding" />;
+  }
+
+  return <>{children}</>;
+}
+
+// Onboarding route: requires Firebase auth, redirects if tenant exists
+function OnboardingRoute({ children }: { children: React.ReactNode }) {
+  const { firebaseUser, user, loading } = useAuth();
+
+  // Don't redirect while loading
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  // Redirect to login if not authenticated
+  if (!firebaseUser) {
+    return <Redirect to="/login" />;
+  }
+
+  // Redirect to dashboard if tenant exists
+  if (user?.tenantId) {
+    return <Redirect to="/dashboard" />;
+  }
+
+  return <>{children}</>;
+}
+
 function TenantSelectionRoute({ children }: { children: React.ReactNode }) {
   const { user, loading, emailVerification } = useAuth();
 
@@ -139,6 +193,18 @@ function Router() {
         <PublicRoute>
           <SignUp />
         </PublicRoute>
+      </Route>
+
+      <Route path="/login">
+        <LoginRoute>
+          <Login />
+        </LoginRoute>
+      </Route>
+
+      <Route path="/onboarding">
+        <OnboardingRoute>
+          <Onboarding />
+        </OnboardingRoute>
       </Route>
 
       <Route path="/public-email-error">
