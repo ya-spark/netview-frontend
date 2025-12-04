@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { useEffect } from "react";
+import { logger } from "@/lib/logger";
 import Landing from "@/pages/Landing";
 import SignUp from "@/pages/SignUp";
 import Login from "@/pages/Login";
@@ -357,7 +358,7 @@ function AppContent() {
   // Set up global error handler for API errors
   useEffect(() => {
     setGlobalErrorHandler((apiError: Error) => {
-      console.error('Global API error:', apiError);
+      logger.error('Global API error', apiError, { component: 'AppContent' });
       setError(apiError);
     });
   }, [setError]);

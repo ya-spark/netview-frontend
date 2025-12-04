@@ -98,7 +98,7 @@ export default function Manage() {
   // Listen for hash changes
   useEffect(() => {
     const handleHashChange = () => {
-      const newHash = window.location.hash ? window.location.hash.substring(1) : 'gateways';
+      const newHash = window.location.hash ? window.location.hash.substring(1) : 'probes';
       setCurrentHash(newHash);
     };
 
@@ -443,6 +443,14 @@ export default function Manage() {
       )
     : [];
 
+  const filteredGateways = gateways?.data 
+    ? gateways.data.filter((gateway: GatewayResponse) =>
+        gateway.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (gateway.location && gateway.location.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (gateway.ip_address && gateway.ip_address.toLowerCase().includes(searchTerm.toLowerCase()))
+      )
+    : [];
+
   const getTypeBadge = (type: string) => {
     return (
       <Badge variant="outline" className="capitalize">
@@ -461,110 +469,103 @@ export default function Manage() {
 
         {/* Show content based on URL hash */}
         {hash === 'probes' && (
-          <div className="space-y-6">
-            <Card>
-              <CardContent className="p-4 sm:p-5 lg:p-6">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="relative flex-1">
-                      <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-                      <Input
-                        placeholder="Search probes..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10 w-full"
-                        data-testid="input-search-probes"
-                      />
-                    </div>
-                    <Button variant="outline" size="icon" data-testid="button-filter-probes" className="w-10 h-10 flex-shrink-0">
-                      <Filter className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-wrap">
-                    <Button 
-                      data-testid="button-create-probe" 
-                      className="w-full sm:w-auto"
-                      onClick={() => setCreateProbeDialogOpen(true)}
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create Probe
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <CardTitle>Probes ({filteredProbes.length})</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {filteredProbes.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Settings className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-foreground mb-2">No probes found</h3>
-                    <p className="text-muted-foreground">Create your first probe to start monitoring</p>
+                <Button 
+                  data-testid="button-create-probe" 
+                  className="w-full sm:w-auto"
+                  onClick={() => setCreateProbeDialogOpen(true)}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Probe
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 pt-1 sm:px-5 sm:pb-5 sm:pt-1 lg:px-6 lg:pb-6 lg:pt-1">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Search probes..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 w-full"
+                      data-testid="input-search-probes"
+                    />
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    {filteredProbes.map((probe: Probe) => {
-                      const configDisplay = ProbeUtils.getConfigDisplay(probe);
-                      return (
-                      <div key={probe.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-border rounded-lg gap-4" data-testid={`probe-item-${probe.id}`}>
-                        <div className="flex items-center space-x-4 min-w-0 flex-1">
-                          <div className={`w-3 h-3 rounded-full flex-shrink-0 ${probe.is_active ? 'bg-secondary' : 'bg-muted'}`} />
-                          <div className="min-w-0 flex-1">
-                            <div className="font-medium text-foreground truncate">{probe.name}</div>
-                            <div className="text-sm text-muted-foreground truncate">{configDisplay}</div>
-                            {probe.description && (
-                              <div className="text-xs text-muted-foreground mt-1">{probe.description}</div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
-                          <div className="flex flex-wrap gap-1 min-w-0">
-                            <Badge variant="outline" className="capitalize">{probe.category}</Badge>
-                            {getTypeBadge(probe.type)}
-                            <Badge variant="outline">{probe.check_interval}s</Badge>
-                            <Badge variant={probe.gateway_type === 'Core' ? 'secondary' : 'outline'}>
-                              {probe.gateway_type === 'Core' ? 'Core' : 'Custom'}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-1 flex-shrink-0">
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              data-testid={`button-edit-probe-${probe.id}`}
-                              onClick={() => {
-                                setEditingProbe(probe);
-                                setEditProbeDialogOpen(true);
-                              }}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              data-testid={`button-delete-probe-${probe.id}`}
-                              onClick={() => {
-                                if (confirm(`Are you sure you want to delete the probe "${probe.name}"? This action cannot be undone.`)) {
-                                  deleteProbeMutation.mutate(probe.id);
-                                }
-                              }}
-                              disabled={deleteProbeMutation.isPending}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
+                  <Button variant="outline" size="icon" data-testid="button-filter-probes" className="w-10 h-10 flex-shrink-0">
+                    <Filter className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+              {filteredProbes.length === 0 ? (
+                <div className="text-center py-8">
+                  <Settings className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">No probes found</h3>
+                  <p className="text-muted-foreground">Create your first probe to start monitoring</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {filteredProbes.map((probe: Probe) => {
+                    const configDisplay = ProbeUtils.getConfigDisplay(probe);
+                    return (
+                    <div key={probe.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-border rounded-lg gap-4" data-testid={`probe-item-${probe.id}`}>
+                      <div className="flex items-center space-x-4 min-w-0 flex-1">
+                        <div className={`w-3 h-3 rounded-full flex-shrink-0 ${probe.is_active ? 'bg-secondary' : 'bg-muted'}`} />
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium text-foreground truncate">{probe.name}</div>
+                          <div className="text-sm text-muted-foreground truncate">{configDisplay}</div>
+                          {probe.description && (
+                            <div className="text-xs text-muted-foreground mt-1">{probe.description}</div>
+                          )}
                         </div>
                       </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
+                        <div className="flex flex-wrap gap-1 min-w-0">
+                          <Badge variant="outline" className="capitalize">{probe.category}</Badge>
+                          {getTypeBadge(probe.type)}
+                          <Badge variant="outline">{probe.check_interval}s</Badge>
+                          <Badge variant={probe.gateway_type === 'Core' ? 'secondary' : 'outline'}>
+                            {probe.gateway_type === 'Core' ? 'Core' : 'Custom'}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            data-testid={`button-edit-probe-${probe.id}`}
+                            onClick={() => {
+                              setEditingProbe(probe);
+                              setEditProbeDialogOpen(true);
+                            }}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            data-testid={`button-delete-probe-${probe.id}`}
+                            onClick={() => {
+                              if (confirm(`Are you sure you want to delete the probe "${probe.name}"? This action cannot be undone.`)) {
+                                deleteProbeMutation.mutate(probe.id);
+                              }
+                            }}
+                            disabled={deleteProbeMutation.isPending}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         )}
         
         {hash === 'notifications' && (
@@ -806,184 +807,200 @@ export default function Manage() {
         )}
         
         {hash === 'gateways' && (
-          <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <h3 className="text-lg font-medium">Gateways</h3>
-              {(user?.role === 'SuperAdmin' || user?.role === 'Owner' || user?.role === 'Admin') && (
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button data-testid="button-create-gateway" className="w-full sm:w-auto">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Gateway
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle>Add Custom Gateway</DialogTitle>
-                    </DialogHeader>
-                    <Form {...gatewayForm}>
-                      <form onSubmit={gatewayForm.handleSubmit((data) => createGatewayMutation.mutate(data))} className="space-y-4">
-                        <FormField
-                          control={gatewayForm.control}
-                          name="name"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Gateway Name</FormLabel>
-                              <FormControl>
-                                <Input placeholder="US East Gateway" {...field} data-testid="input-gateway-name" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={gatewayForm.control}
-                          name="type"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Gateway Type</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <CardTitle>Gateways ({filteredGateways.length})</CardTitle>
+                {(user?.role === 'SuperAdmin' || user?.role === 'Owner' || user?.role === 'Admin') && (
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button data-testid="button-create-gateway" className="w-full sm:w-auto">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Gateway
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Add Custom Gateway</DialogTitle>
+                      </DialogHeader>
+                      <Form {...gatewayForm}>
+                        <form onSubmit={gatewayForm.handleSubmit((data) => createGatewayMutation.mutate(data))} className="space-y-4">
+                          <FormField
+                            control={gatewayForm.control}
+                            name="name"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Gateway Name</FormLabel>
                                 <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select gateway type" />
-                                  </SelectTrigger>
+                                  <Input placeholder="US East Gateway" {...field} data-testid="input-gateway-name" />
                                 </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="TenantSpecific">Tenant Specific</SelectItem>
-                                  <SelectItem value="Core">Core</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={gatewayForm.control}
-                          name="location"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Location (Optional)</FormLabel>
-                              <FormControl>
-                                <Input placeholder="New York, USA" {...field} data-testid="input-gateway-location" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <Button type="submit" disabled={createGatewayMutation.isPending} className="w-full" data-testid="button-save-gateway">
-                          {createGatewayMutation.isPending ? 'Creating...' : 'Add Gateway'}
-                        </Button>
-                      </form>
-                    </Form>
-                  </DialogContent>
-                </Dialog>
-              )}
-            </div>
-
-            <Card>
-              <CardContent className="p-4 sm:p-5 lg:p-6">
-                {!Array.isArray(gateways?.data) || gateways?.data.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Globe className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-foreground mb-2">No gateways available</h3>
-                    <p className="text-muted-foreground">Gateways execute your monitoring probes</p>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={gatewayForm.control}
+                            name="type"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Gateway Type</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select gateway type" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="TenantSpecific">Tenant Specific</SelectItem>
+                                    <SelectItem value="Core">Core</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={gatewayForm.control}
+                            name="location"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Location (Optional)</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="New York, USA" {...field} data-testid="input-gateway-location" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <Button type="submit" disabled={createGatewayMutation.isPending} className="w-full" data-testid="button-save-gateway">
+                            {createGatewayMutation.isPending ? 'Creating...' : 'Add Gateway'}
+                          </Button>
+                        </form>
+                      </Form>
+                    </DialogContent>
+                  </Dialog>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 pt-1 sm:px-5 sm:pb-5 sm:pt-1 lg:px-6 lg:pb-6 lg:pt-1">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Search gateways..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 w-full"
+                      data-testid="input-search-gateways"
+                    />
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    {gateways.data.map((gateway: GatewayResponse) => {
-                      const statusInfo = GatewayUtils.formatGatewayStatus(gateway.status);
-                      const typeInfo = GatewayUtils.formatGatewayType(gateway.type);
-                      const isOnline = GatewayUtils.isGatewayOnline(gateway.last_heartbeat);
-                      const lastSeen = GatewayUtils.formatLastHeartbeat(gateway.last_heartbeat);
-                      
-                      return (
-                        <div key={gateway.id} className="flex flex-col sm:flex-row sm:items-center p-4 border border-border rounded-lg gap-4" data-testid={`gateway-item-${gateway.id}`}>
-                          {/* Container 1: Name and Details (33%) */}
-                          <div className="flex items-center space-x-4 w-full sm:w-1/3 min-w-0">
-                            <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
-                              isOnline ? 'bg-green-500' : 'bg-red-500'
-                            }`} />
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium text-foreground text-lg">{gateway.name}</div>
-                              <div className="text-sm text-muted-foreground">
-                                {gateway.location || 'No location specified'}
-                              </div>
-                              {gateway.ip_address && (
-                                <div className="text-xs text-muted-foreground">{gateway.ip_address}</div>
-                              )}
+                  <Button variant="outline" size="icon" data-testid="button-filter-gateways" className="w-10 h-10 flex-shrink-0">
+                    <Filter className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+              {filteredGateways.length === 0 ? (
+                <div className="text-center py-8">
+                  <Globe className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">No gateways available</h3>
+                  <p className="text-muted-foreground">Gateways execute your monitoring probes</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {filteredGateways.map((gateway: GatewayResponse) => {
+                    const statusInfo = GatewayUtils.formatGatewayStatus(gateway.status);
+                    const typeInfo = GatewayUtils.formatGatewayType(gateway.type);
+                    const isOnline = GatewayUtils.isGatewayOnline(gateway.last_heartbeat);
+                    const lastSeen = GatewayUtils.formatLastHeartbeat(gateway.last_heartbeat);
+                    
+                    return (
+                      <div key={gateway.id} className="flex flex-col sm:flex-row sm:items-center p-4 border border-border rounded-lg gap-4" data-testid={`gateway-item-${gateway.id}`}>
+                        {/* Container 1: Name and Details (33%) */}
+                        <div className="flex items-center space-x-4 w-full sm:w-1/3 min-w-0">
+                          <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
+                            isOnline ? 'bg-green-500' : 'bg-red-500'
+                          }`} />
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-foreground text-lg">{gateway.name}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {gateway.location || 'No location specified'}
                             </div>
-                          </div>
-                          
-                          {/* Container 2: Status Chips (33%) */}
-                          <div className="flex flex-wrap gap-1 w-full sm:w-1/3 items-start sm:items-center">
-                            <Badge variant="outline" title={typeInfo.description}>
-                              {typeInfo.label}
-                            </Badge>
-                            <Badge variant={isOnline ? "secondary" : "destructive"}>
-                              {isOnline ? 'Online' : 'Offline'}
-                            </Badge>
-                            <Badge variant="outline" className={statusInfo.color}>
-                              {statusInfo.label}
-                            </Badge>
-                          </div>
-                          
-                          {/* Container 3: CRUD Actions and Last Seen (33%) */}
-                          <div className="flex flex-wrap items-center gap-2 w-full sm:w-1/3 justify-start sm:justify-end">
-                            <div className="flex items-center gap-1">
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                onClick={() => {
-                                  setSelectedGateway(gateway);
-                                  regenerateKeyMutation.mutate(gateway.id);
-                                }}
-                                disabled={regenerateKeyMutation.isPending}
-                                title="Regenerate registration key"
-                              >
-                                <RefreshCw className="w-4 h-4" />
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                onClick={() => {
-                                  setEditingGateway(gateway);
-                                  gatewayForm.reset({
-                                    name: gateway.name,
-                                    type: gateway.type,
-                                    location: gateway.location || '',
-                                  });
-                                  setEditGatewayDialogOpen(true);
-                                }}
-                                title="Edit gateway"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                onClick={() => {
-                                  if (confirm(`Are you sure you want to delete the gateway "${gateway.name}"? This action cannot be undone.`)) {
-                                    deleteGatewayMutation.mutate(gateway.id);
-                                  }
-                                }}
-                                disabled={deleteGatewayMutation.isPending}
-                                title="Delete gateway"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                            <span className="text-xs text-muted-foreground">
-                              Last seen: {lastSeen}
-                            </span>
+                            {gateway.ip_address && (
+                              <div className="text-xs text-muted-foreground">{gateway.ip_address}</div>
+                            )}
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                        
+                        {/* Container 2: Status Chips (33%) */}
+                        <div className="flex flex-wrap gap-1 w-full sm:w-1/3 items-start sm:items-center">
+                          <Badge variant="outline" title={typeInfo.description}>
+                            {typeInfo.label}
+                          </Badge>
+                          <Badge variant={isOnline ? "secondary" : "destructive"}>
+                            {isOnline ? 'Online' : 'Offline'}
+                          </Badge>
+                          <Badge variant="outline" className={statusInfo.color}>
+                            {statusInfo.label}
+                          </Badge>
+                        </div>
+                        
+                        {/* Container 3: CRUD Actions and Last Seen (33%) */}
+                        <div className="flex flex-wrap items-center gap-2 w-full sm:w-1/3 justify-start sm:justify-end">
+                          <div className="flex items-center gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => {
+                                setSelectedGateway(gateway);
+                                regenerateKeyMutation.mutate(gateway.id);
+                              }}
+                              disabled={regenerateKeyMutation.isPending}
+                              title="Regenerate registration key"
+                            >
+                              <RefreshCw className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => {
+                                setEditingGateway(gateway);
+                                gatewayForm.reset({
+                                  name: gateway.name,
+                                  type: gateway.type,
+                                  location: gateway.location || '',
+                                });
+                                setEditGatewayDialogOpen(true);
+                              }}
+                              title="Edit gateway"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => {
+                                if (confirm(`Are you sure you want to delete the gateway "${gateway.name}"? This action cannot be undone.`)) {
+                                  deleteGatewayMutation.mutate(gateway.id);
+                                }
+                              }}
+                              disabled={deleteGatewayMutation.isPending}
+                              title="Delete gateway"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            Last seen: {lastSeen}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         )}
       </div>
 

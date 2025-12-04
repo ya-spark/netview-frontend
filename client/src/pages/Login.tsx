@@ -12,6 +12,7 @@ import { Layout } from '@/components/Layout';
 import { signInWithGoogle, signInWithEmailPassword } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Chrome } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -46,11 +47,18 @@ export default function Login() {
     if (firebaseUser) {
       // If backend user exists with tenant, go to dashboard
       if (user?.tenantId) {
-        console.log('✅ User has tenant, redirecting to dashboard');
+        logger.info('User has tenant, redirecting to dashboard', {
+          component: 'Login',
+          userId: user.id,
+          tenantId: user.tenantId,
+        });
         setLocation('/dashboard');
       } else {
         // If Firebase user but no backend user or no tenant, go to onboarding
-        console.log('✅ User authenticated, redirecting to onboarding');
+        logger.info('User authenticated, redirecting to onboarding', {
+          component: 'Login',
+          userId: firebaseUser.uid,
+        });
         setLocation('/onboarding');
       }
     }
@@ -59,12 +67,15 @@ export default function Login() {
   const handleGoogleLogin = async () => {
     setGoogleLoading(true);
     try {
-      console.log('🔐 Login: Starting Google sign-in...');
+      logger.info('Starting Google sign-in', { component: 'Login', action: 'google_signin' });
       await signInWithGoogle();
-      console.log('✅ Login: Google sign-in successful');
+      logger.info('Google sign-in successful', { component: 'Login', action: 'google_signin' });
       // AuthContext will handle backend sync and redirect via useEffect
     } catch (error: any) {
-      console.error('❌ Login: Google sign-in failed:', error);
+      logger.exception('Google sign-in failed', error as Error, {
+        component: 'Login',
+        action: 'google_signin',
+      });
       toast({
         title: "Sign-in Error",
         description: error.message || "Failed to sign in with Google. Please try again.",
@@ -99,12 +110,6 @@ export default function Login() {
       <div className="min-h-screen flex items-center justify-center bg-muted/20 py-12 px-4 sm:px-6 lg:px-8">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <div className="flex items-center justify-center space-x-2 mb-4">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-lg">N</span>
-              </div>
-              <span className="text-xl font-bold text-foreground">NetView</span>
-            </div>
             <CardTitle className="text-2xl">Sign In</CardTitle>
             <CardDescription>
               Sign in to your account to continue

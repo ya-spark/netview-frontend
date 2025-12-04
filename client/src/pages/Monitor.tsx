@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Search, Filter, Eye, Activity, AlertTriangle, CheckCircle, Clock, TrendingUp, Bell, Server, MapPin, FileText, Plus, Settings, Construction, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProbeApiService } from '@/services/probeApi';
+import { logger } from '@/lib/logger';
 
 export default function Monitor() {
   const { user } = useAuth();
@@ -43,7 +44,11 @@ export default function Monitor() {
     const handleHashChange = () => {
       const hash = window.location.hash.slice(1); // Remove the '#' prefix
       const newSection = hash || "overview";
-      console.log('Hash changed:', hash, 'New section:', newSection);
+      logger.debug('Hash changed', {
+        component: 'Monitor',
+        hash,
+        section: newSection,
+      });
       setCurrentSection(newSection);
     };
 
@@ -74,7 +79,10 @@ export default function Monitor() {
   });
 
   // Debug logging
-  console.log('Monitor - Gateways Data:', gateways);
+  logger.debug('Gateways data loaded', {
+    component: 'Monitor',
+    gatewayCount: Array.isArray(gateways) ? gateways.length : 0,
+  }, gateways);
 
 
   // Mock probe results for demonstration
@@ -571,8 +579,8 @@ export default function Monitor() {
 
       {/* Gateways List */}
       <div className="space-y-4">
-        {gateways?.data && gateways.data.length > 0 ? (
-          gateways.data.map((gateway: any) => (
+        {Array.isArray(gateways) && gateways.length > 0 ? (
+          gateways.map((gateway: any) => (
           <Card key={gateway.id} data-testid={`gateway-${gateway.id}`}>
             <CardContent className="p-4 sm:p-5 lg:p-6">
               <div className="flex items-center justify-between">

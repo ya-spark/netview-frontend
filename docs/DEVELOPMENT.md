@@ -247,12 +247,147 @@ Add `data-testid` to interactive and display elements:
 <div data-testid={`card-product-${productId}`} />
 ```
 
+## Logging
+
+### Using the Logger
+
+Always use the configured logger from `@/lib/logger` instead of `console.*`:
+
+```tsx
+import { logger } from '@/lib/logger';
+
+// Basic logging
+logger.info('User action completed');
+logger.debug('Debug information');
+logger.warn('Warning message');
+logger.error('Error occurred');
+
+// Error logging with exception
+try {
+  // operation
+} catch (error) {
+  logger.exception('Operation failed', error as Error, {
+    component: 'MyComponent',
+    action: 'submitForm',
+  });
+}
+
+// Logging with context
+logger.info('User logged in', {
+  component: 'Login',
+  userId: user.id,
+  tenantId: user.tenantId,
+});
+
+// Using logger with default context (component-level)
+import { createLogger } from '@/lib/logger';
+
+const componentLogger = createLogger({ component: 'MyComponent' });
+componentLogger.info('Action completed', { action: 'submit' });
+```
+
+### Log Levels
+
+- **DEBUG**: Detailed information for debugging (only in DEBUG mode)
+- **INFO**: General informational messages
+- **WARN**: Warning messages
+- **ERROR**: Error messages with optional error objects
+
+### Logging Best Practices
+
+The logger includes several best practices:
+
+1. **Structured Logging**: Supports JSON format for production (set `VITE_LOG_FORMAT=json`)
+2. **Context Support**: Add contextual information (user ID, tenant ID, component, action, etc.)
+3. **Exception Logging**: Use `logger.exception()` for full stack traces
+4. **Security**: Sensitive data (passwords, tokens, API keys) is automatically sanitized
+5. **Performance Logging**: Use `logger.performance()` or `logger.performanceAsync()` for timing:
+   ```tsx
+   logger.performance('Data fetch', () => {
+     // synchronous operation
+   });
+   
+   await logger.performanceAsync('API call', async () => {
+     // async operation
+   });
+   ```
+6. **Format Options**:
+   - Text format (default): Human-readable for development
+   - JSON format: Structured for production and log aggregation tools
+
+### Logging Configuration
+
+Logging can be configured via environment variables:
+
+- `VITE_LOG_LEVEL`: Log level (DEBUG, INFO, WARN, ERROR) - default: INFO
+- `VITE_LOG_FORMAT`: Format type ("text" or "json") - default: text
+
+**Example `.env` file**:
+```env
+VITE_LOG_LEVEL=DEBUG
+VITE_LOG_FORMAT=text
+```
+
+### When to Use Each Log Level
+
+- **DEBUG**: Detailed debugging information, verbose logs (only enabled in development)
+- **INFO**: Important user actions, state changes, successful operations
+- **WARN**: Non-critical issues, deprecated features, fallback behavior
+- **ERROR**: Errors, exceptions, failed operations (always logged)
+
+### Context Logging
+
+Always include relevant context in logs:
+
+```tsx
+logger.info('Probe created', {
+  component: 'Manage',
+  action: 'createProbe',
+  userId: user.id,
+  tenantId: user.tenantId,
+  probeId: newProbe.id,
+});
+```
+
+### Error Logging
+
+Always log errors with full context:
+
+```tsx
+try {
+  await apiRequest('POST', '/api/probes', data);
+} catch (error) {
+  logger.exception('Failed to create probe', error as Error, {
+    component: 'Manage',
+    action: 'createProbe',
+    userId: user.id,
+  });
+  // Show user-friendly error message
+}
+```
+
+### Migration from console.*
+
+Replace all `console.log`, `console.error`, etc. with the logger:
+
+```tsx
+// ❌ Don't use
+console.log('User logged in');
+console.error('Error:', error);
+
+// ✅ Use instead
+logger.info('User logged in', { component: 'Login' });
+logger.exception('Operation failed', error as Error, { component: 'MyComponent' });
+```
+
 ## Environment Variables
 
 ### Frontend
 - `VITE_FIREBASE_API_KEY` - Firebase API key
 - `VITE_FIREBASE_PROJECT_ID` - Firebase project ID
 - `VITE_FIREBASE_APP_ID` - Firebase app ID
+- `VITE_LOG_LEVEL` - Log level (DEBUG, INFO, WARN, ERROR) - default: INFO
+- `VITE_LOG_FORMAT` - Log format (text, json) - default: text
 - `PORT` - Development server port (default: 5173)
 
 **Note**: All frontend environment variables must be prefixed with `VITE_` to be accessible in the browser.

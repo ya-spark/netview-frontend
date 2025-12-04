@@ -11,8 +11,9 @@ import { useToast } from '@/hooks/use-toast';
 import { registerUser } from '@/services/authApi';
 import { Layout } from '@/components/Layout';
 import { isBusinessEmail } from '@/utils/emailValidation';
-import { createUserWithEmailAndPassword } from '@/lib/firebase';
+import { createUserWithEmailAndPassword, signInWithGoogle, signOut } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { Chrome } from 'lucide-react';
 
 const signUpSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -32,6 +33,7 @@ type SignUpFormData = z.infer<typeof signUpSchema>;
 export default function SignUp() {
   const [, setLocation] = useLocation();
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -45,6 +47,87 @@ export default function SignUp() {
       confirmPassword: '',
     },
   });
+
+  const handleGoogleSignUp = async () => {
+    setGoogleLoading(true);
+    try {
+      console.log('🔐 SignUp: Starting Google sign-up...');
+      const firebaseUser = await signInWithGoogle();
+      console.log('✅ SignUp: Google sign-up successful');
+      
+      // Validate business email
+      const email = firebaseUser.email;
+      if (!email) {
+        throw new Error('Email address not provided by Google account');
+      }
+      
+      if (!isBusinessEmail(email)) {
+        // Sign out the user if email is not a business email
+        await signOut();
+        toast({
+          title: "Business Email Required",
+          description: "Only business email addresses are allowed. Public email providers (Gmail, Yahoo, etc.) are not permitted.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Extract name from Firebase user
+      let firstName = '';
+      let lastName = '';
+      
+      if (firebaseUser.displayName) {
+        const nameParts = firebaseUser.displayName.trim().split(/\s+/);
+        firstName = nameParts[0] || '';
+        lastName = nameParts.slice(1).join(' ') || '';
+      } else if (email) {
+        // Fallback: use email prefix as firstName
+        const emailPrefix = email.split('@')[0];
+        firstName = emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
+        lastName = '';
+      } else {
+        // Last resort: use defaults
+        firstName = 'User';
+        lastName = '';
+      }
+      
+      // Store signup data for onboarding/registration
+      const signUpData = {
+        firstName,
+        lastName,
+      };
+      console.log('💾 Storing sign-up data in sessionStorage:', signUpData);
+      sessionStorage.setItem('signUpData', JSON.stringify(signUpData));
+      
+      // Redirect to onboarding
+      // Onboarding will handle email verification and registration
+      console.log('✅ Redirecting to onboarding for email verification and registration');
+      setLocation('/onboarding');
+    } catch (error: any) {
+      console.error('❌ SignUp: Google sign-up failed:', error);
+      
+      // Handle specific Firebase errors
+      let errorMessage = error.message || "Failed to sign up with Google. Please try again.";
+      
+      if (error.code === 'auth/popup-closed-by-user') {
+        errorMessage = 'Sign-up popup was closed. Please try again.';
+      } else if (error.code === 'auth/popup-blocked') {
+        errorMessage = 'Popup was blocked by browser. Please allow popups and try again.';
+      } else if (error.code === 'auth/network-request-failed') {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      } else if (error.code === 'auth/account-exists-with-different-credential') {
+        errorMessage = 'An account with this email already exists. Please login instead.';
+      }
+      
+      toast({
+        title: "Sign-up Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   const handleSubmit = async (data: SignUpFormData) => {
     console.log('📝 SignUp: Form submitted:', data.email);
@@ -98,18 +181,36 @@ export default function SignUp() {
       <div className="min-h-screen flex items-center justify-center bg-muted/20 py-12 px-4 sm:px-6 lg:px-8">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <div className="flex items-center justify-center space-x-2 mb-4">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-lg">N</span>
-              </div>
-              <span className="text-xl font-bold text-foreground">NetView</span>
-            </div>
             <CardTitle className="text-2xl">Create Account</CardTitle>
             <CardDescription>
               Start monitoring your infrastructure today
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* Google Sign Up Button */}
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={handleGoogleSignUp}
+              disabled={googleLoading || loading}
+              data-testid="button-google-signup"
+            >
+              <Chrome className="mr-2 h-4 w-4" />
+              {googleLoading ? 'Signing up...' : 'Sign up with Google'}
+            </Button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  Or continue with email
+                </span>
+              </div>
+            </div>
+
             <Form {...signUpForm}>
               <form onSubmit={signUpForm.handleSubmit(handleSubmit)} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
@@ -163,51 +264,53 @@ export default function SignUp() {
                     )}
                   />
 
-                  <FormField
-                    control={signUpForm.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="password" 
-                            placeholder="Enter your password" 
-                            {...field} 
-                            data-testid="input-password" 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                        <p className="text-xs text-muted-foreground">
-                          Must be at least 8 characters
-                        </p>
-                      </FormItem>
-                    )}
-                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={signUpForm.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Password</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="password" 
+                              placeholder="Enter your password" 
+                              {...field} 
+                              data-testid="input-password" 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                          <p className="text-xs text-muted-foreground">
+                            Must be at least 8 characters
+                          </p>
+                        </FormItem>
+                      )}
+                    />
 
-                  <FormField
-                    control={signUpForm.control}
-                    name="confirmPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Confirm Password</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="password" 
-                            placeholder="Confirm your password" 
-                            {...field} 
-                            data-testid="input-confirm-password" 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    <FormField
+                      control={signUpForm.control}
+                      name="confirmPassword"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Confirm Password</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="password" 
+                              placeholder="Confirm your password" 
+                              {...field} 
+                              data-testid="input-confirm-password" 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
                 <Button 
                   type="submit" 
                   className="w-full" 
-                  disabled={loading}
+                  disabled={loading || googleLoading}
                   data-testid="button-submit"
                 >
                   {loading ? 'Creating Account...' : 'Create Account'}

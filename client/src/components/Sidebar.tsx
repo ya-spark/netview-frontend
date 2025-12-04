@@ -205,16 +205,16 @@ function ManageSidebar() {
 
   const manageNavigation = [
     {
-      name: "Gateways",
-      hash: "gateways",
-      icon: Server,
-      current: hash === "gateways",
-    },
-    {
       name: "Probes",
       hash: "probes",
       icon: Activity,
       current: hash === "probes",
+    },
+    {
+      name: "Gateways",
+      hash: "gateways",
+      icon: Server,
+      current: hash === "gateways",
     },
     {
       name: "Notification Groups",
