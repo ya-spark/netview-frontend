@@ -1,4 +1,0 @@
-[submodule "controller"]
-	path = controller
-	url = https://github.com/ya-spark/netview-controller.git
-
