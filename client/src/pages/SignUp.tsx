@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -203,7 +204,11 @@ export default function SignUp() {
               </form>
             </Form>
 
-            <div className="text-center">
+            <div className="text-center text-sm">
+              <span className="text-muted-foreground">Already Signed up? </span>
+              <Link href="/login" className="text-primary hover:underline font-medium">
+                Login
+              </Link>
             </div>
           </CardContent>
         </Card>

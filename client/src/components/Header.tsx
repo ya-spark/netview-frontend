@@ -16,11 +16,12 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export function Header() {
   const [location] = useLocation();
-  const { user, signOut } = useAuth();
+  const { user, firebaseUser, signOut } = useAuth();
   const [notificationCount] = useState(3);
   const { toggleSidebar } = useSidebar();
 
-  const isAuthenticated = !!user;
+  // User is authenticated if they have Firebase auth (even if backend user doesn't exist yet)
+  const isAuthenticated = !!user || !!firebaseUser;
 
   // Different navigation based on login status
   const loggedInNavigation = [
@@ -153,7 +154,28 @@ export function Header() {
                             >
                               {user.role && user.tenantName 
                                 ? `${user.role} (${user.tenantName})`
-                                : 'NA NA'}
+                                : 'Setting up...'}
+                            </div>
+                          </>
+                        ) : firebaseUser ? (
+                          <>
+                            <div
+                              className="text-sm font-medium text-foreground"
+                              data-testid="text-user-name"
+                            >
+                              {firebaseUser.displayName || 'User'}
+                            </div>
+                            <div
+                              className="text-xs text-muted-foreground"
+                              data-testid="text-user-email"
+                            >
+                              {firebaseUser.email}
+                            </div>
+                            <div
+                              className="text-xs text-muted-foreground"
+                              data-testid="text-user-role-org"
+                            >
+                              Completing setup...
                             </div>
                           </>
                         ) : null}
@@ -162,6 +184,10 @@ export function Header() {
                         <AvatarFallback className="bg-primary text-primary-foreground">
                           {user && (user.firstName || user.lastName)
                             ? getInitials(user.firstName, user.lastName)
+                            : firebaseUser?.displayName
+                            ? getInitials(firebaseUser.displayName.split(' ')[0], firebaseUser.displayName.split(' ')[1])
+                            : firebaseUser?.email
+                            ? firebaseUser.email.charAt(0).toUpperCase()
                             : 'U'}
                         </AvatarFallback>
                       </Avatar>
