@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation } from 'wouter';
+import { logger } from '@/lib/logger';
 
 interface ErrorDisplayProps {
   error: Error | string;
@@ -20,7 +21,11 @@ export function ErrorDisplay({ error, onDismiss }: ErrorDisplayProps) {
       await signOut();
       setLocation('/signup');
     } catch (logoutError) {
-      console.error('Error during logout:', logoutError);
+      const err = logoutError instanceof Error ? logoutError : new Error(String(logoutError));
+      logger.error('Error during logout', err, {
+        component: 'ErrorDisplay',
+        action: 'logout',
+      });
       // Force redirect even if logout fails
       setLocation('/signup');
     }

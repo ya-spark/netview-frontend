@@ -1,6 +1,7 @@
 // Collaborator API service functions based on NetView Collaborators API specification
 
 import { apiRequest } from '../lib/queryClient';
+import { logger } from '../lib/logger';
 import type {
   CollaboratorCreate,
   CollaboratorUpdate,
@@ -65,9 +66,21 @@ export class CollaboratorApiService {
     userEmail: string,
     tenantId: string
   ): Promise<CollaboratorSingleResponse> {
+    logger.info('Creating collaborator', {
+      component: 'collaboratorApi',
+      action: 'create_collaborator',
+      collaboratorEmail: data.email,
+      tenantId,
+    });
     const headers = getCollaboratorHeaders(userEmail, tenantId);
     const response = await apiRequest('POST', '/api/collaborators', data, headers);
-    return response.json();
+    const result = await response.json();
+    logger.info('Collaborator created successfully', {
+      component: 'collaboratorApi',
+      action: 'create_collaborator',
+      collaboratorId: result?.data?.id,
+    });
+    return result;
   }
 
   /**

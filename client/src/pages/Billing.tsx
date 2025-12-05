@@ -32,7 +32,10 @@ const hasStripeConfig = !!import.meta.env.VITE_STRIPE_PUBLIC_KEY;
 if (hasStripeConfig) {
   stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 } else {
-  console.info('💳 Stripe not configured - billing features disabled in development mode. To enable Stripe, add VITE_STRIPE_PUBLIC_KEY to your environment.');
+  logger.info('Stripe not configured - billing features disabled in development mode', {
+    component: 'Billing',
+    action: 'stripe_config_check',
+  });
 }
 
 interface PricingPlan {
@@ -57,7 +60,11 @@ const fetchPricingPlans = async (): Promise<Record<string, PricingPlan>> => {
     const response = await apiRequest('GET', '/api/pricing-plans');
     return await response.json();
   } catch (error) {
-    console.error('Failed to fetch pricing plans:', error);
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error('Failed to fetch pricing plans', err, {
+      component: 'Billing',
+      action: 'fetch_pricing_plans',
+    });
     // Fallback to default plans if server is unavailable
     return {
       FREE: {

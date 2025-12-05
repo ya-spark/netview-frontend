@@ -18,6 +18,7 @@ import {
   onAuthStateChanged,
   Unsubscribe
 } from 'firebase/auth';
+import { logger } from './logger';
 
 // Firebase configuration from environment variables
 const firebaseConfig = {
@@ -65,12 +66,23 @@ const googleProvider = new GoogleAuthProvider();
  */
 export async function signInWithGoogle(): Promise<User> {
   try {
-    console.log('🔐 Signing in with Google...');
+    logger.info('Signing in with Google', {
+      component: 'firebase',
+      action: 'sign_in_google',
+    });
     const result = await signInWithPopup(auth, googleProvider);
-    console.log('✅ Google sign-in successful:', result.user.email);
+    logger.info('Google sign-in successful', {
+      component: 'firebase',
+      action: 'sign_in_google',
+      email: result.user.email,
+    });
     return result.user;
   } catch (error: any) {
-    console.error('❌ Google sign-in error:', error);
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error('Google sign-in error', err, {
+      component: 'firebase',
+      action: 'sign_in_google',
+    });
     
     // Handle specific Firebase errors
     if (error.code === 'auth/popup-closed-by-user') {
@@ -96,12 +108,25 @@ export async function createUserWithEmailAndPassword(
   password: string
 ): Promise<User> {
   try {
-    console.log('🔐 Creating Firebase account with email/password...');
+    logger.info('Creating Firebase account with email/password', {
+      component: 'firebase',
+      action: 'create_user',
+      email,
+    });
     const result = await firebaseCreateUserWithEmailAndPassword(auth, email, password);
-    console.log('✅ Firebase account created successfully:', result.user.email);
+    logger.info('Firebase account created successfully', {
+      component: 'firebase',
+      action: 'create_user',
+      email: result.user.email,
+    });
     return result.user;
   } catch (error: any) {
-    console.error('❌ Firebase account creation error:', error);
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error('Firebase account creation error', err, {
+      component: 'firebase',
+      action: 'create_user',
+      email,
+    });
     
     // Handle specific Firebase errors
     if (error.code === 'auth/email-already-in-use') {
@@ -129,12 +154,25 @@ export async function signInWithEmailPassword(
   password: string
 ): Promise<User> {
   try {
-    console.log('🔐 Signing in with email/password...');
+    logger.info('Signing in with email/password', {
+      component: 'firebase',
+      action: 'sign_in_email_password',
+      email,
+    });
     const result = await signInWithEmailAndPassword(auth, email, password);
-    console.log('✅ Email/password sign-in successful:', result.user.email);
+    logger.info('Email/password sign-in successful', {
+      component: 'firebase',
+      action: 'sign_in_email_password',
+      email: result.user.email,
+    });
     return result.user;
   } catch (error: any) {
-    console.error('❌ Email/password sign-in error:', error);
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error('Email/password sign-in error', err, {
+      component: 'firebase',
+      action: 'sign_in_email_password',
+      email,
+    });
     
     // Handle specific Firebase errors
     if (error.code === 'auth/user-not-found') {
@@ -160,11 +198,21 @@ export async function signInWithEmailPassword(
  */
 export async function signOut(): Promise<void> {
   try {
-    console.log('🔐 Signing out...');
+    logger.info('Signing out', {
+      component: 'firebase',
+      action: 'sign_out',
+    });
     await firebaseSignOut(auth);
-    console.log('✅ Sign-out successful');
+    logger.info('Sign-out successful', {
+      component: 'firebase',
+      action: 'sign_out',
+    });
   } catch (error: any) {
-    console.error('❌ Sign-out error:', error);
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error('Sign-out error', err, {
+      component: 'firebase',
+      action: 'sign_out',
+    });
     throw new Error(error.message || 'Failed to sign out');
   }
 }
@@ -192,7 +240,12 @@ export async function getIdToken(forceRefresh: boolean = false): Promise<string 
     const token = await user.getIdToken(forceRefresh);
     return token;
   } catch (error: any) {
-    console.error('❌ Error getting ID token:', error);
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error('Error getting ID token', err, {
+      component: 'firebase',
+      action: 'get_id_token',
+      userId: user.uid,
+    });
     return null;
   }
 }

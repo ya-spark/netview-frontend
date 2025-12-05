@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { sendVerificationCode, verifyCode } from '@/services/authApi';
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
+import { logger } from '@/lib/logger';
 import { Mail, Loader2 } from 'lucide-react';
 
 const verifyCodeSchema = z.object({
@@ -44,7 +45,12 @@ export default function EmailVerification({ email, onVerificationSuccess }: Emai
         description: `A 6-digit code has been sent to ${email}. Please check your inbox.`,
       });
     } catch (error: any) {
-      console.error('❌ Failed to send verification code:', error);
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to send verification code', err, {
+        component: 'EmailVerification',
+        action: 'send_code',
+        email,
+      });
       const errorMessage = error.message || "Failed to send verification code. Please try again.";
       toast({
         title: "Error",
@@ -65,6 +71,11 @@ export default function EmailVerification({ email, onVerificationSuccess }: Emai
     setLoading(true);
     try {
       await verifyCode(data.code);
+      logger.info('Code verified successfully', {
+        component: 'EmailVerification',
+        action: 'verify_code',
+        email,
+      });
       toast({
         title: "Code Verified",
         description: "Your email has been verified successfully.",
@@ -72,7 +83,12 @@ export default function EmailVerification({ email, onVerificationSuccess }: Emai
       // Call the success callback to retry registration
       onVerificationSuccess();
     } catch (error: any) {
-      console.error('❌ Failed to verify code:', error);
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to verify code', err, {
+        component: 'EmailVerification',
+        action: 'verify_code',
+        email,
+      });
       const errorMessage = error.message || "Invalid verification code. Please try again.";
       toast({
         title: "Verification Failed",

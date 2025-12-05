@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { sendVerificationCode, verifyCode, registerUser } from '@/services/authApi';
 import { createTenant } from '@/services/tenantApi';
 import { isBusinessEmail } from '@/utils/emailValidation';
+import { logger } from '@/lib/logger';
 import { CheckCircle2, XCircle, Loader2, Mail, Building2 } from 'lucide-react';
 
 const verifyCodeSchema = z.object({
@@ -68,21 +69,33 @@ export default function Onboarding() {
     setCheckingTenant(false);
 
     if (!firebaseUser) {
-      console.log('🚪 No Firebase user, redirecting to login');
+      logger.debug('No Firebase user, redirecting to login', {
+        component: 'Onboarding',
+        action: 'check_auth',
+      });
       setLocation('/login');
       return;
     }
 
     // Check if user has tenant from AuthContext
     if (user?.tenantId) {
-      console.log('✅ User has tenant, redirecting to dashboard');
+      logger.info('User has tenant, redirecting to dashboard', {
+        component: 'Onboarding',
+        action: 'check_auth',
+        userId: user.id,
+        tenantId: user.tenantId,
+      });
       setLocation('/dashboard');
       return;
     }
 
     // Check if email verification is pending
     if (emailVerification) {
-      console.log('✅ Email verification pending, starting at step 2');
+      logger.info('Email verification pending, starting at step 2', {
+        component: 'Onboarding',
+        action: 'check_auth',
+        email: emailVerification.email,
+      });
       setCurrentStep(2);
       const isValid = isBusinessEmail(emailVerification.email);
       setEmailValid(isValid);
@@ -90,7 +103,11 @@ export default function Onboarding() {
     }
 
     // User authenticated but no tenant - show onboarding
-    console.log('✅ User authenticated but no tenant, showing onboarding');
+    logger.debug('User authenticated but no tenant, showing onboarding', {
+      component: 'Onboarding',
+      action: 'check_auth',
+      firebaseEmail: firebaseUser.email,
+    });
     // Check email validity for step 1
     const isValid = isBusinessEmail(firebaseUser.email || '');
     setEmailValid(isValid);
@@ -100,7 +117,11 @@ export default function Onboarding() {
   useEffect(() => {
     if (currentStep === 1 && emailValid === true) {
       const timer = setTimeout(() => {
-        console.log('✅ Auto-progressing to step 2 after email validation');
+        logger.debug('Auto-progressing to step 2 after email validation', {
+          component: 'Onboarding',
+          action: 'auto_progress',
+          currentStep: 1,
+        });
         setCurrentStep(2);
       }, 2000);
       return () => clearTimeout(timer);
@@ -112,9 +133,11 @@ export default function Onboarding() {
     // Prevent multiple simultaneous calls - only check sendingCode and cooldown
     // Don't check codeSent or hasAttemptedSend here - they're reset when cooldown expires
     if (sendingCode || resendCooldown > 0) {
-      console.log('⚠️ Code sending in progress or cooldown active, skipping...', { 
-        sendingCode, 
-        resendCooldown
+      logger.debug('Code sending in progress or cooldown active, skipping', {
+        component: 'Onboarding',
+        action: 'send_code',
+        sendingCode,
+        resendCooldown,
       });
       return;
     }
@@ -124,9 +147,17 @@ export default function Onboarding() {
     setSendingCode(true);
     
     try {
-      console.log('📧 Sending verification code (API call)...');
+      logger.info('Sending verification code', {
+        component: 'Onboarding',
+        action: 'send_code',
+        email: firebaseUser?.email,
+      });
       await sendVerificationCode();
-      console.log('✅ Verification code sent successfully');
+      logger.info('Verification code sent successfully', {
+        component: 'Onboarding',
+        action: 'send_code',
+        email: firebaseUser?.email,
+      });
       setCodeSent(true); // Mark as sent to prevent duplicate sends
       
       // Start 1-minute cooldown timer
@@ -152,7 +183,12 @@ export default function Onboarding() {
         description: `A 6-digit code has been sent to ${firebaseUser?.email}. Please check your inbox.`,
       });
     } catch (error: any) {
-      console.error('❌ Failed to send verification code:', error);
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to send verification code', err, {
+        component: 'Onboarding',
+        action: 'send_code',
+        email: firebaseUser?.email,
+      });
       // Reset ref on error so user can retry
       hasAttemptedSend.current = false;
       const errorMessage = error.message || "Failed to send verification code. Please try again.";
@@ -172,10 +208,11 @@ export default function Onboarding() {
     // Only send if step 2 is reached and we haven't attempted yet
     // handleSendCode has its own guards for sendingCode and codeSent
     if (currentStep === 2 && firebaseUser && !hasAttemptedSend.current) {
-      console.log('📧 Auto-sending verification code (useEffect triggered)...', {
+      logger.debug('Auto-sending verification code', {
+        component: 'Onboarding',
+        action: 'auto_send_code',
         currentStep,
         hasFirebaseUser: !!firebaseUser,
-        hasAttemptedSend: hasAttemptedSend.current
       });
       // Call handleSendCode - it will check sendingCode and codeSent internally
       handleSendCode();
@@ -183,7 +220,11 @@ export default function Onboarding() {
     
     // Reset flag when leaving step 2
     if (currentStep !== 2) {
-      console.log('🔄 Resetting code send flags (leaving step 2)');
+      logger.debug('Resetting code send flags (leaving step 2)', {
+        component: 'Onboarding',
+        action: 'reset_code_flags',
+        currentStep,
+      });
       hasAttemptedSend.current = false;
       setCodeSent(false); // Also reset codeSent when leaving step 2
       setResendCooldown(0); // Reset cooldown timer
@@ -207,7 +248,12 @@ export default function Onboarding() {
   // Check if user got a tenant after registration (step 2 -> step 3 transition)
   useEffect(() => {
     if (currentStep === 2 && user?.tenantId) {
-      console.log('✅ User has tenant after registration, redirecting to dashboard');
+      logger.info('User has tenant after registration, redirecting to dashboard', {
+        component: 'Onboarding',
+        action: 'check_tenant_after_registration',
+        userId: user.id,
+        tenantId: user.tenantId,
+      });
       setTenantCreated(true);
       setTimeout(() => {
         setLocation('/dashboard');
@@ -259,17 +305,40 @@ export default function Onboarding() {
             }
           }
           
-          console.log('📝 Registering user with backend after email verification...', { firstName, lastName });
+          logger.info('Registering user with backend after email verification', {
+            component: 'Onboarding',
+            action: 'register_user',
+            firstName,
+            lastName,
+            email: firebaseUser?.email,
+          });
           registeredUser = await registerUser(firstName, lastName);
-          console.log('✅ User registered successfully');
+          logger.info('User registered successfully', {
+            component: 'Onboarding',
+            action: 'register_user',
+            userId: registeredUser?.id,
+          });
         } catch (registerError: any) {
-          console.error('❌ Failed to register user:', registerError);
+          const err = registerError instanceof Error ? registerError : new Error(String(registerError));
+          logger.error('Failed to register user', err, {
+            component: 'Onboarding',
+            action: 'register_user',
+            email: firebaseUser?.email,
+          });
           // Check if user already exists (that's okay)
           if (registerError.message?.includes('already exists') || registerError.status === 409) {
-            console.log('ℹ️ User already exists, will sync backend state...');
+            logger.info('User already exists, will sync backend state', {
+              component: 'Onboarding',
+              action: 'register_user',
+              email: firebaseUser?.email,
+            });
           } else {
             // For other errors, show warning but continue
-            console.warn('⚠️ Registration failed, but continuing with onboarding');
+            logger.warn('Registration failed, but continuing with onboarding', {
+              component: 'Onboarding',
+              action: 'register_user',
+              email: firebaseUser?.email,
+            });
             toast({
               title: "Registration Warning",
               description: "Could not complete registration, but you can continue.",
@@ -281,13 +350,22 @@ export default function Onboarding() {
       
       // Sync backend user state to update AuthContext (always do this after verification)
       if (firebaseUser && syncBackendUser) {
-        console.log('🔄 Syncing backend user state after email verification...');
+        logger.debug('Syncing backend user state after email verification', {
+          component: 'Onboarding',
+          action: 'sync_backend_user',
+          email: firebaseUser.email,
+        });
         try {
           await syncBackendUser(firebaseUser);
           // Get updated user from context after sync
           // Note: We'll check user state in useEffect or after timeout
         } catch (syncError: any) {
-          console.error('❌ Failed to sync backend user:', syncError);
+          const err = syncError instanceof Error ? syncError : new Error(String(syncError));
+          logger.error('Failed to sync backend user', err, {
+            component: 'Onboarding',
+            action: 'sync_backend_user',
+            email: firebaseUser.email,
+          });
           // Continue anyway - user might not exist yet
         }
       }
@@ -297,7 +375,11 @@ export default function Onboarding() {
         // Check if tenant was auto-created during verification/registration
         // The user state will be updated by syncBackendUser, so we check it via useEffect
         // For now, always proceed to step 3 - if tenant exists, useEffect will handle redirect
-        console.log('✅ Auto-progressing to step 3 after email verification');
+        logger.debug('Auto-progressing to step 3 after email verification', {
+          component: 'Onboarding',
+          action: 'auto_progress',
+          currentStep: 2,
+        });
         setCurrentStep(3);
         const email = firebaseUser?.email || '';
         const domain = email.split('@')[1];
@@ -307,7 +389,12 @@ export default function Onboarding() {
         }
       }, 2000); // Wait 2 seconds before moving to next step
     } catch (error: any) {
-      console.error('❌ Failed to verify code:', error);
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to verify code', err, {
+        component: 'Onboarding',
+        action: 'verify_code',
+        email: firebaseUser?.email,
+      });
       setCodeVerified(false);
       const errorMessage = error.message || "Invalid verification code. Please try again.";
       toast({
@@ -325,15 +412,31 @@ export default function Onboarding() {
     setLoading(true);
     try {
       // Call tenant API directly (backend uses Firebase auth, doesn't require backend user)
-      console.log('🏢 Creating tenant:', data.tenantName);
+      logger.info('Creating tenant', {
+        component: 'Onboarding',
+        action: 'create_tenant',
+        tenantName: data.tenantName,
+        email: firebaseUser?.email,
+      });
       await createTenant(data.tenantName);
       
       // Sync backend user state to update AuthContext with tenant info
       if (firebaseUser && syncBackendUser) {
-        console.log('🔄 Syncing backend user state after tenant creation...');
+        logger.debug('Syncing backend user state after tenant creation', {
+          component: 'Onboarding',
+          action: 'sync_after_tenant_creation',
+          tenantName: data.tenantName,
+          email: firebaseUser.email,
+        });
         await syncBackendUser(firebaseUser);
       }
       
+      logger.info('Tenant created successfully', {
+        component: 'Onboarding',
+        action: 'create_tenant',
+        tenantName: data.tenantName,
+        email: firebaseUser?.email,
+      });
       toast({
         title: "Tenant Created",
         description: "Your organization has been created successfully.",
@@ -345,7 +448,13 @@ export default function Onboarding() {
         setLocation('/dashboard');
       }, 2000);
     } catch (error: any) {
-      console.error('❌ Failed to create tenant:', error);
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to create tenant', err, {
+        component: 'Onboarding',
+        action: 'create_tenant',
+        tenantName: data.tenantName,
+        email: firebaseUser?.email,
+      });
       const errorMessage = error.message || "Failed to create tenant. Please try again.";
       toast({
         title: "Creation Failed",

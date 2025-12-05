@@ -1,6 +1,7 @@
 // Probe API service functions based on NetView API OpenAPI specification
 
 import { apiRequest } from '../lib/queryClient';
+import { logger } from '../lib/logger';
 import type {
   ProbeCreate,
   ProbeUpdate,
@@ -51,24 +52,58 @@ export class ProbeApiService {
    * Create a new probe
    */
   static async createProbe(probeData: ProbeCreate): Promise<ProbeSingleResponse> {
+    logger.info('Creating probe', {
+      component: 'probeApi',
+      action: 'create_probe',
+      probeName: probeData.name,
+      probeType: probeData.type,
+    });
     const response = await apiRequest('POST', '/api/probes', probeData);
-    return response.json();
+    const result = await response.json();
+    logger.info('Probe created successfully', {
+      component: 'probeApi',
+      action: 'create_probe',
+      probeId: result?.data?.id,
+    });
+    return result;
   }
 
   /**
    * Update an existing probe
    */
   static async updateProbe(probeId: string, probeData: ProbeUpdate): Promise<ProbeSingleResponse> {
+    logger.info('Updating probe', {
+      component: 'probeApi',
+      action: 'update_probe',
+      probeId,
+    });
     const response = await apiRequest('PUT', `/api/probes/${probeId}`, probeData);
-    return response.json();
+    const result = await response.json();
+    logger.info('Probe updated successfully', {
+      component: 'probeApi',
+      action: 'update_probe',
+      probeId,
+    });
+    return result;
   }
 
   /**
    * Delete a probe
    */
   static async deleteProbe(probeId: string): Promise<{ message: string }> {
+    logger.info('Deleting probe', {
+      component: 'probeApi',
+      action: 'delete_probe',
+      probeId,
+    });
     const response = await apiRequest('DELETE', `/api/probes/${probeId}`);
-    return response.json();
+    const result = await response.json();
+    logger.info('Probe deleted successfully', {
+      component: 'probeApi',
+      action: 'delete_probe',
+      probeId,
+    });
+    return result;
   }
 
   /**

@@ -1,6 +1,7 @@
 // Gateway API service functions based on NetView API OpenAPI specification
 
 import { apiRequest } from '../lib/queryClient';
+import { logger } from '../lib/logger';
 import type {
   GatewayCreate,
   GatewayUpdate,
@@ -47,24 +48,58 @@ export class GatewayApiService {
    * Create a new gateway
    */
   static async createGateway(gatewayData: GatewayCreate): Promise<GatewaySingleResponse> {
+    logger.info('Creating gateway', {
+      component: 'gatewayApi',
+      action: 'create_gateway',
+      gatewayName: gatewayData.name,
+      gatewayType: gatewayData.type,
+    });
     const response = await apiRequest('POST', '/api/gateways', gatewayData);
-    return response.json();
+    const result = await response.json();
+    logger.info('Gateway created successfully', {
+      component: 'gatewayApi',
+      action: 'create_gateway',
+      gatewayId: result?.data?.id,
+    });
+    return result;
   }
 
   /**
    * Update an existing gateway
    */
   static async updateGateway(gatewayId: string, gatewayData: GatewayUpdate): Promise<GatewaySingleResponse> {
+    logger.info('Updating gateway', {
+      component: 'gatewayApi',
+      action: 'update_gateway',
+      gatewayId,
+    });
     const response = await apiRequest('PUT', `/api/gateways/${gatewayId}`, gatewayData);
-    return response.json();
+    const result = await response.json();
+    logger.info('Gateway updated successfully', {
+      component: 'gatewayApi',
+      action: 'update_gateway',
+      gatewayId,
+    });
+    return result;
   }
 
   /**
    * Delete a gateway
    */
   static async deleteGateway(gatewayId: string): Promise<{ message: string }> {
+    logger.info('Deleting gateway', {
+      component: 'gatewayApi',
+      action: 'delete_gateway',
+      gatewayId,
+    });
     const response = await apiRequest('DELETE', `/api/gateways/${gatewayId}`);
-    return response.json();
+    const result = await response.json();
+    logger.info('Gateway deleted successfully', {
+      component: 'gatewayApi',
+      action: 'delete_gateway',
+      gatewayId,
+    });
+    return result;
   }
 
   /**

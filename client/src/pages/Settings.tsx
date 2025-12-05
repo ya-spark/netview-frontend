@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +16,7 @@ import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/contexts/AuthContext';
+import { logger } from '@/lib/logger';
 import { User, Settings as SettingsIcon, Shield, Bell, Users, Globe } from 'lucide-react';
 
 const profileSchema = z.object({
@@ -42,6 +43,13 @@ export default function Settings() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    logger.debug('Settings page initialized', {
+      component: 'Settings',
+      userId: user?.id,
+    });
+  }, [user?.id]);
 
   const { data: tenant } = useQuery<{
     id: string;
@@ -90,27 +98,62 @@ export default function Settings() {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: z.infer<typeof profileSchema>) => {
+      logger.info('Updating user profile', {
+        component: 'Settings',
+        action: 'update_profile',
+        userId: user?.id,
+      });
       const response = await apiRequest('PUT', `/api/users/${user?.id}`, data);
       return response.json();
     },
     onSuccess: () => {
+      logger.info('Profile updated successfully', {
+        component: 'Settings',
+        action: 'update_profile',
+        userId: user?.id,
+      });
       toast({ title: 'Success', description: 'Profile updated successfully' });
       queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
     },
     onError: (error: any) => {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to update profile', err, {
+        component: 'Settings',
+        action: 'update_profile',
+        userId: user?.id,
+      });
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     },
   });
 
   const updateTenantMutation = useMutation({
     mutationFn: async (data: z.infer<typeof tenantSchema>) => {
+      logger.info('Updating tenant settings', {
+        component: 'Settings',
+        action: 'update_tenant',
+        userId: user?.id,
+        tenantId: user?.tenantId,
+      });
       const response = await apiRequest('PUT', `/api/tenants/${user?.tenantId}`, data);
       return response.json();
     },
     onSuccess: () => {
+      logger.info('Tenant settings updated successfully', {
+        component: 'Settings',
+        action: 'update_tenant',
+        userId: user?.id,
+        tenantId: user?.tenantId,
+      });
       toast({ title: 'Success', description: 'Organization settings updated successfully' });
     },
     onError: (error: any) => {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to update tenant settings', err, {
+        component: 'Settings',
+        action: 'update_tenant',
+        userId: user?.id,
+        tenantId: user?.tenantId,
+      });
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     },
   });

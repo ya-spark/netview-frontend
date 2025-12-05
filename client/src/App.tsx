@@ -336,15 +336,27 @@ function EmailVerificationRoute() {
       onVerificationSuccess={async () => {
         try {
           const newUser = await retryRegistration();
-          console.log('✅ Email verification successful, registration retried');
+          logger.info('Email verification successful, registration retried', {
+            component: 'App',
+            action: 'email_verification_success',
+            userId: newUser?.id,
+          });
           
           // Always go to tenant selection after verification
           // User may not have tenant info if they're new, or tenant may not have been created
           // Tenant selection page allows user to create a tenant if needed
-          console.log('✅ Navigating to tenant selection after successful email verification');
+          logger.info('Navigating to tenant selection after successful email verification', {
+            component: 'App',
+            action: 'navigate_after_verification',
+            userId: newUser?.id,
+          });
           setLocation('/tenant-selection');
         } catch (error: any) {
-          console.error('Failed to retry registration:', error);
+          const err = error instanceof Error ? error : new Error(String(error));
+          logger.error('Failed to retry registration', err, {
+            component: 'App',
+            action: 'email_verification_success',
+          });
           // Error will be handled by AuthContext and verification state will remain
         }
       }}

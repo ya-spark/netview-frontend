@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { useLocation } from 'wouter';
 import { getCurrentUser, registerUser } from '@/services/authApi';
 import { ApiError, setCurrentUserInfo } from '@/lib/queryClient';
+import { logger } from '@/lib/logger';
 import { 
   onAuthStateChange, 
   getCurrentUser as getFirebaseUser,
@@ -87,23 +88,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      console.log('🔄 Syncing backend user state for Firebase user:', firebaseUser.email);
+      logger.debug('Syncing backend user state for Firebase user', {
+        component: 'AuthContext',
+        action: 'sync_backend_user',
+        firebaseEmail: firebaseUser.email,
+      });
       const backendUser = await getCurrentUser();
       
       // Validate user data
       if (!backendUser || (!backendUser.id && !backendUser.email)) {
-        console.warn('⚠️ Invalid user data received, treating as user not found');
+        logger.warn('Invalid user data received, treating as user not found', {
+          component: 'AuthContext',
+          action: 'sync_backend_user',
+        });
         setUser(null);
         setSelectedTenant(null);
         setTenants([]);
         return;
       }
       
-      console.log('👤 Backend user synced:', { 
-        id: backendUser.id, 
-        email: backendUser.email, 
-        role: backendUser.role,
-        tenantId: backendUser.tenantId 
+      logger.info('Backend user synced', {
+        component: 'AuthContext',
+        action: 'sync_backend_user',
+        userId: backendUser.id,
+        userEmail: backendUser.email,
+        userRole: backendUser.role,
+        tenantId: backendUser.tenantId,
       });
       setUser(backendUser);
       
@@ -131,7 +141,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
            (errorMessageLower.includes('email') && errorMessageLower.includes('verification')));
       
       if (isEmailNotVerified) {
-        console.log('📧 Email verification required');
+        logger.info('Email verification required', {
+          component: 'AuthContext',
+          action: 'sync_backend_user',
+          firebaseEmail: firebaseUser.email,
+        });
         const email = error.details?.email || firebaseUser.email;
         if (email) {
           setEmailVerification({
@@ -152,12 +166,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const isUnauthorized = error instanceof ApiError && error.status === 401;
       
       if (isNotFound || isUnauthorized) {
-        console.log('🚪 User not found in backend, will be created during onboarding');
+        logger.debug('User not found in backend, will be created during onboarding', {
+          component: 'AuthContext',
+          action: 'sync_backend_user',
+          firebaseEmail: firebaseUser.email,
+        });
         setUser(null);
         setSelectedTenant(null);
         setTenants([]);
       } else {
-        console.error('❌ Error syncing backend user:', error);
+        const err = error instanceof Error ? error : new Error(String(error));
+        logger.error('Error syncing backend user', err, {
+          component: 'AuthContext',
+          action: 'sync_backend_user',
+          firebaseEmail: firebaseUser.email,
+        });
         // Don't set error state here - let individual pages handle it
       }
     }
@@ -165,9 +188,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Listen to Firebase auth state changes
   useEffect(() => {
-    console.log('🔐 Setting up Firebase auth state listener');
+    logger.debug('Setting up Firebase auth state listener', {
+      component: 'AuthContext',
+      action: 'setup_auth_listener',
+    });
     const unsubscribe = onAuthStateChange(async (firebaseUser) => {
-      console.log('🔐 Firebase auth state changed:', firebaseUser?.email || 'signed out');
+      logger.debug('Firebase auth state changed', {
+        component: 'AuthContext',
+        action: 'auth_state_changed',
+        firebaseEmail: firebaseUser?.email || 'signed out',
+      });
       setFirebaseUser(firebaseUser);
       
       // Skip backend sync for public routes
@@ -180,7 +210,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => {
-      console.log('🔐 Cleaning up Firebase auth state listener');
+      logger.debug('Cleaning up Firebase auth state listener', {
+        component: 'AuthContext',
+        action: 'cleanup_auth_listener',
+      });
       unsubscribe();
     };
   }, [isPublicRoute]);
@@ -201,7 +234,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // First check Firebase auth state
         const currentFirebaseUser = getFirebaseUser();
         if (!currentFirebaseUser) {
-          console.log('🚪 No Firebase user, user not authenticated');
+          logger.debug('No Firebase user, user not authenticated', {
+            component: 'AuthContext',
+            action: 'check_auth',
+          });
           setUser(null);
           setSelectedTenant(null);
           setTenants([]);
@@ -224,9 +260,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       // Sign out from Firebase
       await firebaseSignOut();
-      console.log('✅ Signed out from Firebase');
+      logger.info('Signed out from Firebase', {
+        component: 'AuthContext',
+        action: 'sign_out',
+      });
     } catch (error: any) {
-      console.error('❌ Error signing out from Firebase:', error);
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Error signing out from Firebase', err, {
+        component: 'AuthContext',
+        action: 'sign_out',
+      });
       // Continue with local state cleanup even if Firebase signout fails
     }
     
@@ -243,30 +286,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginWithGoogle = async () => {
     try {
-      console.log('🔐 Login: Starting Google sign-in...');
+      logger.info('Starting Google sign-in', {
+        component: 'AuthContext',
+        action: 'login_google',
+      });
       const firebaseUser = await firebaseSignInWithGoogle();
-      console.log('✅ Login: Google sign-in successful');
+      logger.info('Google sign-in successful', {
+        component: 'AuthContext',
+        action: 'login_google',
+        firebaseEmail: firebaseUser.email,
+      });
       setFirebaseUser(firebaseUser);
       
       // Sync backend user state
       await syncBackendUser(firebaseUser);
     } catch (error: any) {
-      console.error('❌ Login: Google sign-in failed:', error);
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Google sign-in failed', err, {
+        component: 'AuthContext',
+        action: 'login_google',
+      });
       throw error;
     }
   };
 
   const loginWithEmailPassword = async (email: string, password: string) => {
     try {
-      console.log('🔐 Login: Starting email/password sign-in...');
+      logger.info('Starting email/password sign-in', {
+        component: 'AuthContext',
+        action: 'login_email_password',
+        email,
+      });
       const firebaseUser = await firebaseSignInWithEmailPassword(email, password);
-      console.log('✅ Login: Email/password sign-in successful');
+      logger.info('Email/password sign-in successful', {
+        component: 'AuthContext',
+        action: 'login_email_password',
+        firebaseEmail: firebaseUser.email,
+      });
       setFirebaseUser(firebaseUser);
       
       // Sync backend user state
       await syncBackendUser(firebaseUser);
     } catch (error: any) {
-      console.error('❌ Login: Email/password sign-in failed:', error);
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Email/password sign-in failed', err, {
+        component: 'AuthContext',
+        action: 'login_email_password',
+        email,
+      });
       throw error;
     }
   };
@@ -285,7 +352,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      console.log('🔄 Retrying registration after email verification...');
+      logger.info('Retrying registration after email verification', {
+        component: 'AuthContext',
+        action: 'retry_registration',
+        email: emailVerification.email,
+      });
       const newUser = await registerUser(
         emailVerification.firstName,
         emailVerification.lastName,
@@ -294,14 +365,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // Validate user data
       if (!newUser || !newUser.id) {
-        console.error('❌ Invalid user data received:', newUser);
+        logger.error('Invalid user data received after registration', new Error('User data is invalid'), {
+          component: 'AuthContext',
+          action: 'retry_registration',
+        }, newUser);
         throw new Error('Registration succeeded but user data is invalid. Please try again.');
       }
       
-      console.log('✅ User registered successfully after verification:', { 
-        id: newUser.id, 
-        email: newUser.email, 
-        role: newUser.role 
+      logger.info('User registered successfully after verification', {
+        component: 'AuthContext',
+        action: 'retry_registration',
+        userId: newUser.id,
+        userEmail: newUser.email,
+        userRole: newUser.role,
       });
       
       setUser(newUser);
@@ -322,7 +398,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Return the user for navigation purposes
       return newUser;
     } catch (error: any) {
-      console.error('❌ Error retrying registration:', error);
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Error retrying registration', err, {
+        component: 'AuthContext',
+        action: 'retry_registration',
+        email: emailVerification.email,
+      });
       
       // If still EMAIL_NOT_VERIFIED, keep verification state
       if (error instanceof ApiError && 
@@ -344,7 +425,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('User must be authenticated to create a tenant');
     }
     
-    console.log('🏢 Creating tenant:', { name, tenantId });
+    logger.info('Creating tenant', {
+      component: 'AuthContext',
+      action: 'create_tenant',
+      tenantName: name,
+      tenantId,
+      userId: user.id,
+    });
     
     // Import tenant API service
     const { createTenant: createTenantApi } = await import('@/services/tenantApi');
@@ -376,10 +463,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setTenants(updatedTenants);
       }
       
-      console.log('✅ Tenant created successfully:', tenant);
+      logger.info('Tenant created successfully', {
+        component: 'AuthContext',
+        action: 'create_tenant',
+        tenantId: tenant.id,
+        tenantName: tenant.name,
+        userId: user.id,
+      });
       return tenant;
     } catch (error: any) {
-      console.error('❌ Error creating tenant:', error);
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Error creating tenant', err, {
+        component: 'AuthContext',
+        action: 'create_tenant',
+        tenantName: name,
+        userId: user.id,
+      });
       throw error;
     }
   };
@@ -389,7 +488,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('User must be authenticated to load tenants');
     }
     
-    console.log('📋 Loading tenants for:', email);
+    logger.debug('Loading tenants', {
+      component: 'AuthContext',
+      action: 'load_tenants',
+      email,
+      userId: user.id,
+    });
     
     // For regular users, tenant is included in user object
     // For SuperAdmins, use /api/admin/tenants endpoint
@@ -405,6 +509,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     }
     
+    logger.info('Tenants loaded', {
+      component: 'AuthContext',
+      action: 'load_tenants',
+      tenantCount: tenantList.length,
+      userId: user.id,
+    });
     setTenants(tenantList);
     return tenantList;
   };

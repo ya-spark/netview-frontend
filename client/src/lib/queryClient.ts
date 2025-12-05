@@ -1,5 +1,6 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { getIdToken, getCurrentUser } from "./firebase";
+import { logger } from "./logger";
 
 /**
  * Get the base API URL from environment variable
@@ -80,7 +81,11 @@ async function throwIfResNotOk(res: Response, url?: string) {
       const contentType = res.headers.get('content-type');
       if (contentType && contentType.includes('application/json')) {
         const errorData = await res.json();
-        console.log('📦 Parsed error response:', errorData);
+        logger.debug('Parsed error response', {
+          component: 'queryClient',
+          action: 'parse_error',
+          status: res.status,
+        }, errorData);
         
         // Handle different error response formats
         if (errorData.error) {
@@ -111,7 +116,13 @@ async function throwIfResNotOk(res: Response, url?: string) {
       }
     }
     
-    console.log('🔍 Error parsed:', { status: res.status, code: errorCode, message: errorMessage, details: errorDetails });
+    logger.debug('Error parsed', {
+      component: 'queryClient',
+      action: 'parse_error',
+      status: res.status,
+      code: errorCode,
+      message: errorMessage,
+    }, errorDetails);
 
     const error = new ApiError(res.status, errorMessage, errorCode, errorDetails);
     

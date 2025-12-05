@@ -40,7 +40,11 @@ export async function validateTenantIdAvailability(tenantId: string): Promise<{ 
   }
 
   try {
-    console.log('🔍 Validating tenant ID availability:', tenantId);
+    logger.debug('Validating tenant ID availability', {
+      component: 'tenantApi',
+      action: 'validate_tenant_id',
+      tenantId,
+    });
     
     // TODO: Uncomment when backend endpoint is ready
     // const response = await apiRequest('GET', `/api/tenants/validate/${encodeURIComponent(tenantId)}`);
@@ -52,10 +56,18 @@ export async function validateTenantIdAvailability(tenantId: string): Promise<{ 
     // };
 
     // Placeholder: Return available for now (backend integration pending)
-    console.log('⚠️ Tenant ID validation not yet integrated with backend');
+    logger.warn('Tenant ID validation not yet integrated with backend', {
+      component: 'tenantApi',
+      action: 'validate_tenant_id',
+    });
     return { available: true };
   } catch (error: any) {
-    console.error('❌ Error validating tenant ID:', error);
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error('Error validating tenant ID', err, {
+      component: 'tenantApi',
+      action: 'validate_tenant_id',
+      tenantId,
+    });
     
     // If it's a 404, tenant ID is available
     if (error.status === 404) {
@@ -93,7 +105,12 @@ export async function createTenant(name: string, tenantId?: string): Promise<any
     throw new Error('Unable to generate tenant ID from organization name');
   }
 
-  console.log('🏢 Creating tenant:', { name, tenantId: finalTenantId });
+  logger.info('Creating tenant', {
+    component: 'tenantApi',
+    action: 'create_tenant',
+    tenantName: name,
+    tenantId: finalTenantId,
+  });
 
   try {
     const response = await apiRequest('POST', '/api/tenants', {
@@ -105,14 +122,27 @@ export async function createTenant(name: string, tenantId?: string): Promise<any
     const tenant = responseData.data || responseData;
     
     if (!tenant || !tenant.id) {
-      console.error('❌ Invalid tenant creation response:', responseData);
+      logger.error('Invalid tenant creation response', new Error('Tenant data is missing'), {
+        component: 'tenantApi',
+        action: 'create_tenant',
+      }, responseData);
       throw new Error('Invalid response from tenant creation endpoint. Tenant data is missing.');
     }
     
-    console.log('✅ Tenant created successfully:', { id: tenant.id, name: tenant.name });
+    logger.info('Tenant created successfully', {
+      component: 'tenantApi',
+      action: 'create_tenant',
+      tenantId: tenant.id,
+      tenantName: tenant.name,
+    });
     return tenant;
   } catch (error: any) {
-    console.error('❌ Error creating tenant:', error);
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error('Error creating tenant', err, {
+      component: 'tenantApi',
+      action: 'create_tenant',
+      tenantName: name,
+    });
     throw error;
   }
 }

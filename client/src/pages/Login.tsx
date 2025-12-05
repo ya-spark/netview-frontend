@@ -89,12 +89,25 @@ export default function Login() {
   const handleEmailPasswordLogin = async (data: LoginFormData) => {
     setLoading(true);
     try {
-      console.log('🔐 Login: Starting email/password sign-in...');
+      logger.info('Starting email/password sign-in', {
+        component: 'Login',
+        action: 'email_password_login',
+        email: data.email,
+      });
       await signInWithEmailPassword(data.email, data.password);
-      console.log('✅ Login: Email/password sign-in successful');
+      logger.info('Email/password sign-in successful', {
+        component: 'Login',
+        action: 'email_password_login',
+        email: data.email,
+      });
       // AuthContext will handle backend sync and redirect via useEffect
     } catch (error: any) {
-      console.error('❌ Login: Email/password sign-in failed:', error);
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Email/password sign-in failed', err, {
+        component: 'Login',
+        action: 'email_password_login',
+        email: data.email,
+      });
       toast({
         title: "Sign-in Error",
         description: error.message || "Failed to sign in. Please check your credentials and try again.",

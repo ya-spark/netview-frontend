@@ -992,7 +992,11 @@ export default function Monitor() {
 
   // Helper function to render section content
   const renderSectionContent = () => {
-    console.log('Rendering section:', currentSection);
+    logger.debug('Rendering section', {
+      component: 'Monitor',
+      action: 'render_section',
+      section: currentSection,
+    });
     switch (currentSection) {
       case "overview":
         return renderOverviewSection();
@@ -1007,7 +1011,11 @@ export default function Monitor() {
       case "map":
         return renderMapSection();
       default:
-        console.log('Default case triggered for section:', currentSection);
+        logger.debug('Default case triggered for section', {
+          component: 'Monitor',
+          action: 'render_section',
+          section: currentSection,
+        });
         return renderOverviewSection();
     }
   };

@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
+import { logger } from '@/lib/logger';
 import { Building2, Plus, Check, Loader2 } from 'lucide-react';
 import { generateTenantId, validateTenantIdAvailability } from '@/services/tenantApi';
 
@@ -35,6 +36,15 @@ export default function TenantSelection() {
   const [isTenantIdManuallyEdited, setIsTenantIdManuallyEdited] = useState(false);
   const { toast } = useToast();
   const { user, tenants, selectedTenant, loadTenants, createTenant, setSelectedTenant } = useAuth();
+
+  useEffect(() => {
+    logger.debug('TenantSelection page initialized', {
+      component: 'TenantSelection',
+      userId: user?.id,
+      tenantCount: tenants.length,
+      hasSelectedTenant: !!selectedTenant,
+    });
+  }, [user?.id, tenants.length, selectedTenant]);
 
   const tenantForm = useForm<TenantFormData>({
     resolver: zodResolver(tenantSchema),
@@ -86,7 +96,12 @@ export default function TenantSelection() {
           setTenantIdError(null);
         }
       } catch (error: any) {
-        console.error('Error validating tenant ID:', error);
+        const err = error instanceof Error ? error : new Error(String(error));
+        logger.error('Error validating tenant ID', err, {
+          component: 'TenantSelection',
+          action: 'validate_tenant_id',
+          tenantId: tenantIdValue,
+        });
         setTenantIdError('Failed to validate tenant ID. Please try again.');
       } finally {
         setValidatingTenantId(false);
@@ -105,7 +120,11 @@ export default function TenantSelection() {
     // Load tenants when component mounts
     // Auth check is handled by TenantSelectionRoute
     if (user?.email) {
-      console.log('📋 TenantSelection: Loading tenants for:', user.email);
+      logger.debug('Loading tenants for TenantSelection', {
+        component: 'TenantSelection',
+        action: 'load_tenants',
+        userEmail: user.email,
+      });
       loadTenants(user.email);
     }
   }, [user, loadTenants]);
@@ -138,7 +157,12 @@ export default function TenantSelection() {
         return;
       }
     } catch (error: any) {
-      console.error('❌ Error validating tenant ID before creation:', error);
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Error validating tenant ID before creation', err, {
+        component: 'TenantSelection',
+        action: 'validate_tenant_id',
+        tenantId: data.tenantId,
+      });
       toast({
         title: "Validation Error",
         description: 'Failed to validate tenant ID. Please try again.',
@@ -151,9 +175,22 @@ export default function TenantSelection() {
     
     setLoading(true);
     try {
-      console.log('🏢 Creating tenant:', { name: data.name, tenantId: data.tenantId });
+      logger.info('Creating tenant', {
+        component: 'TenantSelection',
+        action: 'create_tenant',
+        tenantName: data.name,
+        tenantId: data.tenantId,
+        userId: user.id,
+      });
       const tenant = await createTenant(data.name, data.tenantId);
       
+      logger.info('Tenant created successfully', {
+        component: 'TenantSelection',
+        action: 'create_tenant',
+        tenantId: tenant.id,
+        tenantName: tenant.name,
+        userId: user.id,
+      });
       toast({
         title: "Organization Created",
         description: `Organization "${tenant.name}" has been created successfully.`,
@@ -164,7 +201,14 @@ export default function TenantSelection() {
         setLocation('/dashboard');
       }, 1000);
     } catch (error: any) {
-      console.error('❌ Failed to create tenant:', error);
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to create tenant', err, {
+        component: 'TenantSelection',
+        action: 'create_tenant',
+        tenantName: data.name,
+        tenantId: data.tenantId,
+        userId: user.id,
+      });
       toast({
         title: "Error",
         description: error.message || "Failed to create organization. Please try again.",
@@ -184,7 +228,13 @@ export default function TenantSelection() {
     
     setLoading(true);
     try {
-      console.log('✅ Selecting tenant:', tenant.id);
+      logger.info('Selecting tenant', {
+        component: 'TenantSelection',
+        action: 'select_tenant',
+        tenantId: tenant.id,
+        tenantName: tenant.name,
+        userId: user.id,
+      });
       setSelectedTenant(tenant);
       
       toast({
@@ -197,7 +247,13 @@ export default function TenantSelection() {
         setLocation('/dashboard');
       }, 500);
     } catch (error: any) {
-      console.error('❌ Failed to select tenant:', error);
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to select tenant', err, {
+        component: 'TenantSelection',
+        action: 'select_tenant',
+        tenantId: tenant.id,
+        userId: user.id,
+      });
       toast({
         title: "Error",
         description: error.message || "Failed to select organization. Please try again.",

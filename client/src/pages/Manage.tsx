@@ -19,6 +19,7 @@ import { Plus, Search, Filter, Settings, Globe, Trash2, Edit, Key, Download, Ref
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/contexts/AuthContext';
+import { logger } from '@/lib/logger';
 import { GatewayApiService, GatewayUtils } from '@/services/gatewayApi';
 import { ProbeApiService, ProbeUtils } from '@/services/probeApi';
 import { NotificationGroupApiService } from '@/services/notificationApi';
@@ -68,7 +69,13 @@ export default function Manage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentHash, setCurrentHash] = useState(() => {
     // Get initial hash from URL
-    return window.location.hash ? window.location.hash.substring(1) : 'gateways';
+    const hash = window.location.hash ? window.location.hash.substring(1) : 'gateways';
+      logger.debug('Manage page initialized', {
+      component: 'Manage',
+      initialHash: hash,
+      userId: user?.id,
+    });
+    return hash;
   });
 
   // Create Probe Dialog State
@@ -98,7 +105,13 @@ export default function Manage() {
   // Listen for hash changes
   useEffect(() => {
     const handleHashChange = () => {
-      const newHash = window.location.hash ? window.location.hash.substring(1) : 'probes';
+      const newHash = window.location.hash ? window.location.hash.substring(1) : 'gateways';
+      logger.debug('Hash changed in Manage page', {
+        component: 'Manage',
+        previousHash: currentHash,
+        newHash,
+        userId: user?.id,
+      });
       setCurrentHash(newHash);
     };
 
@@ -110,7 +123,7 @@ export default function Manage() {
     return () => {
       window.removeEventListener('hashchange', handleHashChange);
     };
-  }, []);
+  }, [currentHash, user?.id]);
   
   const [location] = useLocation();
   const hash = currentHash;
@@ -119,7 +132,18 @@ export default function Manage() {
     queryKey: ['/api/probes'],
     enabled: !!user && hash === 'probes',
     queryFn: async () => {
-      return await ProbeApiService.listProbes();
+      logger.debug('Fetching probes', {
+        component: 'Manage',
+        hash,
+        userId: user?.id,
+      });
+      const result = await ProbeApiService.listProbes();
+      logger.info('Probes loaded', {
+        component: 'Manage',
+        probeCount: result?.data?.length || 0,
+        userId: user?.id,
+      });
+      return result;
     },
   });
 
@@ -127,19 +151,66 @@ export default function Manage() {
     queryKey: ['/api/notifications/groups'],
     enabled: !!user && (hash === 'notifications' || hash === 'probes'),
     queryFn: async () => {
-      return await NotificationGroupApiService.listGroups();
+      logger.debug('Fetching notification groups', {
+        component: 'Manage',
+        hash,
+        userId: user?.id,
+      });
+      const result = await NotificationGroupApiService.listGroups();
+      logger.info('Notification groups loaded', {
+        component: 'Manage',
+        groupCount: result?.data?.length || 0,
+        userId: user?.id,
+      });
+      return result;
     },
   });
   
   const notificationGroups = notificationGroupsResponse?.data || [];
 
+  // Query for all gateways (includes both tenant-specific and shared gateways)
+  const gatewaysQueryEnabled = !!user && (hash === 'gateways' || hash === 'probes');
   const { data: gateways, refetch: refetchGateways, error: gatewaysError, isLoading: gatewaysLoading } = useQuery({
     queryKey: ['/api/gateways'],
-    enabled: !!user && (hash === 'gateways' || hash === 'probes'), // Load gateways when viewing probes too
+    enabled: gatewaysQueryEnabled, // Load gateways when viewing probes too
     queryFn: async () => {
-      return await GatewayApiService.listGateways();
+      logger.debug('Fetching gateways', {
+        component: 'Manage',
+        hash,
+        userId: user?.id,
+        enabled: gatewaysQueryEnabled,
+      });
+      const result = await GatewayApiService.listGateways();
+      logger.info('Gateways loaded', {
+        component: 'Manage',
+        gatewayCount: result?.data?.length || 0,
+        userId: user?.id,
+      }, result);
+      return result;
     },
   });
+
+  // Log when gateways query is enabled/disabled
+  useEffect(() => {
+    logger.debug('Gateways query state', {
+      component: 'Manage',
+      enabled: gatewaysQueryEnabled,
+      hasUser: !!user,
+      hash,
+      userId: user?.id,
+    });
+  }, [gatewaysQueryEnabled, user, hash]);
+
+  // Log gateway errors
+  useEffect(() => {
+    if (gatewaysError) {
+      const error = gatewaysError instanceof Error ? gatewaysError : new Error(String(gatewaysError));
+      logger.error('Error loading gateways', error, {
+        component: 'Manage',
+        userId: user?.id,
+      });
+    }
+  }, [gatewaysError, user?.id]);
 
   const { data: probeTypes, error: typesError, isLoading: typesLoading } = useQuery({
     queryKey: ['/api/probes/types'],
@@ -218,9 +289,22 @@ export default function Manage() {
 
   const createProbeMutation = useMutation({
     mutationFn: async (data: ProbeCreate) => {
+      logger.info('Creating probe', {
+        component: 'Manage',
+        action: 'create_probe',
+        probeName: data.name,
+        probeType: data.type,
+        userId: user?.id,
+      });
       return await ProbeApiService.createProbe(data);
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
+      logger.info('Probe created successfully', {
+        component: 'Manage',
+        action: 'create_probe',
+        probeId: response?.data?.id,
+        userId: user?.id,
+      });
       toast({ title: 'Success', description: 'Probe created successfully' });
       refetchProbes();
       probeForm.reset();
@@ -230,15 +314,32 @@ export default function Manage() {
       setSelectedType('');
     },
     onError: (error: any) => {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to create probe', err, {
+        component: 'Manage',
+        action: 'create_probe',
+        userId: user?.id,
+      });
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     },
   });
 
   const updateProbeMutation = useMutation({
     mutationFn: async ({ probeId, data }: { probeId: string; data: Partial<ProbeCreate> }) => {
+      logger.info('Updating probe', {
+        component: 'Manage',
+        action: 'update_probe',
+        probeId,
+        userId: user?.id,
+      });
       return await ProbeApiService.updateProbe(probeId, data);
     },
     onSuccess: () => {
+      logger.info('Probe updated successfully', {
+        component: 'Manage',
+        action: 'update_probe',
+        userId: user?.id,
+      });
       toast({ title: 'Success', description: 'Probe updated successfully' });
       refetchProbes();
       setEditProbeDialogOpen(false);
@@ -246,19 +347,42 @@ export default function Manage() {
       probeForm.reset();
     },
     onError: (error: any) => {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to update probe', err, {
+        component: 'Manage',
+        action: 'update_probe',
+        userId: user?.id,
+      });
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     },
   });
 
   const deleteProbeMutation = useMutation({
     mutationFn: async (probeId: string) => {
+      logger.info('Deleting probe', {
+        component: 'Manage',
+        action: 'delete_probe',
+        probeId,
+        userId: user?.id,
+      });
       return await ProbeApiService.deleteProbe(probeId);
     },
     onSuccess: () => {
+      logger.info('Probe deleted successfully', {
+        component: 'Manage',
+        action: 'delete_probe',
+        userId: user?.id,
+      });
       toast({ title: 'Success', description: 'Probe deleted successfully' });
       refetchProbes();
     },
     onError: (error: any) => {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to delete probe', err, {
+        component: 'Manage',
+        action: 'delete_probe',
+        userId: user?.id,
+      });
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     },
   });
@@ -273,14 +397,33 @@ export default function Manage() {
         alert_threshold: data.alert_threshold,
         is_active: data.is_active,
       };
+      logger.info('Creating notification group', {
+        component: 'Manage',
+        action: 'create_notification_group',
+        groupName: data.name,
+        emailCount: emailArray.length,
+        userId: user?.id,
+      });
       return await NotificationGroupApiService.createGroup(createData);
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
+      logger.info('Notification group created successfully', {
+        component: 'Manage',
+        action: 'create_notification_group',
+        groupId: response?.data?.id,
+        userId: user?.id,
+      });
       toast({ title: 'Success', description: 'Notification group created successfully' });
       refetchNotificationGroups();
       notificationForm.reset();
     },
     onError: (error: any) => {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to create notification group', err, {
+        component: 'Manage',
+        action: 'create_notification_group',
+        userId: user?.id,
+      });
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     },
   });
@@ -294,9 +437,20 @@ export default function Manage() {
       }
       if (data.alert_threshold !== undefined) updateData.alert_threshold = data.alert_threshold;
       if (data.is_active !== undefined) updateData.is_active = data.is_active;
+      logger.info('Updating notification group', {
+        component: 'Manage',
+        action: 'update_notification_group',
+        groupId,
+        userId: user?.id,
+      });
       return await NotificationGroupApiService.updateGroup(groupId, updateData);
     },
     onSuccess: () => {
+      logger.info('Notification group updated successfully', {
+        component: 'Manage',
+        action: 'update_notification_group',
+        userId: user?.id,
+      });
       toast({ title: 'Success', description: 'Notification group updated successfully' });
       refetchNotificationGroups();
       setEditNotificationDialogOpen(false);
@@ -304,19 +458,42 @@ export default function Manage() {
       editNotificationForm.reset();
     },
     onError: (error: any) => {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to update notification group', err, {
+        component: 'Manage',
+        action: 'update_notification_group',
+        userId: user?.id,
+      });
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     },
   });
 
   const deleteNotificationGroupMutation = useMutation({
     mutationFn: async (groupId: string) => {
+      logger.info('Deleting notification group', {
+        component: 'Manage',
+        action: 'delete_notification_group',
+        groupId,
+        userId: user?.id,
+      });
       return await NotificationGroupApiService.deleteGroup(groupId);
     },
     onSuccess: () => {
+      logger.info('Notification group deleted successfully', {
+        component: 'Manage',
+        action: 'delete_notification_group',
+        userId: user?.id,
+      });
       toast({ title: 'Success', description: 'Notification group deleted successfully' });
       refetchNotificationGroups();
     },
     onError: (error: any) => {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to delete notification group', err, {
+        component: 'Manage',
+        action: 'delete_notification_group',
+        userId: user?.id,
+      });
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     },
   });
@@ -340,9 +517,22 @@ export default function Manage() {
 
   const createGatewayMutation = useMutation({
     mutationFn: async (data: z.infer<typeof gatewaySchema>) => {
+      logger.info('Creating gateway', {
+        component: 'Manage',
+        action: 'create_gateway',
+        gatewayName: data.name,
+        gatewayType: data.type,
+        userId: user?.id,
+      });
       return await GatewayApiService.createGateway(data);
     },
     onSuccess: (response) => {
+      logger.info('Gateway created successfully', {
+        component: 'Manage',
+        action: 'create_gateway',
+        gatewayId: response?.data?.id,
+        userId: user?.id,
+      });
       toast({ 
         title: 'Success', 
         description: response.message || 'Gateway created successfully',
@@ -363,15 +553,33 @@ export default function Manage() {
       }
     },
     onError: (error: any) => {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to create gateway', err, {
+        component: 'Manage',
+        action: 'create_gateway',
+        userId: user?.id,
+      });
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     },
   });
 
   const regenerateKeyMutation = useMutation({
     mutationFn: async (gatewayId: string) => {
+      logger.info('Regenerating gateway registration key', {
+        component: 'Manage',
+        action: 'regenerate_gateway_key',
+        gatewayId,
+        userId: user?.id,
+      });
       return await GatewayApiService.regenerateRegistrationKey(gatewayId);
     },
     onSuccess: (response) => {
+      logger.info('Gateway registration key regenerated successfully', {
+        component: 'Manage',
+        action: 'regenerate_gateway_key',
+        gatewayId: selectedGateway?.id,
+        userId: user?.id,
+      });
       toast({ title: 'Success', description: 'Registration key regenerated successfully' });
       // The response now contains the registration key string directly
       setRegistrationKey(response.data.registration_key);
@@ -379,15 +587,34 @@ export default function Manage() {
       setRegistrationKeyDialogOpen(true);
     },
     onError: (error: any) => {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to regenerate gateway registration key', err, {
+        component: 'Manage',
+        action: 'regenerate_gateway_key',
+        gatewayId: selectedGateway?.id,
+        userId: user?.id,
+      });
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     },
   });
 
   const downloadKeyMutation = useMutation({
     mutationFn: async (gatewayId: string) => {
+      logger.info('Downloading gateway registration key', {
+        component: 'Manage',
+        action: 'download_gateway_key',
+        gatewayId,
+        userId: user?.id,
+      });
       return await GatewayApiService.downloadRegistrationKey(gatewayId);
     },
     onSuccess: (keyContent) => {
+      logger.info('Gateway registration key downloaded successfully', {
+        component: 'Manage',
+        action: 'download_gateway_key',
+        gatewayId: selectedGateway?.id,
+        userId: user?.id,
+      });
       // Create and download the file
       const blob = new Blob([keyContent], { type: 'text/plain' });
       const url = window.URL.createObjectURL(blob);
@@ -402,15 +629,34 @@ export default function Manage() {
       toast({ title: 'Success', description: 'Registration key downloaded' });
     },
     onError: (error: any) => {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to download gateway registration key', err, {
+        component: 'Manage',
+        action: 'download_gateway_key',
+        gatewayId: selectedGateway?.id,
+        userId: user?.id,
+      });
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     },
   });
 
   const updateGatewayMutation = useMutation({
     mutationFn: async ({ gatewayId, data }: { gatewayId: string; data: z.infer<typeof gatewaySchema> }) => {
+      logger.info('Updating gateway', {
+        component: 'Manage',
+        action: 'update_gateway',
+        gatewayId,
+        gatewayName: data.name,
+        userId: user?.id,
+      });
       return await GatewayApiService.updateGateway(gatewayId, data);
     },
     onSuccess: () => {
+      logger.info('Gateway updated successfully', {
+        component: 'Manage',
+        action: 'update_gateway',
+        userId: user?.id,
+      });
       toast({ title: 'Success', description: 'Gateway updated successfully' });
       refetchGateways();
       setEditGatewayDialogOpen(false);
@@ -418,19 +664,42 @@ export default function Manage() {
       gatewayForm.reset();
     },
     onError: (error: any) => {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to update gateway', err, {
+        component: 'Manage',
+        action: 'update_gateway',
+        userId: user?.id,
+      });
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     },
   });
 
   const deleteGatewayMutation = useMutation({
     mutationFn: async (gatewayId: string) => {
+      logger.info('Deleting gateway', {
+        component: 'Manage',
+        action: 'delete_gateway',
+        gatewayId,
+        userId: user?.id,
+      });
       return await GatewayApiService.deleteGateway(gatewayId);
     },
     onSuccess: () => {
+      logger.info('Gateway deleted successfully', {
+        component: 'Manage',
+        action: 'delete_gateway',
+        userId: user?.id,
+      });
       toast({ title: 'Success', description: 'Gateway deleted successfully' });
       refetchGateways();
     },
     onError: (error: any) => {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to delete gateway', err, {
+        component: 'Manage',
+        action: 'delete_gateway',
+        userId: user?.id,
+      });
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     },
   });

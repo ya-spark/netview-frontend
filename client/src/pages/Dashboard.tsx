@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +7,7 @@ import { Layout } from '@/components/Layout';
 import { BarChart3, AlertTriangle, CheckCircle, DollarSign, RefreshCw, Plus, Search, Filter } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProbeUtils } from '@/services/probeApi';
+import { logger } from '@/lib/logger';
 import type { Probe } from '@/types/probe';
 
 // Mock data
@@ -205,9 +206,21 @@ export default function Dashboard() {
   const stats = mockStats;
   const probes = mockProbes;
 
+  useEffect(() => {
+    logger.debug('Dashboard page initialized', {
+      component: 'Dashboard',
+      userId: user?.id,
+      probeCount: probes.data?.length || 0,
+    });
+  }, [user?.id, probes.data?.length]);
+
   const handleRefresh = () => {
+    logger.info('Dashboard refresh requested', {
+      component: 'Dashboard',
+      action: 'refresh',
+      userId: user?.id,
+    });
     // Mock refresh - no API calls
-    console.log('Refresh clicked (mock mode)');
   };
 
   const filteredProbes = (probes.data || []).filter((probe: any) =>
@@ -337,7 +350,15 @@ export default function Dashboard() {
                   <Input
                     placeholder="Search probes..."
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      logger.debug('Dashboard search term changed', {
+                        component: 'Dashboard',
+                        action: 'search',
+                        searchTerm: e.target.value,
+                        userId: user?.id,
+                      });
+                    }}
                     className="pl-10 w-full sm:w-64"
                     data-testid="input-search"
                   />

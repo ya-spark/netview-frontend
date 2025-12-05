@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { BarChart3, TrendingUp, TrendingDown, Download, Calendar, Filter } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProbeApiService } from '@/services/probeApi';
+import { logger } from '@/lib/logger';
 import { subDays, format } from 'date-fns';
 
 export default function Reports() {
@@ -18,11 +19,33 @@ export default function Reports() {
   });
   const [selectedProbe, setSelectedProbe] = useState('all');
 
+  useEffect(() => {
+    logger.debug('Reports page initialized', {
+      component: 'Reports',
+      userId: user?.id,
+      dateRange: {
+        from: dateRange.from.toISOString(),
+        to: dateRange.to.toISOString(),
+      },
+    });
+  }, [user?.id, dateRange]);
+
   const { data: probes } = useQuery({
     queryKey: ['/api/probes'],
     enabled: !!user,
     queryFn: async () => {
-      return await ProbeApiService.listProbes();
+      logger.debug('Fetching probes for reports', {
+        component: 'Reports',
+        action: 'fetch_probes',
+        userId: user?.id,
+      });
+      const result = await ProbeApiService.listProbes();
+      logger.info('Probes loaded for reports', {
+        component: 'Reports',
+        action: 'fetch_probes',
+        probeCount: result?.data?.length || 0,
+      });
+      return result;
     },
   });
 

@@ -13,6 +13,7 @@ import { Layout } from '@/components/Layout';
 import { isBusinessEmail } from '@/utils/emailValidation';
 import { createUserWithEmailAndPassword, signInWithGoogle, signOut } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { logger } from '@/lib/logger';
 import { Chrome } from 'lucide-react';
 
 const signUpSchema = z.object({
@@ -51,9 +52,16 @@ export default function SignUp() {
   const handleGoogleSignUp = async () => {
     setGoogleLoading(true);
     try {
-      console.log('🔐 SignUp: Starting Google sign-up...');
+      logger.info('Starting Google sign-up', {
+        component: 'SignUp',
+        action: 'google_signup',
+      });
       const firebaseUser = await signInWithGoogle();
-      console.log('✅ SignUp: Google sign-up successful');
+      logger.info('Google sign-up successful', {
+        component: 'SignUp',
+        action: 'google_signup',
+        email: firebaseUser.email,
+      });
       
       // Validate business email
       const email = firebaseUser.email;
@@ -64,6 +72,11 @@ export default function SignUp() {
       if (!isBusinessEmail(email)) {
         // Sign out the user if email is not a business email
         await signOut();
+        logger.warn('Business email required, signing out user', {
+          component: 'SignUp',
+          action: 'google_signup',
+          email,
+        });
         toast({
           title: "Business Email Required",
           description: "Only business email addresses are allowed. Public email providers (Gmail, Yahoo, etc.) are not permitted.",
@@ -96,15 +109,28 @@ export default function SignUp() {
         firstName,
         lastName,
       };
-      console.log('💾 Storing sign-up data in sessionStorage:', signUpData);
+      logger.debug('Storing sign-up data in sessionStorage', {
+        component: 'SignUp',
+        action: 'google_signup',
+        hasFirstName: !!firstName,
+        hasLastName: !!lastName,
+      });
       sessionStorage.setItem('signUpData', JSON.stringify(signUpData));
       
       // Redirect to onboarding
       // Onboarding will handle email verification and registration
-      console.log('✅ Redirecting to onboarding for email verification and registration');
+      logger.info('Redirecting to onboarding for email verification and registration', {
+        component: 'SignUp',
+        action: 'google_signup',
+        email,
+      });
       setLocation('/onboarding');
     } catch (error: any) {
-      console.error('❌ SignUp: Google sign-up failed:', error);
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Google sign-up failed', err, {
+        component: 'SignUp',
+        action: 'google_signup',
+      });
       
       // Handle specific Firebase errors
       let errorMessage = error.message || "Failed to sign up with Google. Please try again.";
@@ -130,14 +156,26 @@ export default function SignUp() {
   };
 
   const handleSubmit = async (data: SignUpFormData) => {
-    console.log('📝 SignUp: Form submitted:', data.email);
+    logger.info('Form submitted', {
+      component: 'SignUp',
+      action: 'email_signup',
+      email: data.email,
+    });
     setLoading(true);
 
     try {
       // Step 1: Create Firebase account
-      console.log('🔐 Creating Firebase account...');
+      logger.info('Creating Firebase account', {
+        component: 'SignUp',
+        action: 'email_signup',
+        email: data.email,
+      });
       await createUserWithEmailAndPassword(data.email, data.password);
-      console.log('✅ Firebase account created successfully');
+      logger.info('Firebase account created successfully', {
+        component: 'SignUp',
+        action: 'email_signup',
+        email: data.email,
+      });
       
       // Step 2: Store signup data for onboarding/registration
       // This will be used during onboarding to register with backend after email verification
@@ -145,15 +183,29 @@ export default function SignUp() {
         firstName: data.firstName,
         lastName: data.lastName,
       };
-      console.log('💾 Storing sign-up data in sessionStorage:', signUpData);
+      logger.debug('Storing sign-up data in sessionStorage', {
+        component: 'SignUp',
+        action: 'email_signup',
+        hasFirstName: !!data.firstName,
+        hasLastName: !!data.lastName,
+      });
       sessionStorage.setItem('signUpData', JSON.stringify(signUpData));
       
       // Step 3: Redirect to onboarding
       // Onboarding will handle email verification and registration
-      console.log('✅ Redirecting to onboarding for email verification and registration');
+      logger.info('Redirecting to onboarding for email verification and registration', {
+        component: 'SignUp',
+        action: 'email_signup',
+        email: data.email,
+      });
       setLocation('/onboarding');
     } catch (error: any) {
-      console.error('❌ SignUp: Account creation failed:', error);
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Account creation failed', err, {
+        component: 'SignUp',
+        action: 'email_signup',
+        email: data.email,
+      });
       
       // Handle specific Firebase errors
       let errorMessage = error.message || "Failed to create account. Please try again.";

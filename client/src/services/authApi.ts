@@ -1,15 +1,22 @@
 // Auth API service functions for authentication and user management
 
 import { apiRequest } from '../lib/queryClient';
+import { logger } from '../lib/logger';
 
 /**
  * Send verification code to email address
  * @returns Promise that resolves when code is sent
  */
 export async function sendVerificationCode(): Promise<void> {
-  console.log('📧 Sending verification code...');
+  logger.info('Sending verification code', {
+    component: 'authApi',
+    action: 'send_verification_code',
+  });
   await apiRequest('POST', '/api/auth/send-verification-code', {});
-  console.log('✅ Verification code sent successfully');
+  logger.info('Verification code sent successfully', {
+    component: 'authApi',
+    action: 'send_verification_code',
+  });
 }
 
 /**
@@ -18,9 +25,15 @@ export async function sendVerificationCode(): Promise<void> {
  * @returns Promise that resolves when code is verified
  */
 export async function verifyCode(code: string): Promise<void> {
-  console.log('🔐 Verifying code...');
+  logger.info('Verifying code', {
+    component: 'authApi',
+    action: 'verify_code',
+  });
   await apiRequest('POST', '/api/auth/verify-code', { code });
-  console.log('✅ Code verified successfully');
+  logger.info('Code verified successfully', {
+    component: 'authApi',
+    action: 'verify_code',
+  });
 }
 
 /**
@@ -28,7 +41,10 @@ export async function verifyCode(code: string): Promise<void> {
  * @returns Promise that resolves with User object
  */
 export async function getCurrentUser(): Promise<any> {
-  console.log('👤 Fetching current user from backend...');
+  logger.debug('Fetching current user from backend', {
+    component: 'authApi',
+    action: 'get_current_user',
+  });
   const response = await apiRequest('GET', '/api/auth/me');
   const responseData = await response.json();
   
@@ -38,11 +54,20 @@ export async function getCurrentUser(): Promise<any> {
   
   // Validate that we have a valid user object
   if (!user || (!user.id && !user.email)) {
-    console.error('❌ Invalid user response:', responseData);
+    logger.error('Invalid user response from /api/auth/me', new Error('User data is missing'), {
+      component: 'authApi',
+      action: 'get_current_user',
+    }, responseData);
     throw new Error('Invalid response from /api/auth/me. User data is missing.');
   }
   
-  console.log('✅ User fetched successfully:', { id: user.id, email: user.email, role: user.role });
+  logger.info('User fetched successfully', {
+    component: 'authApi',
+    action: 'get_current_user',
+    userId: user.id,
+    userEmail: user.email,
+    userRole: user.role,
+  });
   return user;
 }
 
@@ -60,7 +85,14 @@ export async function registerUser(
   company?: string,
   region?: string
 ): Promise<any> {
-  console.log('📝 Registering new user with backend...');
+  logger.info('Registering new user with backend', {
+    component: 'authApi',
+    action: 'register_user',
+    firstName,
+    lastName,
+    hasCompany: !!company,
+    hasRegion: !!region,
+  });
   const response = await apiRequest('POST', '/api/auth/register', {
     firstName,
     lastName,
@@ -75,11 +107,20 @@ export async function registerUser(
   const user = responseData.data || responseData;
   
   if (!user || !user.id) {
-    console.error('❌ Invalid registration response:', responseData);
+    logger.error('Invalid registration response', new Error('User data is missing'), {
+      component: 'authApi',
+      action: 'register_user',
+    }, responseData);
     throw new Error('Invalid response from registration endpoint. User data is missing.');
   }
   
-  console.log('✅ User registered successfully:', { id: user.id, email: user.email, role: user.role });
+  logger.info('User registered successfully', {
+    component: 'authApi',
+    action: 'register_user',
+    userId: user.id,
+    userEmail: user.email,
+    userRole: user.role,
+  });
   return user;
 }
 

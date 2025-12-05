@@ -1,6 +1,7 @@
 // Notification Group API service functions based on NetView API specification
 
 import { apiRequest } from '../lib/queryClient';
+import { logger } from '../lib/logger';
 import type {
   NotificationGroupCreate,
   NotificationGroupUpdate,
@@ -32,8 +33,20 @@ export class NotificationGroupApiService {
    * Create a new notification group
    */
   static async createGroup(data: NotificationGroupCreate): Promise<NotificationGroupSingleResponse> {
+    logger.info('Creating notification group', {
+      component: 'notificationApi',
+      action: 'create_group',
+      groupName: data.name,
+      emailCount: data.emails?.length || 0,
+    });
     const response = await apiRequest('POST', '/api/notifications/groups', data);
-    return response.json();
+    const result = await response.json();
+    logger.info('Notification group created successfully', {
+      component: 'notificationApi',
+      action: 'create_group',
+      groupId: result?.data?.id,
+    });
+    return result;
   }
 
   /**
@@ -43,16 +56,38 @@ export class NotificationGroupApiService {
     groupId: string,
     data: NotificationGroupUpdate
   ): Promise<NotificationGroupSingleResponse> {
+    logger.info('Updating notification group', {
+      component: 'notificationApi',
+      action: 'update_group',
+      groupId,
+    });
     const response = await apiRequest('PUT', `/api/notifications/groups/${groupId}`, data);
-    return response.json();
+    const result = await response.json();
+    logger.info('Notification group updated successfully', {
+      component: 'notificationApi',
+      action: 'update_group',
+      groupId,
+    });
+    return result;
   }
 
   /**
    * Delete a notification group
    */
   static async deleteGroup(groupId: string): Promise<{ message: string }> {
+    logger.info('Deleting notification group', {
+      component: 'notificationApi',
+      action: 'delete_group',
+      groupId,
+    });
     const response = await apiRequest('DELETE', `/api/notifications/groups/${groupId}`);
-    return response.json();
+    const result = await response.json();
+    logger.info('Notification group deleted successfully', {
+      component: 'notificationApi',
+      action: 'delete_group',
+      groupId,
+    });
+    return result;
   }
 }
 

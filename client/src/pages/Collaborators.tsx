@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { CollaboratorApiService } from '@/services/collaboratorApi';
+import { logger } from '@/lib/logger';
 import type { Collaborator, CollaboratorCreate, CollaboratorUpdate } from '@/types/collaborator';
 
 // Schema for creating collaborator (matches API request format with snake_case)
@@ -52,6 +53,14 @@ export default function Collaborators() {
   // Check if user can manage collaborators (only Owner role per API requirements)
   const canManageCollaborators = user?.role === 'Owner';
 
+  useEffect(() => {
+    logger.debug('Collaborators page initialized', {
+      component: 'Collaborators',
+      userId: user?.id,
+      canManage: canManageCollaborators,
+    });
+  }, [user?.id, canManageCollaborators]);
+
   // Query to fetch collaborators
   const {
     data: collaboratorsResponse,
@@ -64,7 +73,19 @@ export default function Collaborators() {
       if (!user?.email || !user?.tenantId) {
         throw new Error('User email and tenant ID are required');
       }
-      return CollaboratorApiService.listCollaborators(user.email, user.tenantId);
+      logger.debug('Fetching collaborators', {
+        component: 'Collaborators',
+        action: 'list_collaborators',
+        userId: user.id,
+        tenantId: user.tenantId,
+      });
+      const result = await CollaboratorApiService.listCollaborators(user.email, user.tenantId);
+      logger.info('Collaborators loaded', {
+        component: 'Collaborators',
+        action: 'list_collaborators',
+        collaboratorCount: result?.data?.length || 0,
+      });
+      return result;
     },
     enabled: !!user?.email && !!user?.tenantId && canManageCollaborators,
   });
@@ -110,9 +131,22 @@ export default function Collaborators() {
         role: data.role,
         is_active: data.is_active,
       };
+      logger.info('Creating collaborator', {
+        component: 'Collaborators',
+        action: 'create_collaborator',
+        collaboratorEmail: data.email,
+        role: data.role,
+        userId: user.id,
+      });
       return CollaboratorApiService.createCollaborator(createData, user.email, user.tenantId);
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
+      logger.info('Collaborator created successfully', {
+        component: 'Collaborators',
+        action: 'create_collaborator',
+        collaboratorId: response?.data?.id,
+        userId: user?.id,
+      });
       const toastResult = toast({ 
         title: 'Success', 
         description: 'Collaborator invited successfully'
@@ -126,6 +160,12 @@ export default function Collaborators() {
       queryClient.invalidateQueries({ queryKey: ['collaborators'] });
     },
     onError: (error: any) => {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to create collaborator', err, {
+        component: 'Collaborators',
+        action: 'create_collaborator',
+        userId: user?.id,
+      });
       const errorMessage = error.message || 'Failed to invite collaborator';
       toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
     },
@@ -143,9 +183,20 @@ export default function Collaborators() {
       if (data.email !== undefined && data.email !== '') updateData.email = data.email;
       if (data.role !== undefined) updateData.role = data.role;
       if (data.is_active !== undefined) updateData.is_active = data.is_active;
+      logger.info('Updating collaborator', {
+        component: 'Collaborators',
+        action: 'update_collaborator',
+        collaboratorId: id,
+        userId: user.id,
+      });
       return CollaboratorApiService.updateCollaborator(id, updateData, user.email, user.tenantId);
     },
     onSuccess: () => {
+      logger.info('Collaborator updated successfully', {
+        component: 'Collaborators',
+        action: 'update_collaborator',
+        userId: user?.id,
+      });
       toast({ title: 'Success', description: 'Collaborator updated successfully' });
       setEditDialogOpen(false);
       setSelectedCollaborator(null);
@@ -153,6 +204,12 @@ export default function Collaborators() {
       queryClient.invalidateQueries({ queryKey: ['collaborators'] });
     },
     onError: (error: any) => {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to update collaborator', err, {
+        component: 'Collaborators',
+        action: 'update_collaborator',
+        userId: user?.id,
+      });
       const errorMessage = error.message || 'Failed to update collaborator';
       toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
     },
@@ -164,15 +221,32 @@ export default function Collaborators() {
       if (!user?.email || !user?.tenantId) {
         throw new Error('User email and tenant ID are required');
       }
+      logger.info('Deleting collaborator', {
+        component: 'Collaborators',
+        action: 'delete_collaborator',
+        collaboratorId: id,
+        userId: user.id,
+      });
       return CollaboratorApiService.deleteCollaborator(id, user.email, user.tenantId);
     },
     onSuccess: () => {
+      logger.info('Collaborator deleted successfully', {
+        component: 'Collaborators',
+        action: 'delete_collaborator',
+        userId: user?.id,
+      });
       toast({ title: 'Success', description: 'Collaborator deleted successfully' });
       setDeleteDialogOpen(false);
       setSelectedCollaborator(null);
       queryClient.invalidateQueries({ queryKey: ['collaborators'] });
     },
     onError: (error: any) => {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to delete collaborator', err, {
+        component: 'Collaborators',
+        action: 'delete_collaborator',
+        userId: user?.id,
+      });
       const errorMessage = error.message || 'Failed to delete collaborator';
       toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
     },

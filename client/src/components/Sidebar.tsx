@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
+import { logger } from "@/lib/logger";
 
 // Dashboard Sidebar Component
 function DashboardSidebar() {
@@ -51,6 +52,19 @@ function DashboardSidebar() {
     queryKey: ["/api/gateways"],
     enabled: !!user,
   });
+
+  // Log when data is loaded
+  useEffect(() => {
+    if (stats || gateways) {
+      logger.debug('Sidebar data loaded', {
+        component: 'Sidebar',
+        action: 'data_loaded',
+        hasStats: !!stats,
+        gatewayCount: Array.isArray(gateways) ? gateways.length : (gateways?.data?.length || 0),
+        userId: user?.id,
+      });
+    }
+  }, [stats, gateways, user?.id]);
 
   // Mock critical notifications - will be replaced with real data
   const mockNotifications = [

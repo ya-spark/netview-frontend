@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { useSidebar } from "@/components/ui/sidebar";
 import { Bell, Settings, CreditCard, Users, LogOut, Menu } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { logger } from "@/lib/logger";
 
 export function Header() {
   const [location] = useLocation();
@@ -49,7 +50,21 @@ export function Header() {
     return `${first}${last}`.toUpperCase();
   };
 
+  useEffect(() => {
+    logger.debug('Header component initialized', {
+      component: 'Header',
+      isAuthenticated,
+      location,
+      userId: user?.id,
+    });
+  }, [isAuthenticated, location, user?.id]);
+
   const handleSignOut = async () => {
+    logger.info('User signing out', {
+      component: 'Header',
+      action: 'sign_out',
+      userId: user?.id,
+    });
     await signOut();
   };
 
