@@ -23,8 +23,6 @@ import type { Collaborator, CollaboratorCreate, CollaboratorUpdate } from '@/typ
 // Schema for creating collaborator (matches API request format with snake_case)
 const collaboratorCreateSchema = z.object({
   email: z.string().email('Invalid email address'),
-  first_name: z.string().min(1, 'First name is required'),
-  last_name: z.string().min(1, 'Last name is required'),
   role: z.enum(['SuperAdmin', 'Owner', 'Admin', 'Editor', 'Viewer']),
   is_active: z.boolean().optional().default(true),
 });
@@ -106,8 +104,6 @@ export default function Collaborators() {
     resolver: zodResolver(collaboratorCreateSchema),
     defaultValues: {
       email: '',
-      first_name: '',
-      last_name: '',
       role: 'Viewer',
       is_active: true,
     },
@@ -126,8 +122,6 @@ export default function Collaborators() {
       }
       const createData: CollaboratorCreate = {
         email: data.email,
-        first_name: data.first_name,
-        last_name: data.last_name,
         role: data.role,
         is_active: data.is_active,
       };
@@ -383,34 +377,6 @@ export default function Collaborators() {
                             </FormItem>
                           )}
                         />
-                        <div className="grid grid-cols-2 gap-4">
-                          <FormField
-                            control={createForm.control}
-                            name="first_name"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>First Name</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="John" {...field} data-testid="input-first-name" />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={createForm.control}
-                            name="last_name"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Last Name</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="Doe" {...field} data-testid="input-last-name" />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
                         <FormField
                           control={createForm.control}
                           name="role"

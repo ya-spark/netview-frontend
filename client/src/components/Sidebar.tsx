@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { Link, Router, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -40,6 +40,26 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { logger } from "@/lib/logger";
 import { DashboardApiService } from "@/services/dashboardApi";
+import { ProbeApiService } from "@/services/probeApi";
+import { GatewayApiService } from "@/services/gatewayApi";
+import type { ProbeResult } from "@/types/probe";
+import type { GatewayResponse } from "@/types/gateway";
+
+// Helper function to format time ago
+const formatTimeAgo = (timestamp: string): string => {
+  if (!timestamp) return "Unknown";
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+};
 
 // Dashboard Sidebar Component
 function DashboardSidebar() {
@@ -67,45 +87,107 @@ function DashboardSidebar() {
     creditsUsed: 0, // Not available in dashboard stats
   } : null;
 
-  const { data: gateways } = useQuery({
+  // Fetch all probes
+  const { data: probesData } = useQuery({
+    queryKey: ["/api/probes"],
+    enabled: !!user,
+    queryFn: () => ProbeApiService.listProbes(),
+  });
+
+  // Fetch all gateways
+  const { data: gatewaysData } = useQuery({
     queryKey: ["/api/gateways"],
     enabled: !!user,
+    queryFn: () => GatewayApiService.listGateways(),
   });
+
+  // Fetch probe results for all probes (last result for each)
+  const { data: probeResultsData } = useQuery({
+    queryKey: ["/api/probe-results"],
+    queryFn: async () => {
+      if (!probesData?.data) return {};
+      const results: Record<string, ProbeResult[]> = {};
+      await Promise.all(
+        probesData.data.map(async (probe) => {
+          try {
+            const response = await ProbeApiService.getProbeResults(probe.id, { limit: 1 });
+            results[probe.id] = response.data;
+          } catch (error) {
+            results[probe.id] = [];
+          }
+        })
+      );
+      return results;
+    },
+    enabled: !!user && !!probesData?.data,
+  });
+
+  // Calculate critical notifications from real data
+  const criticalNotifications = useMemo(() => {
+    const notifications: Array<{
+      id: string;
+      message: string;
+      severity: "critical";
+      time: string;
+      timestamp: string;
+    }> = [];
+
+    // Check for down probes
+    if (probesData?.data && probeResultsData) {
+      probesData.data.forEach((probe) => {
+        if (!probe.is_active) return;
+        
+        const results = probeResultsData[probe.id] || [];
+        const latestResult = results[0];
+        
+        if (latestResult && latestResult.status === 'Failure') {
+          notifications.push({
+            id: `probe-${probe.id}`,
+            message: `Probe "${probe.name}" is down`,
+            severity: "critical",
+            time: formatTimeAgo(latestResult.checked_at),
+            timestamp: latestResult.checked_at,
+          });
+        }
+      });
+    }
+
+    // Check for offline gateways
+    if (gatewaysData?.data) {
+      gatewaysData.data.forEach((gateway) => {
+        // Only consider active gateways that are offline (not pending or revoked)
+        if (gateway.status === 'active' && !gateway.is_online) {
+          notifications.push({
+            id: `gateway-${gateway.id}`,
+            message: `Gateway "${gateway.name}" is offline`,
+            severity: "critical",
+            time: gateway.last_heartbeat ? formatTimeAgo(gateway.last_heartbeat) : "Unknown",
+            timestamp: gateway.last_heartbeat || gateway.updated_at,
+          });
+        }
+      });
+    }
+
+    // Sort by timestamp (most recent first)
+    return notifications.sort((a, b) => 
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+  }, [probesData, probeResultsData, gatewaysData]);
 
   // Log when data is loaded
   useEffect(() => {
-    if (stats || gateways) {
+    if (stats || gatewaysData) {
       logger.debug('Sidebar data loaded', {
         component: 'Sidebar',
         action: 'data_loaded',
         hasStats: !!stats,
-        gatewayCount: Array.isArray(gateways) ? gateways.length : (gateways?.data?.length || 0),
+        gatewayCount: gatewaysData?.data?.length || 0,
+        probeCount: probesData?.data?.length || 0,
+        criticalNotificationsCount: criticalNotifications.length,
         userId: user?.id,
       });
     }
-  }, [stats, gateways, user?.id]);
-
-  // Mock critical notifications - will be replaced with real data
-  const mockNotifications = [
-    {
-      id: 1,
-      message: "API Service down",
-      severity: "critical",
-      time: "2 min ago",
-    },
-    {
-      id: 2,
-      message: "High response time",
-      severity: "warning",
-      time: "5 min ago",
-    },
-    {
-      id: 3,
-      message: "SSL cert expiring",
-      severity: "info",
-      time: "1 hour ago",
-    },
-  ];
+  }, [stats, gatewaysData, probesData, criticalNotifications.length, user?.id]);
 
   return (
     <div className="space-y-6">
@@ -153,8 +235,8 @@ function DashboardSidebar() {
           Gateway Status
         </div>
         <div className="space-y-2">
-          {gateways && Array.isArray(gateways?.data) && gateways.data.length > 0 ? (
-            gateways.data.map((gateway: any) => (
+          {gatewaysData && Array.isArray(gatewaysData?.data) && gatewaysData.data.length > 0 ? (
+            gatewaysData.data.map((gateway: GatewayResponse) => (
               <div
                 key={gateway.id}
                 className="flex items-center justify-between text-xs"
@@ -162,7 +244,7 @@ function DashboardSidebar() {
                 <div className="flex items-center">
                   <div
                     className={`w-2 h-2 rounded-full mr-2 ${
-                      gateway.isOnline ? "bg-secondary" : 
+                      gateway.is_online ? "bg-secondary" : 
                       gateway.status === 'pending' ? "bg-amber-500" : "bg-destructive"
                     }`}
                   />
@@ -170,7 +252,7 @@ function DashboardSidebar() {
                 </div>
                 <Badge
                   className={`text-xs ${
-                    gateway.isOnline 
+                    gateway.is_online 
                       ? 'bg-green-100 text-green-700 border-green-200' 
                       : gateway.status === 'pending'
                       ? 'bg-yellow-100 text-yellow-700 border-yellow-200'
@@ -179,7 +261,7 @@ function DashboardSidebar() {
                       : 'bg-red-100 text-red-700 border-red-200'
                   }`}
                 >
-                  {gateway.isOnline ? "Online" : 
+                  {gateway.is_online ? "Online" : 
                    gateway.status === 'pending' ? "Pending" : "Offline"}
                 </Badge>
               </div>
@@ -198,32 +280,32 @@ function DashboardSidebar() {
           Critical Notifications
         </div>
         <div className="space-y-2">
-          {mockNotifications.map((notification) => (
-            <div
-              key={notification.id}
-              className="p-2 rounded-md bg-accent/50 border border-border"
-            >
-              <div className="flex items-start space-x-2">
-                <AlertTriangle
-                  className={`w-3 h-3 mt-0.5 ${
-                    notification.severity === "critical"
-                      ? "text-destructive"
-                      : notification.severity === "warning"
-                        ? "text-amber-500"
-                        : "text-blue-500"
-                  }`}
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-foreground font-medium">
-                    {notification.message}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {notification.time}
-                  </p>
+          {criticalNotifications.length === 0 ? (
+            <div className="text-xs text-muted-foreground text-center py-2">
+              No critical notifications
+            </div>
+          ) : (
+            criticalNotifications.map((notification) => (
+              <div
+                key={notification.id}
+                className="p-2 rounded-md bg-accent/50 border border-border"
+              >
+                <div className="flex items-start space-x-2">
+                  <AlertTriangle
+                    className="w-3 h-3 mt-0.5 text-destructive"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-foreground font-medium">
+                      {notification.message}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {notification.time}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
     </div>

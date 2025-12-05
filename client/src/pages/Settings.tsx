@@ -1,11 +1,9 @@
-import { useState, useEffect } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -17,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { logger } from '@/lib/logger';
-import { User, Settings as SettingsIcon, Shield, Bell, Users, Globe } from 'lucide-react';
+import { User, Shield, Bell } from 'lucide-react';
 
 const profileSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -27,22 +25,17 @@ const profileSchema = z.object({
   region: z.string().optional(),
 });
 
-const tenantSchema = z.object({
-  name: z.string().min(1, 'Organization name is required'),
-  subdomain: z.string().optional(),
-});
-
 const notificationSchema = z.object({
   emailEnabled: z.boolean(),
-  smsEnabled: z.boolean(),
   webhookEnabled: z.boolean(),
-  alertThreshold: z.number().min(1).max(10),
+  gatewayAdministration: z.boolean(),
+  apiKeyCreations: z.boolean(),
+  reportDownloads: z.boolean(),
 });
 
 export default function Settings() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     logger.debug('Settings page initialized', {
@@ -50,22 +43,6 @@ export default function Settings() {
       userId: user?.id,
     });
   }, [user?.id]);
-
-  const { data: tenant } = useQuery<{
-    id: string;
-    name: string;
-    subdomain?: string;
-    billingTier: string;
-    balance: number;
-    creditsLimit: number;
-    creditsUsed: number;
-    isActive: boolean;
-    createdAt: string;
-    updatedAt: string;
-  }>({
-    queryKey: ['/api/tenant', user?.tenantId],
-    enabled: !!user?.tenantId,
-  });
 
   const profileForm = useForm<z.infer<typeof profileSchema>>({
     resolver: zodResolver(profileSchema),
@@ -78,21 +55,14 @@ export default function Settings() {
     },
   });
 
-  const tenantForm = useForm<z.infer<typeof tenantSchema>>({
-    resolver: zodResolver(tenantSchema),
-    defaultValues: {
-      name: tenant?.name || '',
-      subdomain: tenant?.subdomain || '',
-    },
-  });
-
   const notificationForm = useForm<z.infer<typeof notificationSchema>>({
     resolver: zodResolver(notificationSchema),
     defaultValues: {
       emailEnabled: true,
-      smsEnabled: false,
       webhookEnabled: false,
-      alertThreshold: 3,
+      gatewayAdministration: true,
+      apiKeyCreations: true,
+      reportDownloads: true,
     },
   });
 
@@ -126,39 +96,34 @@ export default function Settings() {
     },
   });
 
-  const updateTenantMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof tenantSchema>) => {
-      logger.info('Updating tenant settings', {
+  const updateNotificationMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof notificationSchema>) => {
+      logger.info('Updating notification preferences', {
         component: 'Settings',
-        action: 'update_tenant',
+        action: 'update_notifications',
         userId: user?.id,
-        tenantId: user?.tenantId,
       });
-      const response = await apiRequest('PUT', `/api/tenants/${user?.tenantId}`, data);
+      const response = await apiRequest('PUT', `/api/users/${user?.id}/notifications`, data);
       return response.json();
     },
     onSuccess: () => {
-      logger.info('Tenant settings updated successfully', {
+      logger.info('Notification preferences updated successfully', {
         component: 'Settings',
-        action: 'update_tenant',
+        action: 'update_notifications',
         userId: user?.id,
-        tenantId: user?.tenantId,
       });
-      toast({ title: 'Success', description: 'Organization settings updated successfully' });
+      toast({ title: 'Success', description: 'Notification preferences updated successfully' });
     },
     onError: (error: any) => {
       const err = error instanceof Error ? error : new Error(String(error));
-      logger.error('Failed to update tenant settings', err, {
+      logger.error('Failed to update notification preferences', err, {
         component: 'Settings',
-        action: 'update_tenant',
+        action: 'update_notifications',
         userId: user?.id,
-        tenantId: user?.tenantId,
       });
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     },
   });
-
-  const canManageOrganization = user?.role === 'SuperAdmin' || user?.role === 'Owner' || user?.role === 'Admin';
 
   return (
     <Layout>
@@ -169,14 +134,10 @@ export default function Settings() {
         </div>
 
         <Tabs defaultValue="profile" className="space-y-4 sm:space-y-6">
-          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-5 gap-1">
+          <TabsList className="grid w-full grid-cols-3 gap-1">
             <TabsTrigger value="profile" data-testid="tab-profile" className="text-xs sm:text-sm">
               <User className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
               <span className="hidden sm:inline">Profile</span>
-            </TabsTrigger>
-            <TabsTrigger value="organization" data-testid="tab-organization" disabled={!canManageOrganization} className="text-xs sm:text-sm">
-              <Globe className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Organization</span>
             </TabsTrigger>
             <TabsTrigger value="notifications" data-testid="tab-notifications" className="text-xs sm:text-sm">
               <Bell className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
@@ -185,10 +146,6 @@ export default function Settings() {
             <TabsTrigger value="security" data-testid="tab-security" className="text-xs sm:text-sm">
               <Shield className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
               <span className="hidden sm:inline">Security</span>
-            </TabsTrigger>
-            <TabsTrigger value="preferences" data-testid="tab-preferences" className="text-xs sm:text-sm">
-              <SettingsIcon className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Preferences</span>
             </TabsTrigger>
           </TabsList>
 
@@ -249,7 +206,7 @@ export default function Settings() {
                         name="company"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Company</FormLabel>
+                            <FormLabel>Organization</FormLabel>
                             <FormControl>
                               <Input {...field} data-testid="input-company" />
                             </FormControl>
@@ -299,79 +256,6 @@ export default function Settings() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="organization" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Organization Settings</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Form {...tenantForm}>
-                  <form onSubmit={tenantForm.handleSubmit((data) => updateTenantMutation.mutate(data))} className="space-y-4">
-                    <FormField
-                      control={tenantForm.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Organization Name</FormLabel>
-                          <FormControl>
-                            <Input {...field} data-testid="input-org-name" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={tenantForm.control}
-                      name="subdomain"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Subdomain (Optional)</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="your-org" data-testid="input-subdomain" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <Button type="submit" disabled={updateTenantMutation.isPending} data-testid="button-save-org">
-                      {updateTenantMutation.isPending ? 'Saving...' : 'Save Changes'}
-                    </Button>
-                  </form>
-                </Form>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Billing Information</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-foreground">Current Plan</p>
-                      <p className="text-sm text-muted-foreground">Free Tier</p>
-                    </div>
-                    <Button variant="outline" data-testid="button-upgrade">
-                      Upgrade Plan
-                    </Button>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-foreground">Credits Used</p>
-                      <p className="text-sm text-muted-foreground">753 of 1,000 this month</p>
-                    </div>
-                    <Button variant="outline" data-testid="button-buy-credits">
-                      Buy Credits
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
           <TabsContent value="notifications" className="space-y-6">
             <Card>
               <CardHeader>
@@ -379,7 +263,7 @@ export default function Settings() {
               </CardHeader>
               <CardContent>
                 <Form {...notificationForm}>
-                  <div className="space-y-6">
+                  <form onSubmit={notificationForm.handleSubmit((data) => updateNotificationMutation.mutate(data))} className="space-y-6">
                     <div className="space-y-4">
                       <FormField
                         control={notificationForm.control}
@@ -388,26 +272,10 @@ export default function Settings() {
                           <FormItem className="flex items-center justify-between">
                             <div>
                               <FormLabel>Email Notifications</FormLabel>
-                              <p className="text-sm text-muted-foreground">Receive alerts via email</p>
+                              <p className="text-sm text-muted-foreground">Enable email notifications</p>
                             </div>
                             <FormControl>
                               <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-email" />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={notificationForm.control}
-                        name="smsEnabled"
-                        render={({ field }) => (
-                          <FormItem className="flex items-center justify-between">
-                            <div>
-                              <FormLabel>SMS Notifications</FormLabel>
-                              <p className="text-sm text-muted-foreground">Receive alerts via SMS</p>
-                            </div>
-                            <FormControl>
-                              <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-sms" />
                             </FormControl>
                           </FormItem>
                         )}
@@ -430,35 +298,63 @@ export default function Settings() {
                       />
                     </div>
 
-                    <FormField
-                      control={notificationForm.control}
-                      name="alertThreshold"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Alert Threshold</FormLabel>
-                          <FormControl>
-                            <div className="flex items-center space-x-4">
-                              <Input 
-                                type="number" 
-                                min="1" 
-                                max="10" 
-                                className="w-20"
-                                {...field} 
-                                onChange={e => field.onChange(parseInt(e.target.value))} 
-                                data-testid="input-alert-threshold"
-                              />
-                              <span className="text-sm text-muted-foreground">failures before alerting</span>
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <div className="border-t pt-4">
+                      <h4 className="font-medium text-foreground mb-4">Major Events - Email Notifications</h4>
+                      <div className="space-y-4">
+                        <FormField
+                          control={notificationForm.control}
+                          name="gatewayAdministration"
+                          render={({ field }) => (
+                            <FormItem className="flex items-center justify-between">
+                              <div>
+                                <FormLabel>Gateway Administration</FormLabel>
+                                <p className="text-sm text-muted-foreground">Notify for gateway creation, deletion, and changes</p>
+                              </div>
+                              <FormControl>
+                                <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-gateway-administration" />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
 
-                    <Button data-testid="button-save-notifications">
-                      Save Notification Settings
+                        <FormField
+                          control={notificationForm.control}
+                          name="apiKeyCreations"
+                          render={({ field }) => (
+                            <FormItem className="flex items-center justify-between">
+                              <div>
+                                <FormLabel>API Key Creations</FormLabel>
+                                <p className="text-sm text-muted-foreground">Notify when API keys are created</p>
+                              </div>
+                              <FormControl>
+                                <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-api-key-creations" />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={notificationForm.control}
+                          name="reportDownloads"
+                          render={({ field }) => (
+                            <FormItem className="flex items-center justify-between">
+                              <div>
+                                <FormLabel>Report Downloads</FormLabel>
+                                <p className="text-sm text-muted-foreground">Notify when reports are downloaded</p>
+                              </div>
+                              <FormControl>
+                                <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-report-downloads" />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+
+                    <Button type="submit" disabled={updateNotificationMutation.isPending} data-testid="button-save-notifications">
+                      {updateNotificationMutation.isPending ? 'Saving...' : 'Save Notification Settings'}
                     </Button>
-                  </div>
+                  </form>
                 </Form>
               </CardContent>
             </Card>
@@ -482,16 +378,6 @@ export default function Settings() {
                   </div>
 
                   <div>
-                    <h4 className="font-medium text-foreground mb-2">Two-Factor Authentication</h4>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Add an extra layer of security to your account
-                    </p>
-                    <Button variant="outline" data-testid="button-setup-2fa">
-                      Setup 2FA
-                    </Button>
-                  </div>
-
-                  <div>
                     <h4 className="font-medium text-foreground mb-2">API Keys</h4>
                     <p className="text-sm text-muted-foreground mb-4">
                       Manage API keys for integrations
@@ -500,101 +386,7 @@ export default function Settings() {
                       Manage API Keys
                     </Button>
                   </div>
-
-                  <div>
-                    <h4 className="font-medium text-foreground mb-2">Session Management</h4>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      View and manage active sessions
-                    </p>
-                    <Button variant="outline" data-testid="button-manage-sessions">
-                      View Sessions
-                    </Button>
-                  </div>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="preferences" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>General Preferences</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label>Theme</Label>
-                      <p className="text-sm text-muted-foreground">Choose your preferred theme</p>
-                    </div>
-                    <Select defaultValue="light">
-                      <SelectTrigger className="w-32" data-testid="select-theme">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="light">Light</SelectItem>
-                        <SelectItem value="dark">Dark</SelectItem>
-                        <SelectItem value="system">System</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label>Timezone</Label>
-                      <p className="text-sm text-muted-foreground">Select your timezone</p>
-                    </div>
-                    <Select defaultValue="utc">
-                      <SelectTrigger className="w-48" data-testid="select-timezone">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="utc">UTC</SelectItem>
-                        <SelectItem value="est">Eastern Time</SelectItem>
-                        <SelectItem value="pst">Pacific Time</SelectItem>
-                        <SelectItem value="cet">Central European Time</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label>Language</Label>
-                      <p className="text-sm text-muted-foreground">Choose your language</p>
-                    </div>
-                    <Select defaultValue="en">
-                      <SelectTrigger className="w-32" data-testid="select-language">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="en">English</SelectItem>
-                        <SelectItem value="es">Spanish</SelectItem>
-                        <SelectItem value="fr">French</SelectItem>
-                        <SelectItem value="de">German</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label>Auto-refresh Dashboard</Label>
-                      <p className="text-sm text-muted-foreground">Automatically refresh dashboard data</p>
-                    </div>
-                    <Switch defaultChecked data-testid="switch-auto-refresh" />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label>Compact View</Label>
-                      <p className="text-sm text-muted-foreground">Use compact layout for tables</p>
-                    </div>
-                    <Switch data-testid="switch-compact-view" />
-                  </div>
-                </div>
-
-                <Button data-testid="button-save-preferences">
-                  Save Preferences
-                </Button>
               </CardContent>
             </Card>
           </TabsContent>

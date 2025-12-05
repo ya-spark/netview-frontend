@@ -15,6 +15,12 @@ export interface DashboardStatsResponse {
   online_gateways: number;
   success_rate: number;
   recent_activity: number;
+  // Billing/Credit information
+  credits_limit: number;
+  credits_used: number;
+  credits_remaining: number;
+  monthly_spending: number;
+  billing_tier: string;
 }
 
 export interface DashboardSingleResponse extends BaseResponse {

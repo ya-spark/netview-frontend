@@ -15,7 +15,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Search, Filter, Settings, Globe, Trash2, Edit, Key, Download, RefreshCw, Mail } from 'lucide-react';
+import { Plus, Search, Filter, Settings, Globe, Trash2, Edit, Key, Download, RefreshCw, Mail, Activity, Globe2, Shield, Lock, Wifi, Server } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,7 +23,7 @@ import { logger } from '@/lib/logger';
 import { GatewayApiService, GatewayUtils } from '@/services/gatewayApi';
 import { ProbeApiService, ProbeUtils } from '@/services/probeApi';
 import { NotificationGroupApiService } from '@/services/notificationApi';
-import { ProbeEditDialog } from '@/components/probes/ProbeEditDialog';
+import { ProbeEditForm } from '@/components/probes/ProbeEditForm';
 import type { GatewayResponse } from '@/types/gateway';
 import type { Probe, ProbeCreate } from '@/types/probe';
 import type { NotificationGroup, NotificationGroupCreate } from '@/types/notification';
@@ -77,9 +77,9 @@ export default function Manage() {
   const [editGatewayDialogOpen, setEditGatewayDialogOpen] = useState(false);
   const [editingGateway, setEditingGateway] = useState<GatewayResponse | null>(null);
   
-  // Edit Probe Dialog State
-  const [editProbeDialogOpen, setEditProbeDialogOpen] = useState(false);
+  // Edit Probe State
   const [editingProbe, setEditingProbe] = useState<Probe | null>(null);
+  const [probeViewMode, setProbeViewMode] = useState(false);
   
   // Edit Notification Group Dialog State
   const [editNotificationDialogOpen, setEditNotificationDialogOpen] = useState(false);
@@ -95,13 +95,11 @@ export default function Manage() {
     });
   }, [currentSection, currentItemId, user?.id]);
 
-  // Close dialogs and navigate back to list when closing
-  const handleCloseProbeDialog = () => {
-    setEditProbeDialogOpen(false);
+  // Close probe view and navigate back to list
+  const handleCloseProbe = () => {
     setEditingProbe(null);
-    if (currentItemId) {
-      setLocation('/manage/probes');
-    }
+    setProbeViewMode(false);
+    setLocation('/manage/probes');
   };
 
   const handleCloseGatewayDialog = () => {
@@ -192,6 +190,15 @@ export default function Manage() {
     },
   });
 
+  // Fetch shared/Core gateways separately
+  const { data: sharedGateways } = useQuery({
+    queryKey: ['/api/gateways/shared'],
+    enabled: !!user && (currentSection === 'probes' || currentSection === 'gateways'),
+    queryFn: async () => {
+      return await GatewayApiService.getSharedGateways();
+    },
+  });
+
   // Log when gateways query is enabled/disabled
   useEffect(() => {
     logger.debug('Gateways query state', {
@@ -244,7 +251,7 @@ export default function Manage() {
     },
   });
 
-  // Handle deep linking - open edit dialog when itemId is in route
+  // Handle deep linking - open edit view when itemId is in route
   // This must be after all form declarations
   useEffect(() => {
     if (currentItemId) {
@@ -252,7 +259,7 @@ export default function Manage() {
         const probe = probes.data.find((p: Probe) => p.id === currentItemId);
         if (probe && editingProbe?.id !== currentItemId) {
           setEditingProbe(probe);
-          setEditProbeDialogOpen(true);
+          setProbeViewMode(true); // Default to view mode
         }
       } else if (currentSection === 'gateways' && gateways?.data) {
         const gateway = gateways.data.find((g: GatewayResponse) => g.id === currentItemId);
@@ -300,7 +307,7 @@ export default function Manage() {
       });
       toast({ title: 'Success', description: 'Probe updated successfully' });
       refetchProbes();
-      handleCloseProbeDialog();
+      handleCloseProbe();
     },
     onError: (error: any) => {
       const err = error instanceof Error ? error : new Error(String(error));
@@ -331,12 +338,48 @@ export default function Manage() {
       });
       toast({ title: 'Success', description: 'Probe deleted successfully' });
       refetchProbes();
+      handleCloseProbe();
     },
     onError: (error: any) => {
       const err = error instanceof Error ? error : new Error(String(error));
       logger.error('Failed to delete probe', err, {
         component: 'Manage',
         action: 'delete_probe',
+        userId: user?.id,
+      });
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const testProbeMutation = useMutation({
+    mutationFn: async (probeId: string) => {
+      logger.info('Testing probe', {
+        component: 'Manage',
+        action: 'test_probe',
+        probeId,
+        userId: user?.id,
+      });
+      return await ProbeApiService.testProbe(probeId);
+    },
+    onSuccess: (response) => {
+      logger.info('Probe test completed', {
+        component: 'Manage',
+        action: 'test_probe',
+        result: response.result,
+        userId: user?.id,
+      });
+      const result = response.result === 'okay' ? 'okay' : 'not okay';
+      toast({ 
+        title: 'Probe Test Result', 
+        description: `Probe test completed: ${result}`,
+        variant: result === 'okay' ? 'default' : 'destructive'
+      });
+    },
+    onError: (error: any) => {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to test probe', err, {
+        component: 'Manage',
+        action: 'test_probe',
         userId: user?.id,
       });
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -673,6 +716,23 @@ export default function Manage() {
     );
   };
 
+  const getProbeTypeIcon = (type: string) => {
+    switch (type) {
+      case 'ICMP/Ping':
+        return <Activity className="w-5 h-5 text-muted-foreground" />;
+      case 'HTTP/HTTPS':
+        return <Globe2 className="w-5 h-5 text-muted-foreground" />;
+      case 'DNS Resolution':
+        return <Globe className="w-5 h-5 text-muted-foreground" />;
+      case 'SSL/TLS':
+        return <Shield className="w-5 h-5 text-muted-foreground" />;
+      case 'Authentication':
+        return <Lock className="w-5 h-5 text-muted-foreground" />;
+      default:
+        return <Settings className="w-5 h-5 text-muted-foreground" />;
+    }
+  };
+
   return (
     <Layout>
       <div className="p-3 sm:p-4 lg:p-6">
@@ -682,7 +742,7 @@ export default function Manage() {
         </div>
 
         {/* Show content based on current route section */}
-        {currentSection === 'probes' && (
+        {currentSection === 'probes' && !currentItemId && (
           <Card>
             <CardHeader className="pb-3">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -734,10 +794,16 @@ export default function Manage() {
                           : 'border-border hover:border-primary/50'
                       }`}
                       data-testid={`probe-item-${probe.id}`}
-                      onClick={() => setLocation(`/manage/probes/${probe.id}`)}
+                      onClick={() => {
+                        setEditingProbe(probe);
+                        setProbeViewMode(true);
+                        setLocation(`/manage/probes/${probe.id}`);
+                      }}
                     >
                       <div className="flex items-center space-x-4 min-w-0 flex-1">
-                        <div className={`w-3 h-3 rounded-full flex-shrink-0 ${probe.is_active ? 'bg-secondary' : 'bg-muted'}`} />
+                        <div className="flex-shrink-0">
+                          {getProbeTypeIcon(probe.type)}
+                        </div>
                         <div className="min-w-0 flex-1">
                           <div className="font-medium text-foreground truncate">{probe.name}</div>
                           <div className="text-sm text-muted-foreground truncate">{configDisplay}</div>
@@ -767,7 +833,10 @@ export default function Manage() {
                             variant="ghost" 
                             size="sm" 
                             data-testid={`button-edit-probe-${probe.id}`}
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingProbe(probe);
+                              setProbeViewMode(false);
                               setLocation(`/manage/probes/${probe.id}`);
                             }}
                           >
@@ -796,6 +865,37 @@ export default function Manage() {
               )}
             </CardContent>
           </Card>
+        )}
+
+        {/* Show probe edit/view form when probe is selected */}
+        {currentSection === 'probes' && currentItemId && editingProbe && (
+          <ProbeEditForm
+            probe={editingProbe}
+            gateways={gateways}
+            sharedGateways={sharedGateways}
+            notificationGroups={notificationGroups}
+            onSubmit={(data) => {
+              if (editingProbe) {
+                updateProbeMutation.mutate({ probeId: editingProbe.id, data });
+              }
+            }}
+            onCancel={handleCloseProbe}
+            onDelete={() => {
+              if (editingProbe && confirm(`Are you sure you want to delete the probe "${editingProbe.name}"? This action cannot be undone.`)) {
+                deleteProbeMutation.mutate(editingProbe.id);
+              }
+            }}
+            onTestProbe={() => {
+              if (editingProbe) {
+                testProbeMutation.mutate(editingProbe.id);
+              }
+            }}
+            isPending={updateProbeMutation.isPending}
+            isDeleting={deleteProbeMutation.isPending}
+            isTesting={testProbeMutation.isPending}
+            viewMode={probeViewMode}
+            onToggleViewMode={() => setProbeViewMode(!probeViewMode)}
+          />
         )}
         
         {currentSection === 'notifications' && (
@@ -1196,9 +1296,7 @@ export default function Manage() {
                       >
                         {/* Container 1: Name and Details (33%) */}
                         <div className="flex items-center space-x-4 w-full sm:w-1/3 min-w-0">
-                          <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
-                            isOnline ? 'bg-green-500' : 'bg-red-500'
-                          }`} />
+                          <Server className="w-5 h-5 text-muted-foreground flex-shrink-0" />
                           <div className="flex-1 min-w-0">
                             <div className="font-medium text-foreground text-lg">{gateway.name}</div>
                             <div className="text-sm text-muted-foreground">
@@ -1453,26 +1551,6 @@ export default function Manage() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Probe Dialog */}
-      <ProbeEditDialog
-        open={editProbeDialogOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            handleCloseProbeDialog();
-          } else {
-            setEditProbeDialogOpen(true);
-          }
-        }}
-        probe={editingProbe}
-        gateways={gateways}
-        notificationGroups={notificationGroups}
-        onSubmit={(data) => {
-          if (editingProbe) {
-            updateProbeMutation.mutate({ probeId: editingProbe.id, data });
-          }
-        }}
-        isPending={updateProbeMutation.isPending}
-      />
 
     </Layout>
   );

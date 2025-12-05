@@ -136,8 +136,8 @@ export class ProbeApiService {
     
     const queryString = queryParams.toString();
     const url = queryString 
-      ? `/api/probes/${probeId}/results?${queryString}` 
-      : `/api/probes/${probeId}/results`;
+      ? `/api/results/probe/${probeId}?${queryString}` 
+      : `/api/results/probe/${probeId}`;
     
     const response = await apiRequest('GET', url);
     return response.json();
@@ -184,6 +184,26 @@ export class ProbeApiService {
     
     const response = await apiRequest('GET', url);
     return response.json();
+  }
+
+  /**
+   * Test a probe by running a check
+   */
+  static async testProbe(probeId: string): Promise<{ success: boolean; message: string; result: string }> {
+    logger.info('Testing probe', {
+      component: 'probeApi',
+      action: 'test_probe',
+      probeId,
+    });
+    const response = await apiRequest('POST', `/api/probes/${probeId}/test`);
+    const result = await response.json();
+    logger.info('Probe test completed', {
+      component: 'probeApi',
+      action: 'test_probe',
+      probeId,
+      result: result.result,
+    });
+    return result;
   }
 }
 

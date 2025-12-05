@@ -1,301 +1,388 @@
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Layout } from '@/components/Layout';
-import { BarChart3, AlertTriangle, CheckCircle, DollarSign, RefreshCw, Plus, Search, Filter } from 'lucide-react';
+import { Activity, AlertTriangle, Server, RefreshCw, ArrowDown, ArrowUp, CreditCard } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { ProbeApiService, ProbeUtils } from '@/services/probeApi';
+import { ProbeApiService } from '@/services/probeApi';
+import { GatewayApiService } from '@/services/gatewayApi';
+import { AlertApiService } from '@/services/alertApi';
 import { DashboardApiService } from '@/services/dashboardApi';
 import { logger } from '@/lib/logger';
-import type { Probe } from '@/types/probe';
+import type { Probe, ProbeResult } from '@/types/probe';
+import type { AlertResponse } from '@/types/alert';
 
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [searchTerm, setSearchTerm] = useState('');
 
-  // Fetch dashboard stats
-  const { data: statsResponse, refetch: refetchStats } = useQuery({
-    queryKey: ['/api/dashboard'],
-    enabled: !!user,
-    queryFn: async () => {
-      logger.debug('Fetching dashboard stats', {
-        component: 'Dashboard',
-        userId: user?.id,
-      });
-      return await DashboardApiService.getDashboardStats();
-    },
-  });
-
-  // Fetch probes
-  const { data: probesResponse, refetch: refetchProbes } = useQuery({
+  // Fetch all probes
+  const { data: probesData, isLoading: probesLoading, refetch: refetchProbes } = useQuery({
     queryKey: ['/api/probes'],
+    queryFn: () => ProbeApiService.listProbes(),
     enabled: !!user,
-    queryFn: async () => {
-      logger.debug('Fetching probes', {
-        component: 'Dashboard',
-        userId: user?.id,
-      });
-      return await ProbeApiService.listProbes();
-    },
+    refetchInterval: 30000,
   });
 
-  // Map dashboard stats to display format
-  const stats = statsResponse?.data ? {
-    totalProbes: statsResponse.data.total_probes,
-    activeAlerts: statsResponse.data.unresolved_alerts,
-    overallUptime: typeof statsResponse.data.success_rate === 'number' 
-      ? (statsResponse.data.success_rate < 1 ? statsResponse.data.success_rate * 100 : statsResponse.data.success_rate)
-      : 0,
-  } : {
-    totalProbes: 0,
-    activeAlerts: 0,
-    overallUptime: 0,
-  };
+  // Fetch all gateways
+  const { data: gatewaysData, isLoading: gatewaysLoading, refetch: refetchGateways } = useQuery({
+    queryKey: ['/api/gateways'],
+    queryFn: () => GatewayApiService.listGateways(),
+    enabled: !!user,
+    refetchInterval: 30000,
+  });
 
-  const probes = probesResponse || { data: [] };
+  // Fetch all alerts
+  const { data: alertsData, isLoading: alertsLoading, refetch: refetchAlerts } = useQuery({
+    queryKey: ['/api/alerts'],
+    queryFn: () => AlertApiService.listAlerts(),
+    enabled: !!user,
+    refetchInterval: 30000,
+  });
 
-  useEffect(() => {
-    logger.debug('Dashboard page initialized', {
-      component: 'Dashboard',
-      userId: user?.id,
-      probeCount: probes.data?.length || 0,
+  // Fetch dashboard stats (includes billing information)
+  const { data: dashboardData, isLoading: dashboardLoading, refetch: refetchDashboard } = useQuery({
+    queryKey: ['/api/dashboard'],
+    queryFn: () => DashboardApiService.getDashboardStats(),
+    enabled: !!user,
+    refetchInterval: 30000,
+  });
+
+  // Fetch probe results for all probes (last result for each)
+  const { data: probeResultsData, refetch: refetchProbeResults } = useQuery({
+    queryKey: ['/api/probe-results'],
+    queryFn: async () => {
+      if (!probesData?.data) return {};
+      const results: Record<string, ProbeResult[]> = {};
+      await Promise.all(
+        probesData.data.map(async (probe) => {
+          try {
+            const response = await ProbeApiService.getProbeResults(probe.id, { limit: 1 });
+            results[probe.id] = response.data;
+          } catch (error) {
+            results[probe.id] = [];
+          }
+        })
+      );
+      return results;
+    },
+    enabled: !!user && !!probesData?.data,
+    refetchInterval: 30000,
+  });
+
+  // Calculate probe statuses from latest results
+  const probeStatuses = useMemo(() => {
+    if (!probesData?.data || !probeResultsData) return { up: 0, down: 0, warning: 0, total: 0 };
+    
+    let up = 0;
+    let down = 0;
+    let warning = 0;
+    
+    probesData.data.forEach((probe) => {
+      if (!probe.is_active) return;
+      
+      const results = probeResultsData[probe.id] || [];
+      const latestResult = results[0];
+      
+      if (latestResult) {
+        if (latestResult.status === 'Success') {
+          up++;
+        } else if (latestResult.status === 'Failure') {
+          down++;
+        } else if (latestResult.status === 'Warning') {
+          warning++;
+        }
+      }
     });
-  }, [user?.id, probes.data?.length]);
+    
+    return {
+      up,
+      down,
+      warning,
+      total: probesData.data.length,
+    };
+  }, [probesData, probeResultsData]);
 
-  const handleRefresh = () => {
+  // Calculate gateway statuses
+  const gatewayStatuses = useMemo(() => {
+    if (!gatewaysData?.data) return { online: 0, offline: 0, pending: 0, total: 0 };
+    
+    const online = gatewaysData.data.filter((g) => g.is_online && g.status === 'active').length;
+    const offline = gatewaysData.data.filter((g) => !g.is_online && g.status === 'active').length;
+    const pending = gatewaysData.data.filter((g) => g.status === 'pending').length;
+    
+    return {
+      online,
+      offline,
+      pending,
+      total: gatewaysData.data.length,
+    };
+  }, [gatewaysData]);
+
+  // Get alerts list
+  const alerts = useMemo(() => {
+    if (!alertsData?.data) return [];
+    return alertsData.data;
+  }, [alertsData]);
+
+  const handleRefresh = async () => {
     logger.info('Dashboard refresh requested', {
       component: 'Dashboard',
       action: 'refresh',
       userId: user?.id,
     });
-    refetchStats();
-    refetchProbes();
-  };
-
-  const filteredProbes = (probes.data || []).filter((probe: Probe) =>
-    probe.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    ProbeUtils.getConfigDisplay(probe).toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const getStatusBadge = (probe: Probe) => {
-    // For now, show status based on is_active flag
-    // TODO: Enhance with actual probe status from probe results/status endpoint
-    if (!probe.is_active) {
-      return <Badge className="bg-gray-100 text-gray-700 border-gray-200">Inactive</Badge>;
+    await Promise.all([
+      refetchProbes(),
+      refetchGateways(),
+      refetchAlerts(),
+      refetchDashboard(),
+    ]);
+    // Refetch probe results after probes are refetched
+    if (probesData?.data) {
+      await refetchProbeResults();
     }
-    // Default to showing as active - status would come from probe results
-    return <Badge className="bg-green-100 text-green-700 border-green-200">Active</Badge>;
   };
 
-  const getTypeBadge = (type: string) => {
-    const colors = {
-      'Uptime': 'bg-primary/10 text-primary',
-      'API': 'bg-secondary/10 text-secondary',
-      'Security': 'bg-purple-100 text-purple-700',
-      'Browser': 'bg-green-100 text-green-700',
-    };
-    
-    return (
-      <Badge className={colors[type as keyof typeof colors] || 'bg-muted text-muted-foreground'}>
-        {type}
-      </Badge>
-    );
+  // Helper function to format alert icon (Down for active, Up for resolved)
+  const getAlertIcon = (alert: AlertResponse) => {
+    if (alert.is_resolved) {
+      return <ArrowUp className="w-4 h-4 text-green-600" />;
+    }
+    return <ArrowDown className="w-4 h-4 text-red-600" />;
   };
+
+  // Helper function to format date
+  const formatDate = (timestamp?: string) => {
+    if (!timestamp) return 'Unknown';
+    const date = new Date(timestamp);
+    return date.toLocaleString();
+  };
+
+  const isLoading = probesLoading || gatewaysLoading || alertsLoading || dashboardLoading;
+
+  // Get billing information from dashboard data
+  const billingInfo = dashboardData?.data || null;
+  
+  // Calculate credit usage percentage
+  const creditUsagePercentage = billingInfo && billingInfo.credits_limit > 0
+    ? (billingInfo.credits_used / billingInfo.credits_limit) * 100
+    : 0;
 
   return (
     <Layout>
-      <div className="p-3 sm:p-4 lg:p-6">
-        {/* Page Header */}
-        <div className="mb-6 sm:mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-2">
-            <div className="flex-1 min-w-0">
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground mb-1 sm:mb-2" data-testid="text-page-title">Dashboard</h1>
-              <p className="text-sm sm:text-base text-muted-foreground mt-1 sm:hidden">Monitor your websites, APIs, and services in real-time</p>
-            </div>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 flex-shrink-0">
-              <Button variant="outline" onClick={handleRefresh} data-testid="button-refresh" className="w-full sm:w-auto">
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Refresh
-              </Button>
-              <Button data-testid="button-new-probe" className="w-full sm:w-auto">
-                <Plus className="w-4 h-4 mr-2" />
-                New Probe
-              </Button>
-            </div>
+      <div className="p-3 sm:p-4 lg:p-6 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2" data-testid="text-page-title">
+              Dashboard
+            </h1>
+            <p className="text-muted-foreground">Overview of your monitoring infrastructure</p>
           </div>
-          <p className="text-muted-foreground hidden sm:block">Monitor your websites, APIs, and services in real-time</p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isLoading}
+            data-testid="button-refresh"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         </div>
 
-        {/* Metrics Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
-          <Card>
-            <CardContent className="p-4 sm:p-5 lg:p-6">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Probes</p>
-                  <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground mt-1" data-testid="text-total-probes">
-                    {stats.totalProbes}
-                  </p>
-                  <p className="text-xs text-secondary mt-1">
-                    <span className="inline-flex items-center">
-                      <CheckCircle className="w-3 h-3 mr-1" />
-                      Active monitoring
-                    </span>
-                  </p>
-                </div>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <BarChart3 className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {isLoading ? (
+            <>
+              <Card>
+                <CardContent className="p-6">
+                  <Skeleton className="h-32 w-full" />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <Skeleton className="h-32 w-full" />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <Skeleton className="h-32 w-full" />
+                </CardContent>
+              </Card>
+            </>
+          ) : (
+            <>
+              {/* Probes Summary Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Activity className="w-5 h-5" />
+                    Probes
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-foreground">{probeStatuses.total}</div>
+                      <div className="text-xs text-muted-foreground mt-1">Total</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600 dark:text-green-400">{probeStatuses.up}</div>
+                      <div className="text-xs text-muted-foreground mt-1">Up</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-red-600 dark:text-red-400">{probeStatuses.down}</div>
+                      <div className="text-xs text-muted-foreground mt-1">Down</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{probeStatuses.warning}</div>
+                      <div className="text-xs text-muted-foreground mt-1">Warning</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardContent className="p-4 sm:p-5 lg:p-6">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs sm:text-sm font-medium text-muted-foreground">Active Alerts</p>
-                  <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-destructive mt-1" data-testid="text-active-alerts">
-                    {stats.activeAlerts}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">Requires attention</p>
-                </div>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-destructive/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-destructive" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              {/* Gateways Summary Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Server className="w-5 h-5" />
+                    Gateways
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-foreground">{gatewayStatuses.total}</div>
+                      <div className="text-xs text-muted-foreground mt-1">Total</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600 dark:text-green-400">{gatewayStatuses.online}</div>
+                      <div className="text-xs text-muted-foreground mt-1">Online</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-red-600 dark:text-red-400">{gatewayStatuses.offline}</div>
+                      <div className="text-xs text-muted-foreground mt-1">Offline</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{gatewayStatuses.pending}</div>
+                      <div className="text-xs text-muted-foreground mt-1">Pending</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardContent className="p-4 sm:p-5 lg:p-6">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs sm:text-sm font-medium text-muted-foreground">Overall Uptime</p>
-                  <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-secondary mt-1" data-testid="text-uptime">
-                    {stats.overallUptime.toFixed(1)}%
-                  </p>
-                  <p className="text-xs text-secondary mt-1">Last 30 days</p>
-                </div>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-secondary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-secondary" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Probe Status Table */}
-        <Card>
-          <CardHeader className="p-4 sm:p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-              <CardTitle className="text-base sm:text-lg">Probe Status</CardTitle>
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-                <div className="relative flex-1 sm:flex-none">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Search probes..."
-                    value={searchTerm}
-                    onChange={(e) => {
-                      setSearchTerm(e.target.value);
-                      logger.debug('Dashboard search term changed', {
-                        component: 'Dashboard',
-                        action: 'search',
-                        searchTerm: e.target.value,
-                        userId: user?.id,
-                      });
-                    }}
-                    className="pl-10 w-full sm:w-64"
-                    data-testid="input-search"
-                  />
-                </div>
-                <Button variant="outline" size="icon" data-testid="button-filter" className="w-full sm:w-10 h-10 sm:h-auto">
-                  <Filter className="w-4 h-4" />
-                  <span className="ml-2 sm:hidden">Filter</span>
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0 sm:p-6 sm:pt-0">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm font-medium text-muted-foreground">Probe</th>
-                    <th className="text-left py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm font-medium text-muted-foreground hidden sm:table-cell">Type</th>
-                    <th className="text-left py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm font-medium text-muted-foreground">Status</th>
-                    <th className="text-left py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm font-medium text-muted-foreground hidden md:table-cell">Response Time</th>
-                    <th className="text-left py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm font-medium text-muted-foreground hidden lg:table-cell">Last Check</th>
-                    <th className="text-left py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm font-medium text-muted-foreground">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredProbes.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="text-center py-6 sm:py-8 px-3 text-sm sm:text-base text-muted-foreground">
-                        No probes found. Create your first probe to start monitoring.
-                      </td>
-                    </tr>
+              {/* Billing/Credits Summary Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="w-5 h-5" />
+                    Credits
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {billingInfo ? (
+                    <div className="space-y-4">
+                      {/* Credit Remaining */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm text-muted-foreground">Credits Remaining</span>
+                          <span className="text-lg font-bold text-foreground">
+                            {billingInfo.credits_remaining.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-2">
+                          <div
+                            className={`h-2 rounded-full transition-all ${
+                              creditUsagePercentage >= 90
+                                ? 'bg-red-600 dark:bg-red-400'
+                                : creditUsagePercentage >= 70
+                                ? 'bg-amber-600 dark:bg-amber-400'
+                                : 'bg-green-600 dark:bg-green-400'
+                            }`}
+                            style={{ width: `${Math.min(100, Math.max(0, 100 - creditUsagePercentage))}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between mt-1 text-xs text-muted-foreground">
+                          <span>{billingInfo.credits_used.toLocaleString()} used</span>
+                          <span>{billingInfo.credits_limit.toLocaleString()} limit</span>
+                        </div>
+                      </div>
+                    </div>
                   ) : (
-                    filteredProbes.map((probe: Probe) => {
-                      const configDisplay = ProbeUtils.getConfigDisplay(probe);
-                      return (
-                        <tr key={probe.id} className="border-b border-border hover:bg-muted/20 transition-colors">
-                          <td className="py-3 sm:py-4 px-3 sm:px-4">
-                            <div className="flex items-center gap-2">
-                              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                                probe.is_active ? 'bg-secondary' : 'bg-gray-400'
-                              }`} />
-                              <div className="min-w-0 flex-1">
-                                <div className="text-xs sm:text-sm font-medium text-foreground truncate" data-testid={`text-probe-name-${probe.id}`}>
-                                  {probe.name}
-                                </div>
-                                <div className="text-xs sm:text-sm text-muted-foreground truncate" data-testid={`text-probe-url-${probe.id}`}>
-                                  {configDisplay}
-                                </div>
-                                <div className="sm:hidden mt-1">
-                                  {getTypeBadge(probe.category)}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-3 sm:py-4 px-3 sm:px-4 hidden sm:table-cell">
-                            {getTypeBadge(probe.category)}
-                          </td>
-                          <td className="py-3 sm:py-4 px-3 sm:px-4">
-                            {getStatusBadge(probe)}
-                          </td>
-                          <td className="py-3 sm:py-4 px-3 sm:px-4 text-xs sm:text-sm text-muted-foreground hidden md:table-cell">
-                            {/* Response time would come from probe results - showing N/A for now */}
-                            N/A
-                          </td>
-                          <td className="py-3 sm:py-4 px-3 sm:px-4 text-xs sm:text-sm text-muted-foreground hidden lg:table-cell">
-                            {/* Last check would come from probe results - showing updated_at for now */}
-                            {probe.updated_at ? new Date(probe.updated_at).toLocaleString() : 'Never'}
-                          </td>
-                          <td className="py-3 sm:py-4 px-3 sm:px-4">
-                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1 sm:gap-2">
-                              <Button variant="ghost" size="sm" data-testid={`button-edit-${probe.id}`} className="text-xs px-2 py-1 h-auto">
-                                Edit
-                              </Button>
-                              <Button variant="ghost" size="sm" data-testid={`button-view-${probe.id}`} className="text-xs px-2 py-1 h-auto">
-                                View
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
+                    <div className="text-center py-4">
+                      <p className="text-sm text-muted-foreground">Loading billing information...</p>
+                    </div>
                   )}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </div>
+
+        {/* Alarms List */}
+        {isLoading ? (
+          <Card>
+            <CardContent className="p-6">
+              <Skeleton className="h-24 w-full" />
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5" />
+                Alarms
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {alerts.length === 0 ? (
+                <div className="text-center py-8">
+                  <AlertTriangle className="w-12 h-12 text-green-600 dark:text-green-400 mx-auto mb-4" />
+                  <p className="text-muted-foreground">No alarms</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {alerts.map((alert) => (
+                    <div
+                      key={alert.id}
+                      className="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex-shrink-0">
+                        {getAlertIcon(alert)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-semibold text-foreground">
+                            {alert.probe_name || 'Unknown Probe'}
+                          </span>
+                          <Badge
+                            variant={alert.is_resolved ? 'outline' : 'default'}
+                            className={
+                              alert.is_resolved
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                            }
+                          >
+                            {alert.is_resolved ? 'Resolved' : 'Active'}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground truncate">{alert.message}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {formatDate(alert.created_at)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </Layout>
   );
