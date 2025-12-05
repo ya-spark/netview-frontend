@@ -142,11 +142,11 @@ export default function Monitor() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'Up':
-        return <Badge variant="secondary" className="bg-secondary/10 text-secondary">Up</Badge>;
+        return <Badge className="bg-green-100 text-green-700 border-green-200">Up</Badge>;
       case 'Down':
-        return <Badge variant="destructive">Down</Badge>;
+        return <Badge className="bg-red-100 text-red-700 border-red-200">Down</Badge>;
       case 'Warning':
-        return <Badge variant="outline" className="border-amber-500 text-amber-700">Slow</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200">Slow</Badge>;
       default:
         return <Badge variant="outline">Unknown</Badge>;
     }
@@ -209,21 +209,24 @@ export default function Monitor() {
   const renderCriticalAlertsSection = () => (
     <>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div>
-          <h2 className="text-xl font-semibold text-foreground" data-testid="text-alerts-title">Critical Alerts</h2>
-          <p className="text-muted-foreground">Monitor and manage system alerts</p>
+      <div className="mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-xl sm:text-2xl font-semibold text-foreground" data-testid="text-alerts-title">Critical Alerts</h2>
+            <p className="text-sm sm:text-base text-muted-foreground mt-1 sm:hidden">Monitor and manage system alerts</p>
+          </div>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 flex-shrink-0">
+            <Button variant="outline" data-testid="button-alert-settings" className="w-full sm:w-auto">
+              <Settings className="w-4 h-4 mr-2" />
+              Settings
+            </Button>
+            <Button data-testid="button-create-alert" className="w-full sm:w-auto">
+              <Plus className="w-4 h-4 mr-2" />
+              Create Alert
+            </Button>
+          </div>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Button variant="outline" data-testid="button-alert-settings" className="w-full sm:w-auto">
-            <Settings className="w-4 h-4 mr-2" />
-            Settings
-          </Button>
-          <Button data-testid="button-create-alert" className="w-full sm:w-auto">
-            <Plus className="w-4 h-4 mr-2" />
-            Create Alert
-          </Button>
-        </div>
+        <p className="text-muted-foreground hidden sm:block">Monitor and manage system alerts</p>
       </div>
 
       {/* Alert Summary */}
@@ -287,10 +290,10 @@ export default function Monitor() {
 
       {/* Alerts List */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-3">
           <CardTitle>Recent Alerts</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 pb-4 pt-1 sm:px-5 sm:pb-5 sm:pt-1 lg:px-6 lg:pb-6 lg:pt-1">
           <div className="space-y-4">
             {mockAlerts.map((alert) => (
               <div key={alert.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border rounded-lg gap-4" data-testid={`alert-${alert.id}`}>
@@ -325,15 +328,20 @@ export default function Monitor() {
   const renderProbesSection = () => (
     <>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div>
-          <h2 className="text-xl font-semibold text-foreground" data-testid="text-probes-title">Probes</h2>
-          <p className="text-muted-foreground">Manage and configure monitoring probes</p>
+      <div className="mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-xl sm:text-2xl font-semibold text-foreground" data-testid="text-probes-title">Probes</h2>
+            <p className="text-sm sm:text-base text-muted-foreground mt-1 sm:hidden">Manage and configure monitoring probes</p>
+          </div>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 flex-shrink-0">
+            <Button data-testid="button-create-probe" className="w-full sm:w-auto">
+              <Plus className="w-4 h-4 mr-2" />
+              Create Probe
+            </Button>
+          </div>
         </div>
-        <Button data-testid="button-create-probe" className="w-full sm:w-auto">
-          <Plus className="w-4 h-4 mr-2" />
-          Create Probe
-        </Button>
+        <p className="text-muted-foreground hidden sm:block">Manage and configure monitoring probes</p>
       </div>
 
       {/* Probe Stats */}
@@ -397,17 +405,22 @@ export default function Monitor() {
 
       {/* Filters */}
       <Card className="mb-6">
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-            <div className="relative flex-1 sm:max-w-sm">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search probes..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-full"
-                data-testid="input-search-probes"
-              />
+        <CardContent className="px-4 pb-4 pt-1 sm:px-5 sm:pb-5 sm:pt-1 lg:px-6 lg:pb-6 lg:pt-1">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex items-center gap-3 flex-1">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search probes..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 w-full"
+                  data-testid="input-search-probes"
+                />
+              </div>
+              <Button variant="outline" size="icon" data-testid="button-filter-probes" className="w-10 h-10 flex-shrink-0">
+                <Filter className="w-4 h-4" />
+              </Button>
             </div>
             <div className="flex flex-col sm:flex-row gap-2">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -440,10 +453,10 @@ export default function Monitor() {
 
       {/* Probes List */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-3">
           <CardTitle>Configured Probes</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 pb-4 pt-1 sm:px-5 sm:pb-5 sm:pt-1 lg:px-6 lg:pb-6 lg:pt-1">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[600px]">
               <thead>
@@ -507,15 +520,20 @@ export default function Monitor() {
   const renderGatewaysSection = () => (
     <>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-xl font-semibold text-foreground" data-testid="text-gateways-title">Gateways</h2>
-          <p className="text-muted-foreground">Monitor gateway health and performance</p>
+      <div className="mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-xl sm:text-2xl font-semibold text-foreground" data-testid="text-gateways-title">Gateways</h2>
+            <p className="text-sm sm:text-base text-muted-foreground mt-1 sm:hidden">Monitor gateway health and performance</p>
+          </div>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 flex-shrink-0">
+            <Button data-testid="button-manage-gateways" className="w-full sm:w-auto">
+              <Settings className="w-4 h-4 mr-2" />
+              Manage Gateways
+            </Button>
+          </div>
         </div>
-        <Button data-testid="button-manage-gateways">
-          <Settings className="w-4 h-4 mr-2" />
-          Manage Gateways
-        </Button>
+        <p className="text-muted-foreground hidden sm:block">Monitor gateway health and performance</p>
       </div>
 
       {/* Gateway Stats */}
@@ -578,125 +596,148 @@ export default function Monitor() {
       </div>
 
       {/* Gateways List */}
-      <div className="space-y-4">
-        {Array.isArray(gateways) && gateways.length > 0 ? (
-          gateways.map((gateway: any) => (
-          <Card key={gateway.id} data-testid={`gateway-${gateway.id}`}>
-            <CardContent className="p-4 sm:p-5 lg:p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className={`w-3 h-3 rounded-full ${
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle>Gateway Status</CardTitle>
+        </CardHeader>
+        <CardContent className="px-4 pb-4 pt-1 sm:px-5 sm:pb-5 sm:pt-1 lg:px-6 lg:pb-6 lg:pt-1">
+          {Array.isArray(gateways) && gateways.length > 0 ? (
+            <div className="space-y-4">
+              {gateways.map((gateway: any) => (
+              <div 
+                key={gateway.id} 
+                className="flex flex-col sm:flex-row sm:items-center p-4 border rounded-lg gap-4 transition-colors border-border hover:border-primary/50"
+                data-testid={`gateway-${gateway.id}`}
+              >
+                <div className="flex items-center space-x-4 min-w-0 flex-1">
+                  <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
                     gateway.status === 'active' || gateway.status === 'registered' ? 'bg-secondary' : 
                     gateway.status === 'pending' ? 'bg-amber-500' : 'bg-destructive'
                   }`}></div>
-                  <div>
-                    <h3 className="text-lg font-medium text-foreground" data-testid={`text-gateway-name-${gateway.id}`}>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-foreground" data-testid={`text-gateway-name-${gateway.id}`}>
                       {gateway.name}
-                    </h3>
-                    <p className="text-sm text-muted-foreground">{gateway.location}</p>
+                    </div>
+                    <div className="text-sm text-muted-foreground">{gateway.location || 'No location specified'}</div>
+                    {gateway.ip_address && (
+                      <div className="text-xs text-muted-foreground">{gateway.ip_address}</div>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center space-x-6">
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground">Platform</p>
-                    <p className="text-xl font-semibold text-foreground">{gateway.platform}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground">Version</p>
-                    <p className="text-xl font-semibold text-foreground">{gateway.version}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground">Status</p>
-                    <Badge variant={
-                      gateway.status === 'active' || gateway.status === 'registered' ? 'secondary' : 
-                      gateway.status === 'pending' ? 'outline' : 'destructive'
-                    }>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
+                  <div className="flex flex-wrap gap-1">
+                    {gateway.platform && (
+                      <Badge variant="outline">Platform: {gateway.platform}</Badge>
+                    )}
+                    {gateway.version && (
+                      <Badge variant="outline">v{gateway.version}</Badge>
+                    )}
+                    <Badge 
+                      className={
+                        gateway.status === 'active' || gateway.status === 'registered'
+                          ? 'bg-green-100 text-green-700 border-green-200'
+                          : gateway.status === 'pending'
+                          ? 'bg-yellow-100 text-yellow-700 border-yellow-200'
+                          : 'bg-red-100 text-red-700 border-red-200'
+                      }
+                    >
                       {gateway.status === 'active' || gateway.status === 'registered' ? 'Online' : 
                        gateway.status === 'pending' ? 'Pending' : 'Offline'}
                     </Badge>
                   </div>
-                  <Button variant="outline" size="sm" data-testid={`button-gateway-details-${gateway.id}`}>
+                  <Button variant="outline" size="sm" data-testid={`button-gateway-details-${gateway.id}`} className="w-full sm:w-auto">
                     <Eye className="w-4 h-4 mr-2" />
                     Details
                   </Button>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        ))) : (
-          <div className="text-center py-8">
-            <Server className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-foreground mb-2">No gateways available</h3>
-            <p className="text-muted-foreground">Gateways execute your monitoring probes</p>
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <Server className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">No gateways available</h3>
+              <p className="text-muted-foreground">Gateways execute your monitoring probes</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </>
   );
 
   const renderLogsSection = () => (
     <>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-xl font-semibold text-foreground" data-testid="text-logs-title">System Logs</h2>
-          <p className="text-muted-foreground">View and search system logs and events</p>
+      <div className="mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-xl sm:text-2xl font-semibold text-foreground" data-testid="text-logs-title">System Logs</h2>
+            <p className="text-sm sm:text-base text-muted-foreground mt-1 sm:hidden">View and search system logs and events</p>
+          </div>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 flex-shrink-0">
+            <Button variant="outline" data-testid="button-export-logs" className="w-full sm:w-auto">
+              Export Logs
+            </Button>
+            <Button variant="outline" data-testid="button-log-settings" className="w-full sm:w-auto">
+              <Settings className="w-4 h-4 mr-2" />
+              Settings
+            </Button>
+          </div>
         </div>
-        <div className="flex space-x-2">
-          <Button variant="outline" data-testid="button-export-logs">
-            Export Logs
-          </Button>
-          <Button variant="outline" data-testid="button-log-settings">
-            <Settings className="w-4 h-4 mr-2" />
-            Settings
-          </Button>
-        </div>
+        <p className="text-muted-foreground hidden sm:block">View and search system logs and events</p>
       </div>
 
       {/* Log Filters */}
       <Card className="mb-6">
-        <CardContent className="p-4">
-          <div className="flex items-center space-x-4">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search logs..."
-                className="pl-10"
-                data-testid="input-search-logs"
-              />
+        <CardContent className="px-4 pb-4 pt-1 sm:px-5 sm:pb-5 sm:pt-1 lg:px-6 lg:pb-6 lg:pt-1">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex items-center gap-3 flex-1">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search logs..."
+                  className="pl-10 w-full"
+                  data-testid="input-search-logs"
+                />
+              </div>
+              <Button variant="outline" size="icon" data-testid="button-filter-logs" className="w-10 h-10 flex-shrink-0">
+                <Filter className="w-4 h-4" />
+              </Button>
             </div>
-            <Select defaultValue="all">
-              <SelectTrigger className="w-32" data-testid="select-log-level">
-                <SelectValue placeholder="Level" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Levels</SelectItem>
-                <SelectItem value="ERROR">Error</SelectItem>
-                <SelectItem value="WARN">Warning</SelectItem>
-                <SelectItem value="INFO">Info</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select defaultValue="all">
-              <SelectTrigger className="w-40" data-testid="select-log-source">
-                <SelectValue placeholder="Source" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Sources</SelectItem>
-                <SelectItem value="Monitor Service">Monitor Service</SelectItem>
-                <SelectItem value="Gateway">Gateway</SelectItem>
-                <SelectItem value="Alert Manager">Alert Manager</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Select defaultValue="all">
+                <SelectTrigger className="w-full sm:w-32" data-testid="select-log-level">
+                  <SelectValue placeholder="Level" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Levels</SelectItem>
+                  <SelectItem value="ERROR">Error</SelectItem>
+                  <SelectItem value="WARN">Warning</SelectItem>
+                  <SelectItem value="INFO">Info</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select defaultValue="all">
+                <SelectTrigger className="w-full sm:w-40" data-testid="select-log-source">
+                  <SelectValue placeholder="Source" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Sources</SelectItem>
+                  <SelectItem value="Monitor Service">Monitor Service</SelectItem>
+                  <SelectItem value="Gateway">Gateway</SelectItem>
+                  <SelectItem value="Alert Manager">Alert Manager</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Logs List */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-3">
           <CardTitle>Recent Logs</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 pb-4 pt-1 sm:px-5 sm:pb-5 sm:pt-1 lg:px-6 lg:pb-6 lg:pt-1">
           <div className="space-y-3">
             {mockLogs.map((log) => (
               <div key={log.id} className="flex items-start space-x-4 p-3 border rounded-lg font-mono text-sm" data-testid={`log-${log.id}`}>
@@ -804,44 +845,48 @@ export default function Monitor() {
 
       {/* Filters */}
       <Card className="mb-6">
-        <CardContent className="p-4">
-          <div className="flex items-center space-x-4">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search probes..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-                data-testid="input-search"
-              />
+        <CardContent className="px-4 pb-4 pt-1 sm:px-5 sm:pb-5 sm:pt-1 lg:px-6 lg:pb-6 lg:pt-1">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex items-center gap-3 flex-1">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search probes..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 w-full"
+                  data-testid="input-search"
+                />
+              </div>
+              <Button variant="outline" size="icon" data-testid="button-advanced-filter" className="w-10 h-10 flex-shrink-0">
+                <Filter className="w-4 h-4" />
+              </Button>
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-32" data-testid="select-status-filter">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="Up">Up</SelectItem>
-                <SelectItem value="Down">Down</SelectItem>
-                <SelectItem value="Warning">Warning</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-32" data-testid="select-type-filter">
-                <SelectValue placeholder="Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="Uptime">Uptime</SelectItem>
-                <SelectItem value="API">API</SelectItem>
-                <SelectItem value="Security">Security</SelectItem>
-                <SelectItem value="Browser">Browser</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="outline" size="icon" data-testid="button-advanced-filter">
-              <Filter className="w-4 h-4" />
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-32" data-testid="select-status-filter">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="Up">Up</SelectItem>
+                  <SelectItem value="Down">Down</SelectItem>
+                  <SelectItem value="Warning">Warning</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="w-full sm:w-32" data-testid="select-type-filter">
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="Uptime">Uptime</SelectItem>
+                  <SelectItem value="API">API</SelectItem>
+                  <SelectItem value="Security">Security</SelectItem>
+                  <SelectItem value="Browser">Browser</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -850,10 +895,12 @@ export default function Monitor() {
       <div className="space-y-4">
         {filteredProbes.length === 0 ? (
           <Card>
-            <CardContent className="p-12 text-center">
-              <Eye className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-foreground mb-2">No probes to monitor</h3>
-              <p className="text-muted-foreground">Create probes in the Manage section to start monitoring</p>
+            <CardContent className="px-4 pb-4 pt-1 sm:px-5 sm:pb-5 sm:pt-1 lg:px-6 lg:pb-6 lg:pt-1">
+              <div className="text-center py-8">
+                <Eye className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-2">No probes to monitor</h3>
+                <p className="text-muted-foreground">Create probes in the Manage section to start monitoring</p>
+              </div>
             </CardContent>
           </Card>
         ) : (
@@ -861,7 +908,7 @@ export default function Monitor() {
             const isExpanded = expandedCards.has(probe.id);
             return (
               <Card key={probe.id} className="hover:shadow-md transition-shadow" data-testid={`probe-monitor-${probe.id}`}>
-                <CardContent className="p-4 sm:p-5 lg:p-6">
+                <CardContent className="px-4 pb-4 pt-1 sm:px-5 sm:pb-5 sm:pt-1 lg:px-6 lg:pb-6 lg:pt-1">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                       {getStatusIcon(probe.status || 'Up')}

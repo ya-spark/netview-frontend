@@ -39,15 +39,33 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { logger } from "@/lib/logger";
+import { DashboardApiService } from "@/services/dashboardApi";
 
 // Dashboard Sidebar Component
 function DashboardSidebar() {
   const { user } = useAuth();
 
-  const { data: stats } = useQuery({
-    queryKey: ["/api/dashboard/stats"],
+  const { data: statsResponse } = useQuery({
+    queryKey: ["/api/dashboard"],
     enabled: !!user,
+    queryFn: async () => {
+      logger.debug('Fetching dashboard stats for sidebar', {
+        component: 'Sidebar',
+        action: 'fetch_dashboard_stats',
+        userId: user?.id,
+      });
+      return await DashboardApiService.getDashboardStats();
+    },
   });
+
+  // Extract stats data and map backend fields to frontend expectations
+  const stats = statsResponse?.data ? {
+    totalProbes: statsResponse.data.total_probes,
+    activeProbes: statsResponse.data.active_probes,
+    activeAlerts: statsResponse.data.unresolved_alerts,
+    totalAlerts: statsResponse.data.total_alerts,
+    creditsUsed: 0, // Not available in dashboard stats
+  } : null;
 
   const { data: gateways } = useQuery({
     queryKey: ["/api/gateways"],
@@ -104,7 +122,7 @@ function DashboardSidebar() {
                 className="font-medium text-secondary"
                 data-testid="text-active-probes"
               >
-                {(stats as any)?.totalProbes || 0}
+                {stats?.activeProbes || 0}
               </span>
             </div>
             <div className="flex justify-between text-sm">
@@ -113,7 +131,7 @@ function DashboardSidebar() {
                 className="font-medium text-destructive"
                 data-testid="text-alerts"
               >
-                {(stats as any)?.activeAlerts || 0}
+                {stats?.activeAlerts || 0}
               </span>
             </div>
             <div className="flex justify-between text-sm">
@@ -151,11 +169,15 @@ function DashboardSidebar() {
                   <span className="text-muted-foreground">{gateway.name}</span>
                 </div>
                 <Badge
-                  variant={
-                    gateway.isOnline ? "secondary" : 
-                    gateway.status === 'pending' ? "outline" : "destructive"
-                  }
-                  className="text-xs"
+                  className={`text-xs ${
+                    gateway.isOnline 
+                      ? 'bg-green-100 text-green-700 border-green-200' 
+                      : gateway.status === 'pending'
+                      ? 'bg-yellow-100 text-yellow-700 border-yellow-200'
+                      : gateway.status === 'revoked'
+                      ? 'bg-gray-100 text-gray-700 border-gray-200'
+                      : 'bg-red-100 text-red-700 border-red-200'
+                  }`}
                 >
                   {gateway.isOnline ? "Online" : 
                    gateway.status === 'pending' ? "Pending" : "Offline"}
@@ -628,7 +650,7 @@ export function Sidebar() {
                   location === "/billing" ||
                   location === "/settings" ||
                   location === "/collaborators") &&
-                "Configuration"}
+                "Manage"}
               {user && location.startsWith("/monitor") && "Monitor"}
               {user && location.startsWith("/reports") && "Reports"}
               {user &&

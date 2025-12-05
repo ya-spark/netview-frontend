@@ -20,6 +20,8 @@ import Pricing from "@/pages/Pricing";
 import Docs from "@/pages/docs/index";
 import Dashboard from "@/pages/Dashboard";
 import Manage from "@/pages/Manage";
+import CreateProbe from "@/pages/CreateProbe";
+import ProbeStatus from "@/pages/ProbeStatus";
 import Monitor from "@/pages/Monitor";
 import Reports from "@/pages/Reports";
 import Settings from "@/pages/Settings";
@@ -254,6 +256,18 @@ function Router() {
       <Route path="/dashboard">
         <ProtectedRoute>
           <Dashboard />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/manage/probes/create">
+        <ProtectedRoute>
+          <CreateProbe />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/manage/probes/status/:probeId">
+        <ProtectedRoute>
+          <ProbeStatus />
         </ProtectedRoute>
       </Route>
 

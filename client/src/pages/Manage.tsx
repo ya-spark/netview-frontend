@@ -23,26 +23,10 @@ import { logger } from '@/lib/logger';
 import { GatewayApiService, GatewayUtils } from '@/services/gatewayApi';
 import { ProbeApiService, ProbeUtils } from '@/services/probeApi';
 import { NotificationGroupApiService } from '@/services/notificationApi';
-import { ProbeTypeSelectionDialog } from '@/components/probes/ProbeTypeSelectionDialog';
-import { ProbeConfigurationDialog } from '@/components/probes/ProbeConfigurationDialog';
 import { ProbeEditDialog } from '@/components/probes/ProbeEditDialog';
 import type { GatewayResponse } from '@/types/gateway';
-import type { Probe, ProbeCreate, ProbeCategory, ProbeType } from '@/types/probe';
+import type { Probe, ProbeCreate } from '@/types/probe';
 import type { NotificationGroup, NotificationGroupCreate } from '@/types/notification';
-
-const probeSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  description: z.string().optional(),
-  category: z.enum(['Uptime', 'API', 'Security', 'Browser']),
-  type: z.enum(['ICMP/Ping', 'HTTP/HTTPS', 'DNS Resolution', 'SSL/TLS', 'Authentication']),
-  gateway_type: z.enum(['Core', 'TenantSpecific']).default('Core'),
-  gateway_id: z.string().optional().nullable(),
-  check_interval: z.number().min(60).max(86400).default(300),
-  timeout: z.number().min(5).max(300).default(30).optional(),
-  retries: z.number().min(0).max(10).default(3).optional(),
-  configuration: z.record(z.any()).optional(),
-  is_active: z.boolean().default(true).optional(),
-});
 
 const notificationGroupSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -82,11 +66,6 @@ export default function Manage() {
   const currentSection = isProbesRoute || isManageRoot ? 'probes' : isGatewaysRoute ? 'gateways' : isNotificationsRoute ? 'notifications' : 'probes';
   const currentItemId = isProbesRoute ? probesParams?.probeId : isGatewaysRoute ? gatewaysParams?.gatewayId : isNotificationsRoute ? notificationsParams?.notificationId : undefined;
 
-  // Create Probe Dialog State
-  const [createProbeDialogOpen, setCreateProbeDialogOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [selectedType, setSelectedType] = useState<string>('');
-  const [configDialogOpen, setConfigDialogOpen] = useState(false);
   
   // Gateway Registration Key State
   const [registrationKeyDialogOpen, setRegistrationKeyDialogOpen] = useState(false);
@@ -143,7 +122,7 @@ export default function Manage() {
 
   const { data: probes, refetch: refetchProbes } = useQuery({
     queryKey: ['/api/probes'],
-    enabled: !!user && currentSection === 'probes',
+    enabled: !!user,
     queryFn: async () => {
       logger.debug('Fetching probes', {
         component: 'Manage',
@@ -235,51 +214,6 @@ export default function Manage() {
     }
   }, [gatewaysError, user?.id]);
 
-  const { data: probeTypes, error: typesError, isLoading: typesLoading } = useQuery({
-    queryKey: ['/api/probes/types'],
-    enabled: !!user && currentSection === 'probes',
-    queryFn: async () => {
-      return await ProbeApiService.getProbeTypes();
-    },
-  });
-
-  // Extract categories from the probe types response (keys of the mapping)
-  // Handle both object mapping and array responses
-  const probeCategories = probeTypes?.data 
-    ? Array.isArray(probeTypes.data) 
-      ? [] // If array, no categories to show (category filter already applied)
-      : Object.keys(probeTypes.data)
-    : [];
-
-  // Filter probe types based on selected category
-  const filteredProbeTypes = selectedCategory && probeTypes?.data 
-    ? Array.isArray(probeTypes.data)
-      ? probeTypes.data // If array, use it directly
-      : probeTypes.data[selectedCategory] || []
-    : [];
-
-  // Reset selected type when category changes
-  const handleCategoryChange = (category: string) => {
-    setSelectedCategory(category);
-    setSelectedType(''); // Reset type selection
-  };
-
-  const probeForm = useForm<z.infer<typeof probeSchema>>({
-    resolver: zodResolver(probeSchema),
-    defaultValues: {
-      name: '',
-      description: '',
-      category: 'Uptime',
-      type: 'ICMP/Ping',
-      gateway_type: 'Core',
-      gateway_id: null,
-      check_interval: 300,
-      timeout: 30,
-      retries: 3,
-      configuration: {},
-      is_active: true,
-    },
-  });
 
   const notificationForm = useForm<z.infer<typeof notificationGroupSchema>>({
     resolver: zodResolver(notificationGroupSchema),
@@ -347,42 +281,6 @@ export default function Manage() {
     }
   }, [currentItemId, currentSection, probes?.data, gateways?.data, notificationGroups, editingProbe?.id, editingGateway?.id, editingNotificationGroup?.id]);
 
-  const createProbeMutation = useMutation({
-    mutationFn: async (data: ProbeCreate) => {
-      logger.info('Creating probe', {
-        component: 'Manage',
-        action: 'create_probe',
-        probeName: data.name,
-        probeType: data.type,
-        userId: user?.id,
-      });
-      return await ProbeApiService.createProbe(data);
-    },
-    onSuccess: (response) => {
-      logger.info('Probe created successfully', {
-        component: 'Manage',
-        action: 'create_probe',
-        probeId: response?.data?.id,
-        userId: user?.id,
-      });
-      toast({ title: 'Success', description: 'Probe created successfully' });
-      refetchProbes();
-      probeForm.reset();
-      setCreateProbeDialogOpen(false);
-      setConfigDialogOpen(false);
-      setSelectedCategory('');
-      setSelectedType('');
-    },
-    onError: (error: any) => {
-      const err = error instanceof Error ? error : new Error(String(error));
-      logger.error('Failed to create probe', err, {
-        component: 'Manage',
-        action: 'create_probe',
-        userId: user?.id,
-      });
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    },
-  });
 
   const updateProbeMutation = useMutation({
     mutationFn: async ({ probeId, data }: { probeId: string; data: Partial<ProbeCreate> }) => {
@@ -792,7 +690,7 @@ export default function Manage() {
                 <Button 
                   data-testid="button-create-probe" 
                   className="w-full sm:w-auto"
-                  onClick={() => setCreateProbeDialogOpen(true)}
+                  onClick={() => setLocation('/manage/probes/create')}
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Create Probe
@@ -853,7 +751,14 @@ export default function Manage() {
                           <Badge variant="outline" className="capitalize">{probe.category}</Badge>
                           {getTypeBadge(probe.type)}
                           <Badge variant="outline">{probe.check_interval}s</Badge>
-                          <Badge variant={probe.gateway_type === 'Core' ? 'secondary' : 'outline'}>
+                          <Badge 
+                            variant="outline"
+                            className={
+                              probe.gateway_type === 'Core' 
+                                ? 'bg-slate-100 text-slate-700 border-slate-200' 
+                                : 'bg-blue-100 text-blue-700 border-blue-200'
+                            }
+                          >
                             {probe.gateway_type === 'Core' ? 'Core' : 'Custom'}
                           </Badge>
                         </div>
@@ -1307,13 +1212,38 @@ export default function Manage() {
                         
                         {/* Container 2: Status Chips (33%) */}
                         <div className="flex flex-wrap gap-1 w-full sm:w-1/3 items-start sm:items-center">
-                          <Badge variant="outline" title={typeInfo.description}>
+                          <Badge 
+                            variant="outline" 
+                            title={typeInfo.description}
+                            className={
+                              gateway.type === 'Core' 
+                                ? 'bg-gray-100 text-gray-700 border-gray-200' 
+                                : 'bg-blue-100 text-blue-700 border-blue-200'
+                            }
+                          >
                             {typeInfo.label}
                           </Badge>
-                          <Badge variant={isOnline ? "secondary" : "destructive"}>
+                          <Badge 
+                            className={
+                              isOnline 
+                                ? 'bg-green-100 text-green-700 border-green-200' 
+                                : 'bg-red-100 text-red-700 border-red-200'
+                            }
+                          >
                             {isOnline ? 'Online' : 'Offline'}
                           </Badge>
-                          <Badge variant="outline" className={statusInfo.color}>
+                          <Badge 
+                            variant="outline"
+                            className={
+                              gateway.status === 'revoked'
+                                ? 'bg-gray-100 text-gray-700 border-gray-200'
+                                : gateway.status === 'pending'
+                                ? 'bg-yellow-100 text-yellow-700 border-yellow-200'
+                                : gateway.status === 'active' || gateway.status === 'registered'
+                                ? 'bg-green-100 text-green-700 border-green-200'
+                                : statusInfo.color
+                            }
+                          >
                             {statusInfo.label}
                           </Badge>
                         </div>
@@ -1544,53 +1474,6 @@ export default function Manage() {
         isPending={updateProbeMutation.isPending}
       />
 
-      {/* Create Probe Dialog - Category and Type Selection */}
-      <ProbeTypeSelectionDialog
-        open={createProbeDialogOpen}
-        onOpenChange={(open) => {
-          setCreateProbeDialogOpen(open);
-          if (!open) {
-            setSelectedCategory('');
-            setSelectedType('');
-          }
-        }}
-        selectedCategory={selectedCategory}
-        selectedType={selectedType}
-        probeCategories={probeCategories}
-        filteredProbeTypes={filteredProbeTypes}
-        typesLoading={typesLoading}
-        typesError={typesError}
-        onCategoryChange={handleCategoryChange}
-        onTypeChange={setSelectedType}
-        onNext={() => {
-          setCreateProbeDialogOpen(false);
-          setConfigDialogOpen(true);
-        }}
-      />
-
-      {/* Configuration Dialog */}
-      <ProbeConfigurationDialog
-        open={configDialogOpen}
-        onOpenChange={(open) => {
-          setConfigDialogOpen(open);
-          if (!open && !createProbeDialogOpen) {
-            setSelectedCategory('');
-            setSelectedType('');
-          }
-        }}
-        selectedCategory={selectedCategory as ProbeCategory}
-        selectedType={selectedType as ProbeType}
-        gateways={gateways}
-        notificationGroups={notificationGroups}
-        onSubmit={(data) => {
-          createProbeMutation.mutate(data);
-        }}
-        isPending={createProbeMutation.isPending}
-        onBack={() => {
-          setConfigDialogOpen(false);
-          setCreateProbeDialogOpen(true);
-        }}
-      />
     </Layout>
   );
 }

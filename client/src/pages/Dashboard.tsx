@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -6,205 +7,56 @@ import { Input } from '@/components/ui/input';
 import { Layout } from '@/components/Layout';
 import { BarChart3, AlertTriangle, CheckCircle, DollarSign, RefreshCw, Plus, Search, Filter } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { ProbeUtils } from '@/services/probeApi';
+import { ProbeApiService, ProbeUtils } from '@/services/probeApi';
+import { DashboardApiService } from '@/services/dashboardApi';
 import { logger } from '@/lib/logger';
 import type { Probe } from '@/types/probe';
 
-// Mock data
-const mockStats = {
-  totalProbes: 8,
-  activeAlerts: 2,
-  overallUptime: 99.5,
-};
-
-const mockProbes = {
-  data: [
-    {
-      id: '1',
-      name: 'Main Website',
-      url: 'https://example.com',
-      type: 'Uptime',
-      status: 'Up',
-      responseTime: 245,
-      lastCheck: new Date().toISOString(),
-      tenant_id: 1,
-      category: 'Uptime' as const,
-      probe_type: 'HTTP/HTTPS' as const,
-      gateway_type: 'Core' as const,
-      gateway_id: null,
-      notification_group_id: null,
-      check_interval: 300,
-      timeout: 30,
-      retries: 3,
-      configuration: { url: 'https://example.com' },
-      is_active: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-    {
-      id: '2',
-      name: 'API Endpoint',
-      url: 'https://api.example.com/health',
-      type: 'API',
-      status: 'Up',
-      responseTime: 128,
-      lastCheck: new Date(Date.now() - 60000).toISOString(),
-      tenant_id: 1,
-      category: 'API' as const,
-      probe_type: 'HTTP/HTTPS' as const,
-      gateway_type: 'Core' as const,
-      gateway_id: null,
-      notification_group_id: null,
-      check_interval: 300,
-      timeout: 30,
-      retries: 3,
-      configuration: { url: 'https://api.example.com/health' },
-      is_active: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-    {
-      id: '3',
-      name: 'Database Server',
-      url: 'db.example.com',
-      type: 'Uptime',
-      status: 'Down',
-      responseTime: null,
-      lastCheck: new Date(Date.now() - 300000).toISOString(),
-      tenant_id: 1,
-      category: 'Uptime' as const,
-      probe_type: 'ICMP/Ping' as const,
-      gateway_type: 'Core' as const,
-      gateway_id: null,
-      notification_group_id: null,
-      check_interval: 300,
-      timeout: 30,
-      retries: 3,
-      configuration: { host: 'db.example.com' },
-      is_active: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-    {
-      id: '4',
-      name: 'SSL Certificate',
-      url: 'https://secure.example.com',
-      type: 'Security',
-      status: 'Up',
-      responseTime: 89,
-      lastCheck: new Date(Date.now() - 120000).toISOString(),
-      tenant_id: 1,
-      category: 'Security' as const,
-      probe_type: 'SSL/TLS' as const,
-      gateway_type: 'Core' as const,
-      gateway_id: null,
-      notification_group_id: null,
-      check_interval: 3600,
-      timeout: 30,
-      retries: 3,
-      configuration: { url: 'https://secure.example.com' },
-      is_active: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-    {
-      id: '5',
-      name: 'Payment Gateway',
-      url: 'https://payments.example.com',
-      type: 'API',
-      status: 'Warning',
-      responseTime: 1250,
-      lastCheck: new Date(Date.now() - 180000).toISOString(),
-      tenant_id: 1,
-      category: 'API' as const,
-      probe_type: 'HTTP/HTTPS' as const,
-      gateway_type: 'Core' as const,
-      gateway_id: null,
-      notification_group_id: null,
-      check_interval: 300,
-      timeout: 30,
-      retries: 3,
-      configuration: { url: 'https://payments.example.com' },
-      is_active: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-    {
-      id: '6',
-      name: 'DNS Resolution',
-      url: 'example.com',
-      type: 'Security',
-      status: 'Up',
-      responseTime: 45,
-      lastCheck: new Date(Date.now() - 240000).toISOString(),
-      tenant_id: 1,
-      category: 'Security' as const,
-      probe_type: 'DNS Resolution' as const,
-      gateway_type: 'Core' as const,
-      gateway_id: null,
-      notification_group_id: null,
-      check_interval: 600,
-      timeout: 30,
-      retries: 3,
-      configuration: { domain: 'example.com' },
-      is_active: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-    {
-      id: '7',
-      name: 'User Dashboard',
-      url: 'https://dashboard.example.com',
-      type: 'Browser',
-      status: 'Up',
-      responseTime: 567,
-      lastCheck: new Date(Date.now() - 90000).toISOString(),
-      tenant_id: 1,
-      category: 'Browser' as const,
-      probe_type: 'HTTP/HTTPS' as const,
-      gateway_type: 'Core' as const,
-      gateway_id: null,
-      notification_group_id: null,
-      check_interval: 300,
-      timeout: 30,
-      retries: 3,
-      configuration: { url: 'https://dashboard.example.com' },
-      is_active: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-    {
-      id: '8',
-      name: 'Backup Service',
-      url: 'https://backup.example.com/status',
-      type: 'API',
-      status: 'Down',
-      responseTime: null,
-      lastCheck: new Date(Date.now() - 600000).toISOString(),
-      tenant_id: 1,
-      category: 'API' as const,
-      probe_type: 'HTTP/HTTPS' as const,
-      gateway_type: 'Core' as const,
-      gateway_id: null,
-      notification_group_id: null,
-      check_interval: 300,
-      timeout: 30,
-      retries: 3,
-      configuration: { url: 'https://backup.example.com/status' },
-      is_active: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-  ],
-};
 
 export default function Dashboard() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Using mock data instead of API calls
-  const stats = mockStats;
-  const probes = mockProbes;
+  // Fetch dashboard stats
+  const { data: statsResponse, refetch: refetchStats } = useQuery({
+    queryKey: ['/api/dashboard'],
+    enabled: !!user,
+    queryFn: async () => {
+      logger.debug('Fetching dashboard stats', {
+        component: 'Dashboard',
+        userId: user?.id,
+      });
+      return await DashboardApiService.getDashboardStats();
+    },
+  });
+
+  // Fetch probes
+  const { data: probesResponse, refetch: refetchProbes } = useQuery({
+    queryKey: ['/api/probes'],
+    enabled: !!user,
+    queryFn: async () => {
+      logger.debug('Fetching probes', {
+        component: 'Dashboard',
+        userId: user?.id,
+      });
+      return await ProbeApiService.listProbes();
+    },
+  });
+
+  // Map dashboard stats to display format
+  const stats = statsResponse?.data ? {
+    totalProbes: statsResponse.data.total_probes,
+    activeAlerts: statsResponse.data.unresolved_alerts,
+    overallUptime: typeof statsResponse.data.success_rate === 'number' 
+      ? (statsResponse.data.success_rate < 1 ? statsResponse.data.success_rate * 100 : statsResponse.data.success_rate)
+      : 0,
+  } : {
+    totalProbes: 0,
+    activeAlerts: 0,
+    overallUptime: 0,
+  };
+
+  const probes = probesResponse || { data: [] };
 
   useEffect(() => {
     logger.debug('Dashboard page initialized', {
@@ -220,25 +72,23 @@ export default function Dashboard() {
       action: 'refresh',
       userId: user?.id,
     });
-    // Mock refresh - no API calls
+    refetchStats();
+    refetchProbes();
   };
 
-  const filteredProbes = (probes.data || []).filter((probe: any) =>
+  const filteredProbes = (probes.data || []).filter((probe: Probe) =>
     probe.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    ProbeUtils.getConfigDisplay(probe as Probe).toLowerCase().includes(searchTerm.toLowerCase())
+    ProbeUtils.getConfigDisplay(probe).toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'Up':
-        return <Badge variant="secondary" className="bg-secondary/10 text-secondary">Up</Badge>;
-      case 'Down':
-        return <Badge variant="destructive">Down</Badge>;
-      case 'Warning':
-        return <Badge variant="outline" className="border-amber-500 text-amber-700">Slow</Badge>;
-      default:
-        return <Badge variant="outline">Unknown</Badge>;
+  const getStatusBadge = (probe: Probe) => {
+    // For now, show status based on is_active flag
+    // TODO: Enhance with actual probe status from probe results/status endpoint
+    if (!probe.is_active) {
+      return <Badge className="bg-gray-100 text-gray-700 border-gray-200">Inactive</Badge>;
     }
+    // Default to showing as active - status would come from probe results
+    return <Badge className="bg-green-100 text-green-700 border-green-200">Active</Badge>;
   };
 
   const getTypeBadge = (type: string) => {
@@ -327,7 +177,7 @@ export default function Dashboard() {
                 <div className="flex-1 min-w-0">
                   <p className="text-xs sm:text-sm font-medium text-muted-foreground">Overall Uptime</p>
                   <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-secondary mt-1" data-testid="text-uptime">
-                    {stats.overallUptime}%
+                    {stats.overallUptime.toFixed(1)}%
                   </p>
                   <p className="text-xs text-secondary mt-1">Last 30 days</p>
                 </div>
@@ -391,51 +241,55 @@ export default function Dashboard() {
                       </td>
                     </tr>
                   ) : (
-                    filteredProbes.map((probe: any) => (
-                      <tr key={probe.id} className="border-b border-border hover:bg-muted/20 transition-colors">
-                        <td className="py-3 sm:py-4 px-3 sm:px-4">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                              probe.status === 'Up' ? 'bg-secondary' : 
-                              probe.status === 'Down' ? 'bg-destructive' : 'bg-amber-500'
-                            }`} />
-                            <div className="min-w-0 flex-1">
-                              <div className="text-xs sm:text-sm font-medium text-foreground truncate" data-testid={`text-probe-name-${probe.id}`}>
-                                {probe.name}
-                              </div>
-                              <div className="text-xs sm:text-sm text-muted-foreground truncate" data-testid={`text-probe-url-${probe.id}`}>
-                                {probe.url}
-                              </div>
-                              <div className="sm:hidden mt-1">
-                                {getTypeBadge(probe.type)}
+                    filteredProbes.map((probe: Probe) => {
+                      const configDisplay = ProbeUtils.getConfigDisplay(probe);
+                      return (
+                        <tr key={probe.id} className="border-b border-border hover:bg-muted/20 transition-colors">
+                          <td className="py-3 sm:py-4 px-3 sm:px-4">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                probe.is_active ? 'bg-secondary' : 'bg-gray-400'
+                              }`} />
+                              <div className="min-w-0 flex-1">
+                                <div className="text-xs sm:text-sm font-medium text-foreground truncate" data-testid={`text-probe-name-${probe.id}`}>
+                                  {probe.name}
+                                </div>
+                                <div className="text-xs sm:text-sm text-muted-foreground truncate" data-testid={`text-probe-url-${probe.id}`}>
+                                  {configDisplay}
+                                </div>
+                                <div className="sm:hidden mt-1">
+                                  {getTypeBadge(probe.category)}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="py-3 sm:py-4 px-3 sm:px-4 hidden sm:table-cell">
-                          {getTypeBadge(probe.type)}
-                        </td>
-                        <td className="py-3 sm:py-4 px-3 sm:px-4">
-                          {getStatusBadge(probe.status || 'Up')}
-                        </td>
-                        <td className="py-3 sm:py-4 px-3 sm:px-4 text-xs sm:text-sm text-foreground hidden md:table-cell">
-                          {probe.responseTime ? `${probe.responseTime}ms` : '-'}
-                        </td>
-                        <td className="py-3 sm:py-4 px-3 sm:px-4 text-xs sm:text-sm text-muted-foreground hidden lg:table-cell">
-                          {probe.lastCheck ? new Date(probe.lastCheck).toLocaleString() : 'Never'}
-                        </td>
-                        <td className="py-3 sm:py-4 px-3 sm:px-4">
-                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1 sm:gap-2">
-                            <Button variant="ghost" size="sm" data-testid={`button-edit-${probe.id}`} className="text-xs px-2 py-1 h-auto">
-                              Edit
-                            </Button>
-                            <Button variant="ghost" size="sm" data-testid={`button-view-${probe.id}`} className="text-xs px-2 py-1 h-auto">
-                              View
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                          </td>
+                          <td className="py-3 sm:py-4 px-3 sm:px-4 hidden sm:table-cell">
+                            {getTypeBadge(probe.category)}
+                          </td>
+                          <td className="py-3 sm:py-4 px-3 sm:px-4">
+                            {getStatusBadge(probe)}
+                          </td>
+                          <td className="py-3 sm:py-4 px-3 sm:px-4 text-xs sm:text-sm text-muted-foreground hidden md:table-cell">
+                            {/* Response time would come from probe results - showing N/A for now */}
+                            N/A
+                          </td>
+                          <td className="py-3 sm:py-4 px-3 sm:px-4 text-xs sm:text-sm text-muted-foreground hidden lg:table-cell">
+                            {/* Last check would come from probe results - showing updated_at for now */}
+                            {probe.updated_at ? new Date(probe.updated_at).toLocaleString() : 'Never'}
+                          </td>
+                          <td className="py-3 sm:py-4 px-3 sm:px-4">
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1 sm:gap-2">
+                              <Button variant="ghost" size="sm" data-testid={`button-edit-${probe.id}`} className="text-xs px-2 py-1 h-auto">
+                                Edit
+                              </Button>
+                              <Button variant="ghost" size="sm" data-testid={`button-view-${probe.id}`} className="text-xs px-2 py-1 h-auto">
+                                View
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
