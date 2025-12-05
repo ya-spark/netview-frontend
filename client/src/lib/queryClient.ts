@@ -145,7 +145,12 @@ async function throwIfResNotOk(res: Response, url?: string) {
 let currentUserInfo: { email?: string; tenantId?: string } = {};
 
 export function setCurrentUserInfo(email?: string, tenantId?: string) {
-  currentUserInfo = { email, tenantId };
+  if (email === undefined && tenantId === undefined) {
+    // Explicitly clear the state
+    currentUserInfo = {};
+  } else {
+    currentUserInfo = { email, tenantId };
+  }
 }
 
 async function getAuthHeaders(): Promise<Record<string, string>> {

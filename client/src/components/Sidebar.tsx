@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link, Router, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -211,30 +212,25 @@ function DashboardSidebar() {
 function ManageSidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
-  const hash = location.includes("#") ? location.split("#")[1] : "";
-
-  const handleHashNavigation = (hashValue: string) => {
-    window.location.hash = hashValue;
-  };
 
   const manageNavigation = [
     {
       name: "Probes",
-      hash: "probes",
+      href: "/manage/probes",
       icon: Activity,
-      current: hash === "probes",
+      current: location.startsWith("/manage/probes") || location === "/manage",
     },
     {
       name: "Gateways",
-      hash: "gateways",
+      href: "/manage/gateways",
       icon: Server,
-      current: hash === "gateways",
+      current: location.startsWith("/manage/gateways"),
     },
     {
       name: "Notification Groups",
-      hash: "notifications",
+      href: "/manage/notifications",
       icon: Bell,
-      current: hash === "notifications",
+      current: location.startsWith("/manage/notifications"),
     },
   ];
 
@@ -269,20 +265,20 @@ function ManageSidebar() {
         {manageNavigation.map((item) => {
           const Icon = item.icon;
           return (
-            <Button
-              key={item.name}
-              variant={item.current ? "default" : "ghost"}
-              className={`w-full justify-start ${
-                item.current
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              }`}
-              onClick={() => handleHashNavigation(item.hash)}
-              data-testid={`nav-manage-${item.name.toLowerCase().replace(/\s+/g, "-")}`}
-            >
-              <Icon className="mr-3 h-4 w-4" />
-              {item.name}
-            </Button>
+            <Link key={item.name} href={item.href}>
+              <Button
+                variant={item.current ? "default" : "ghost"}
+                className={`w-full justify-start ${
+                  item.current
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                }`}
+                data-testid={`nav-manage-${item.name.toLowerCase().replace(/\s+/g, "-")}`}
+              >
+                <Icon className="mr-3 h-4 w-4" />
+                {item.name}
+              </Button>
+            </Link>
           );
         })}
       </nav>

@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/contexts/AuthContext';
+import { logger } from '@/lib/logger';
 import { CreditCard, Check, Star, Download, Calendar, DollarSign } from 'lucide-react';
 // Define Tenant type locally since shared schema is not available
 interface Tenant {

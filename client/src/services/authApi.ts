@@ -124,3 +124,30 @@ export async function registerUser(
   return user;
 }
 
+/**
+ * Logout from the backend system
+ * Clears authentication and user-related information on the server
+ * @returns Promise that resolves when logout is complete
+ */
+export async function logout(): Promise<void> {
+  try {
+    logger.info('Logging out from backend', {
+      component: 'authApi',
+      action: 'logout',
+    });
+    await apiRequest('POST', '/api/auth/logout', {});
+    logger.info('Backend logout successful', {
+      component: 'authApi',
+      action: 'logout',
+    });
+  } catch (error: any) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error('Backend logout error', err, {
+      component: 'authApi',
+      action: 'logout',
+    });
+    // Don't throw - allow logout to proceed even if backend call fails
+    // The Firebase logout will still happen on the client side
+  }
+}
+

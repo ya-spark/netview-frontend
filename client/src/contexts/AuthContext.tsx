@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useLocation } from 'wouter';
-import { getCurrentUser, registerUser } from '@/services/authApi';
+import { getCurrentUser, registerUser, logout as logoutApi } from '@/services/authApi';
 import { ApiError, setCurrentUserInfo } from '@/lib/queryClient';
 import { logger } from '@/lib/logger';
 import { 
@@ -64,7 +64,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const [user, setUser] = useState<User | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
@@ -258,7 +258,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
-      // Sign out from Firebase
+      // First, call backend logout endpoint to clear server-side state
+      // This should be done before Firebase signout to ensure we have a valid token
+      try {
+        await logoutApi();
+        logger.info('Backend logout successful', {
+          component: 'AuthContext',
+          action: 'sign_out',
+        });
+      } catch (error: any) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        logger.error('Error during backend logout', err, {
+          component: 'AuthContext',
+          action: 'sign_out',
+        });
+        // Continue with Firebase signout even if backend logout fails
+      }
+      
+      // Sign out from Firebase (this clears Firebase's persisted auth state)
       await firebaseSignOut();
       logger.info('Signed out from Firebase', {
         component: 'AuthContext',
@@ -273,15 +290,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Continue with local state cleanup even if Firebase signout fails
     }
     
-    // Clear local state
+    // Explicitly clear all local state (this ensures state is cleared even if Firebase signout had issues)
     setUser(null);
     setFirebaseUser(null);
     setSelectedTenant(null);
     setTenants([]);
     setError(null);
-    // Clear global user info for API headers
-    setCurrentUserInfo();
     setEmailVerification(null);
+    
+    // Clear global user info for API headers (this persists across page loads, so must be cleared)
+    setCurrentUserInfo();
+    
+    logger.info('All auth state cleared', {
+      component: 'AuthContext',
+      action: 'sign_out',
+    });
+    
+    // Redirect to logged-out page
+    setLocation('/logged-out');
   };
 
   const loginWithGoogle = async () => {

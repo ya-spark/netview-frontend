@@ -14,6 +14,7 @@ import Onboarding from "@/pages/Onboarding";
 import EmailVerification from "@/pages/EmailVerification";
 import PublicEmailError from "@/pages/PublicEmailError";
 import TenantSelection from "@/pages/TenantSelection";
+import LoggedOut from "@/pages/LoggedOut";
 import Features from "@/pages/Features";
 import Pricing from "@/pages/Pricing";
 import Docs from "@/pages/docs/index";
@@ -202,6 +203,12 @@ function Router() {
         </LoginRoute>
       </Route>
 
+      <Route path="/logged-out">
+        <PreAuthRoute>
+          <LoggedOut />
+        </PreAuthRoute>
+      </Route>
+
       <Route path="/onboarding">
         <OnboardingRoute>
           <Onboarding />
@@ -247,6 +254,24 @@ function Router() {
       <Route path="/dashboard">
         <ProtectedRoute>
           <Dashboard />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/manage/probes/:probeId?">
+        <ProtectedRoute>
+          <Manage />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/manage/gateways/:gatewayId?">
+        <ProtectedRoute>
+          <Manage />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/manage/notifications/:notificationId?">
+        <ProtectedRoute>
+          <Manage />
         </ProtectedRoute>
       </Route>
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { useLocation } from 'wouter';
+import { useLocation, useRoute } from 'wouter';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -67,16 +67,20 @@ export default function Manage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
-  const [currentHash, setCurrentHash] = useState(() => {
-    // Get initial hash from URL
-    const hash = window.location.hash ? window.location.hash.substring(1) : 'gateways';
-      logger.debug('Manage page initialized', {
-      component: 'Manage',
-      initialHash: hash,
-      userId: user?.id,
-    });
-    return hash;
-  });
+  const [, setLocation] = useLocation();
+  
+  const [location] = useLocation();
+  
+  // Get route parameters using wouter's useRoute
+  const [isProbesRoute, probesParams] = useRoute('/manage/probes/:probeId?');
+  const [isGatewaysRoute, gatewaysParams] = useRoute('/manage/gateways/:gatewayId?');
+  const [isNotificationsRoute, notificationsParams] = useRoute('/manage/notifications/:notificationId?');
+  const [isManageRoot] = useRoute('/manage');
+  
+  // Determine current section and item ID from route
+  // If at /manage root, default to probes
+  const currentSection = isProbesRoute || isManageRoot ? 'probes' : isGatewaysRoute ? 'gateways' : isNotificationsRoute ? 'notifications' : 'probes';
+  const currentItemId = isProbesRoute ? probesParams?.probeId : isGatewaysRoute ? gatewaysParams?.gatewayId : isNotificationsRoute ? notificationsParams?.notificationId : undefined;
 
   // Create Probe Dialog State
   const [createProbeDialogOpen, setCreateProbeDialogOpen] = useState(false);
@@ -102,39 +106,48 @@ export default function Manage() {
   const [editNotificationDialogOpen, setEditNotificationDialogOpen] = useState(false);
   const [editingNotificationGroup, setEditingNotificationGroup] = useState<NotificationGroup | null>(null);
   
-  // Listen for hash changes
+  // Log route changes
   useEffect(() => {
-    const handleHashChange = () => {
-      const newHash = window.location.hash ? window.location.hash.substring(1) : 'gateways';
-      logger.debug('Hash changed in Manage page', {
-        component: 'Manage',
-        previousHash: currentHash,
-        newHash,
-        userId: user?.id,
-      });
-      setCurrentHash(newHash);
-    };
+    logger.debug('Manage page route changed', {
+      component: 'Manage',
+      currentSection,
+      currentItemId,
+      userId: user?.id,
+    });
+  }, [currentSection, currentItemId, user?.id]);
 
-    window.addEventListener('hashchange', handleHashChange);
-    
-    // Also listen for initial load in case hash is set
-    handleHashChange();
+  // Close dialogs and navigate back to list when closing
+  const handleCloseProbeDialog = () => {
+    setEditProbeDialogOpen(false);
+    setEditingProbe(null);
+    if (currentItemId) {
+      setLocation('/manage/probes');
+    }
+  };
 
-    return () => {
-      window.removeEventListener('hashchange', handleHashChange);
-    };
-  }, [currentHash, user?.id]);
-  
-  const [location] = useLocation();
-  const hash = currentHash;
+  const handleCloseGatewayDialog = () => {
+    setEditGatewayDialogOpen(false);
+    setEditingGateway(null);
+    if (currentItemId) {
+      setLocation('/manage/gateways');
+    }
+  };
+
+  const handleCloseNotificationDialog = () => {
+    setEditNotificationDialogOpen(false);
+    setEditingNotificationGroup(null);
+    if (currentItemId) {
+      setLocation('/manage/notifications');
+    }
+  };
 
   const { data: probes, refetch: refetchProbes } = useQuery({
     queryKey: ['/api/probes'],
-    enabled: !!user && hash === 'probes',
+    enabled: !!user && currentSection === 'probes',
     queryFn: async () => {
       logger.debug('Fetching probes', {
         component: 'Manage',
-        hash,
+        currentSection,
         userId: user?.id,
       });
       const result = await ProbeApiService.listProbes();
@@ -149,11 +162,11 @@ export default function Manage() {
 
   const { data: notificationGroupsResponse, refetch: refetchNotificationGroups } = useQuery({
     queryKey: ['/api/notifications/groups'],
-    enabled: !!user && (hash === 'notifications' || hash === 'probes'),
+    enabled: !!user && (currentSection === 'notifications' || currentSection === 'probes'),
     queryFn: async () => {
       logger.debug('Fetching notification groups', {
         component: 'Manage',
-        hash,
+        currentSection,
         userId: user?.id,
       });
       const result = await NotificationGroupApiService.listGroups();
@@ -169,24 +182,34 @@ export default function Manage() {
   const notificationGroups = notificationGroupsResponse?.data || [];
 
   // Query for all gateways (includes both tenant-specific and shared gateways)
-  const gatewaysQueryEnabled = !!user && (hash === 'gateways' || hash === 'probes');
+  const gatewaysQueryEnabled = !!user && (currentSection === 'gateways' || currentSection === 'probes');
   const { data: gateways, refetch: refetchGateways, error: gatewaysError, isLoading: gatewaysLoading } = useQuery({
-    queryKey: ['/api/gateways'],
+    queryKey: ['/api/gateways', currentSection],
     enabled: gatewaysQueryEnabled, // Load gateways when viewing probes too
     queryFn: async () => {
       logger.debug('Fetching gateways', {
         component: 'Manage',
-        hash,
+        currentSection,
         userId: user?.id,
         enabled: gatewaysQueryEnabled,
       });
-      const result = await GatewayApiService.listGateways();
-      logger.info('Gateways loaded', {
-        component: 'Manage',
-        gatewayCount: result?.data?.length || 0,
-        userId: user?.id,
-      }, result);
-      return result;
+      try {
+        const result = await GatewayApiService.listGateways();
+        logger.info('Gateways loaded', {
+          component: 'Manage',
+          gatewayCount: result?.data?.length || 0,
+          userId: user?.id,
+        }, result);
+        return result;
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        logger.error('Failed to fetch gateways', err, {
+          component: 'Manage',
+          currentSection,
+          userId: user?.id,
+        });
+        throw error;
+      }
     },
   });
 
@@ -196,10 +219,10 @@ export default function Manage() {
       component: 'Manage',
       enabled: gatewaysQueryEnabled,
       hasUser: !!user,
-      hash,
+      currentSection,
       userId: user?.id,
     });
-  }, [gatewaysQueryEnabled, user, hash]);
+  }, [gatewaysQueryEnabled, user, currentSection]);
 
   // Log gateway errors
   useEffect(() => {
@@ -214,7 +237,7 @@ export default function Manage() {
 
   const { data: probeTypes, error: typesError, isLoading: typesLoading } = useQuery({
     queryKey: ['/api/probes/types'],
-    enabled: !!user && hash === 'probes',
+    enabled: !!user && currentSection === 'probes',
     queryFn: async () => {
       return await ProbeApiService.getProbeTypes();
     },
@@ -287,6 +310,43 @@ export default function Manage() {
     },
   });
 
+  // Handle deep linking - open edit dialog when itemId is in route
+  // This must be after all form declarations
+  useEffect(() => {
+    if (currentItemId) {
+      if (currentSection === 'probes' && probes?.data) {
+        const probe = probes.data.find((p: Probe) => p.id === currentItemId);
+        if (probe && editingProbe?.id !== currentItemId) {
+          setEditingProbe(probe);
+          setEditProbeDialogOpen(true);
+        }
+      } else if (currentSection === 'gateways' && gateways?.data) {
+        const gateway = gateways.data.find((g: GatewayResponse) => g.id === currentItemId);
+        if (gateway && editingGateway?.id !== currentItemId) {
+          setEditingGateway(gateway);
+          gatewayForm.reset({
+            name: gateway.name,
+            type: gateway.type,
+            location: gateway.location || '',
+          });
+          setEditGatewayDialogOpen(true);
+        }
+      } else if (currentSection === 'notifications' && notificationGroups) {
+        const notification = notificationGroups.find((n: NotificationGroup) => n.id === currentItemId);
+        if (notification && editingNotificationGroup?.id !== currentItemId) {
+          setEditingNotificationGroup(notification);
+          editNotificationForm.reset({
+            name: notification.name,
+            emails: notification.emails.join(', '),
+            alert_threshold: notification.alert_threshold,
+            is_active: notification.is_active,
+          });
+          setEditNotificationDialogOpen(true);
+        }
+      }
+    }
+  }, [currentItemId, currentSection, probes?.data, gateways?.data, notificationGroups, editingProbe?.id, editingGateway?.id, editingNotificationGroup?.id]);
+
   const createProbeMutation = useMutation({
     mutationFn: async (data: ProbeCreate) => {
       logger.info('Creating probe', {
@@ -342,9 +402,7 @@ export default function Manage() {
       });
       toast({ title: 'Success', description: 'Probe updated successfully' });
       refetchProbes();
-      setEditProbeDialogOpen(false);
-      setEditingProbe(null);
-      probeForm.reset();
+      handleCloseProbeDialog();
     },
     onError: (error: any) => {
       const err = error instanceof Error ? error : new Error(String(error));
@@ -453,9 +511,7 @@ export default function Manage() {
       });
       toast({ title: 'Success', description: 'Notification group updated successfully' });
       refetchNotificationGroups();
-      setEditNotificationDialogOpen(false);
-      setEditingNotificationGroup(null);
-      editNotificationForm.reset();
+      handleCloseNotificationDialog();
     },
     onError: (error: any) => {
       const err = error instanceof Error ? error : new Error(String(error));
@@ -499,14 +555,7 @@ export default function Manage() {
   });
 
   const handleEditNotificationGroup = (group: NotificationGroup) => {
-    setEditingNotificationGroup(group);
-    editNotificationForm.reset({
-      name: group.name,
-      emails: group.emails.join(', '),
-      alert_threshold: group.alert_threshold,
-      is_active: group.is_active,
-    });
-    setEditNotificationDialogOpen(true);
+    setLocation(`/manage/notifications/${group.id}`);
   };
 
   const handleDeleteNotificationGroup = (groupId: string) => {
@@ -659,9 +708,7 @@ export default function Manage() {
       });
       toast({ title: 'Success', description: 'Gateway updated successfully' });
       refetchGateways();
-      setEditGatewayDialogOpen(false);
-      setEditingGateway(null);
-      gatewayForm.reset();
+      handleCloseGatewayDialog();
     },
     onError: (error: any) => {
       const err = error instanceof Error ? error : new Error(String(error));
@@ -736,8 +783,8 @@ export default function Manage() {
           <p className="text-muted-foreground">Configure probes, notification groups, and gateways</p>
         </div>
 
-        {/* Show content based on URL hash */}
-        {hash === 'probes' && (
+        {/* Show content based on current route section */}
+        {currentSection === 'probes' && (
           <Card>
             <CardHeader className="pb-3">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -781,7 +828,16 @@ export default function Manage() {
                   {filteredProbes.map((probe: Probe) => {
                     const configDisplay = ProbeUtils.getConfigDisplay(probe);
                     return (
-                    <div key={probe.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-border rounded-lg gap-4" data-testid={`probe-item-${probe.id}`}>
+                    <div 
+                      key={probe.id} 
+                      className={`flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border rounded-lg gap-4 cursor-pointer transition-colors ${
+                        currentItemId === probe.id 
+                          ? 'border-primary bg-primary/5' 
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                      data-testid={`probe-item-${probe.id}`}
+                      onClick={() => setLocation(`/manage/probes/${probe.id}`)}
+                    >
                       <div className="flex items-center space-x-4 min-w-0 flex-1">
                         <div className={`w-3 h-3 rounded-full flex-shrink-0 ${probe.is_active ? 'bg-secondary' : 'bg-muted'}`} />
                         <div className="min-w-0 flex-1">
@@ -807,8 +863,7 @@ export default function Manage() {
                             size="sm" 
                             data-testid={`button-edit-probe-${probe.id}`}
                             onClick={() => {
-                              setEditingProbe(probe);
-                              setEditProbeDialogOpen(true);
+                              setLocation(`/manage/probes/${probe.id}`);
                             }}
                           >
                             <Edit className="w-4 h-4" />
@@ -817,7 +872,8 @@ export default function Manage() {
                             variant="ghost" 
                             size="sm" 
                             data-testid={`button-delete-probe-${probe.id}`}
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               if (confirm(`Are you sure you want to delete the probe "${probe.name}"? This action cannot be undone.`)) {
                                 deleteProbeMutation.mutate(probe.id);
                               }
@@ -837,7 +893,7 @@ export default function Manage() {
           </Card>
         )}
         
-        {hash === 'notifications' && (
+        {currentSection === 'notifications' && (
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <h3 className="text-lg font-medium">Notification Groups</h3>
@@ -931,7 +987,16 @@ export default function Manage() {
                 ) : (
                   <div className="space-y-4">
                     {notificationGroups.map((group: NotificationGroup) => (
-                      <div key={group.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-border rounded-lg gap-4" data-testid={`notification-item-${group.id}`}>
+                      <div 
+                        key={group.id} 
+                        className={`flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border rounded-lg gap-4 cursor-pointer transition-colors ${
+                          currentItemId === group.id 
+                            ? 'border-primary bg-primary/5' 
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                        data-testid={`notification-item-${group.id}`}
+                        onClick={() => setLocation(`/manage/notifications/${group.id}`)}
+                      >
                         <div className="min-w-0 flex-1">
                           <div className="font-medium text-foreground">{group.name}</div>
                           <div className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
@@ -956,7 +1021,10 @@ export default function Manage() {
                                 variant="ghost" 
                                 size="sm" 
                                 data-testid={`button-edit-notification-${group.id}`}
-                                onClick={() => handleEditNotificationGroup(group)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditNotificationGroup(group);
+                                }}
                               >
                                 <Edit className="w-4 h-4" />
                               </Button>
@@ -964,7 +1032,10 @@ export default function Manage() {
                                 variant="ghost" 
                                 size="sm" 
                                 data-testid={`button-delete-notification-${group.id}`}
-                                onClick={() => handleDeleteNotificationGroup(group.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteNotificationGroup(group.id);
+                                }}
                                 disabled={deleteNotificationGroupMutation.isPending}
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -980,7 +1051,13 @@ export default function Manage() {
             </Card>
 
             {/* Edit Notification Group Dialog */}
-            <Dialog open={editNotificationDialogOpen} onOpenChange={setEditNotificationDialogOpen}>
+            <Dialog open={editNotificationDialogOpen} onOpenChange={(open) => {
+              if (!open) {
+                handleCloseNotificationDialog();
+              } else {
+                setEditNotificationDialogOpen(true);
+              }
+            }}>
               <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Edit Notification Group</DialogTitle>
@@ -1051,11 +1128,7 @@ export default function Manage() {
                         type="button" 
                         variant="outline" 
                         className="flex-1"
-                        onClick={() => {
-                          setEditNotificationDialogOpen(false);
-                          setEditingNotificationGroup(null);
-                          editNotificationForm.reset();
-                        }}
+                        onClick={handleCloseNotificationDialog}
                       >
                         Cancel
                       </Button>
@@ -1075,7 +1148,7 @@ export default function Manage() {
           </div>
         )}
         
-        {hash === 'gateways' && (
+        {currentSection === 'gateways' && (
           <Card>
             <CardHeader className="pb-3">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -1169,7 +1242,29 @@ export default function Manage() {
                   </Button>
                 </div>
               </div>
-              {filteredGateways.length === 0 ? (
+              {gatewaysLoading ? (
+                <div className="text-center py-8">
+                  <Globe className="w-12 h-12 text-muted-foreground mx-auto mb-4 animate-pulse" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">Loading gateways...</h3>
+                  <p className="text-muted-foreground">Please wait</p>
+                </div>
+              ) : gatewaysError ? (
+                <div className="text-center py-8">
+                  <Globe className="w-12 h-12 text-destructive mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">Error loading gateways</h3>
+                  <p className="text-muted-foreground">
+                    {gatewaysError instanceof Error ? gatewaysError.message : 'An error occurred while loading gateways'}
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    className="mt-4"
+                    onClick={() => refetchGateways()}
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Retry
+                  </Button>
+                </div>
+              ) : filteredGateways.length === 0 ? (
                 <div className="text-center py-8">
                   <Globe className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-foreground mb-2">No gateways available</h3>
@@ -1184,7 +1279,16 @@ export default function Manage() {
                     const lastSeen = GatewayUtils.formatLastHeartbeat(gateway.last_heartbeat);
                     
                     return (
-                      <div key={gateway.id} className="flex flex-col sm:flex-row sm:items-center p-4 border border-border rounded-lg gap-4" data-testid={`gateway-item-${gateway.id}`}>
+                      <div 
+                        key={gateway.id} 
+                        className={`flex flex-col sm:flex-row sm:items-center p-4 border rounded-lg gap-4 cursor-pointer transition-colors ${
+                          currentItemId === gateway.id 
+                            ? 'border-primary bg-primary/5' 
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                        data-testid={`gateway-item-${gateway.id}`}
+                        onClick={() => setLocation(`/manage/gateways/${gateway.id}`)}
+                      >
                         {/* Container 1: Name and Details (33%) */}
                         <div className="flex items-center space-x-4 w-full sm:w-1/3 min-w-0">
                           <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
@@ -1220,7 +1324,8 @@ export default function Manage() {
                             <Button 
                               variant="ghost" 
                               size="sm" 
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 setSelectedGateway(gateway);
                                 regenerateKeyMutation.mutate(gateway.id);
                               }}
@@ -1232,14 +1337,9 @@ export default function Manage() {
                             <Button 
                               variant="ghost" 
                               size="sm" 
-                              onClick={() => {
-                                setEditingGateway(gateway);
-                                gatewayForm.reset({
-                                  name: gateway.name,
-                                  type: gateway.type,
-                                  location: gateway.location || '',
-                                });
-                                setEditGatewayDialogOpen(true);
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setLocation(`/manage/gateways/${gateway.id}`);
                               }}
                               title="Edit gateway"
                             >
@@ -1248,7 +1348,8 @@ export default function Manage() {
                             <Button 
                               variant="ghost" 
                               size="sm" 
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 if (confirm(`Are you sure you want to delete the gateway "${gateway.name}"? This action cannot be undone.`)) {
                                   deleteGatewayMutation.mutate(gateway.id);
                                 }
@@ -1409,11 +1510,7 @@ export default function Manage() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => {
-                    setEditGatewayDialogOpen(false);
-                    setEditingGateway(null);
-                    gatewayForm.reset();
-                  }}
+                  onClick={handleCloseGatewayDialog}
                 >
                   Cancel
                 </Button>
@@ -1429,7 +1526,13 @@ export default function Manage() {
       {/* Edit Probe Dialog */}
       <ProbeEditDialog
         open={editProbeDialogOpen}
-        onOpenChange={setEditProbeDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleCloseProbeDialog();
+          } else {
+            setEditProbeDialogOpen(true);
+          }
+        }}
         probe={editingProbe}
         gateways={gateways}
         notificationGroups={notificationGroups}
