@@ -7,6 +7,12 @@ export default function Landing() {
   return (
     <PublicLayout>
       <div className="min-h-screen">
+        {/* Construction Banner */}
+        <div className="w-full bg-amber-500 dark:bg-amber-600 text-white py-3 px-4 text-center">
+          <p className="text-sm sm:text-base font-medium">
+            This site is under construction and available for only designated developers
+          </p>
+        </div>
         {/* Hero Section */}
         <section className="bg-gradient-to-b from-primary/5 to-background py-20">
           <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 text-center">
