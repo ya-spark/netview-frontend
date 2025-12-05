@@ -8,15 +8,23 @@ Top-level route components representing full pages.
 **Available Pages**:
 - `Landing.tsx` - Public landing page
 - `Login.tsx` - Authentication page
+- `SignUp.tsx` - User registration page
+- `EmailVerification.tsx` - Email verification page
 - `Features.tsx` - Feature showcase
 - `Pricing.tsx` - Pricing plans
-- `Dashboard.tsx` - Main dashboard (protected)
+- `Onboarding.tsx` - User onboarding flow
+- `TenantSelection.tsx` - Tenant/organization selection (protected)
+- `Dashboard.tsx` - Main dashboard with stats and billing info (protected)
 - `Manage.tsx` - Probe management (protected)
+- `CreateProbe.tsx` - Create new probe (protected)
 - `Monitor.tsx` - Live monitoring (protected)
+- `ProbeStatus.tsx` - Individual probe status view (protected)
 - `Reports.tsx` - Analytics and reports (protected)
 - `Settings.tsx` - User settings (protected)
 - `Billing.tsx` - Subscription management (protected)
 - `Collaborators.tsx` - Team management (protected)
+- `LoggedOut.tsx` - Logged out confirmation page
+- `PublicEmailError.tsx` - Error page for public email addresses
 - `docs/index.tsx` - Documentation
 - `not-found.tsx` - 404 page
 
@@ -45,6 +53,63 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 ```
+
+### Key Page Details
+
+#### Dashboard (`Dashboard.tsx`)
+Main dashboard page displaying overview of monitoring infrastructure.
+
+**Features**:
+- **Probes Summary**: Total, Up, Down, and Warning counts
+- **Gateways Summary**: Total, Online, Offline, and Pending counts
+- **Credits/Billing Summary**: 
+  - Credits remaining, used, and limit
+  - Visual progress bar with color coding (green/amber/red based on usage)
+  - Monthly spending and billing tier information
+- **Alarms List**: Recent alerts with status (Active/Resolved)
+- **Auto-refresh**: Data refreshes every 30 seconds
+- **Manual refresh**: Refresh button to manually update all data
+
+**Data Sources**:
+- `/api/probes` - Probe list and status
+- `/api/gateways` - Gateway list and status
+- `/api/alerts` - Alert list
+- `/api/dashboard` - Dashboard statistics including billing information
+- `/api/probes/:id/results` - Latest probe results for status calculation
+
+**State Management**:
+- Uses TanStack Query for all data fetching
+- Calculates probe statuses from latest results
+- Memoized calculations for performance
+
+#### Collaborators (`Collaborators.tsx`)
+Team management page for managing tenant collaborators.
+
+**Features**:
+- List all collaborators for the tenant
+- Create new collaborators (send invites)
+- Update collaborator roles
+- Delete collaborators
+- Accept/reject invites
+
+**API Integration**:
+- Uses `CollaboratorApiService` from `@/services/collaboratorApi`
+- Requires `X-Tenant-ID` and `X-User-Email` headers
+- Owner role required for most operations
+
+#### Tenant Selection (`TenantSelection.tsx`)
+Page for selecting or creating a tenant/organization.
+
+**Features**:
+- Select from existing tenants (if user has access to multiple)
+- Create new tenant/organization
+- Tenant ID validation and generation
+- Auto-generation of tenant ID from organization name
+
+**API Integration**:
+- Uses tenant API functions from `@/services/tenantApi`
+- Validates tenant ID availability
+- Creates new tenants via `/api/tenants`
 
 ### UI Components (`client/src/components/ui/`)
 Reusable shadcn/ui components built on Radix UI.

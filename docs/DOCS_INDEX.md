@@ -44,6 +44,15 @@ This index helps developers quickly locate the right documentation when working 
 - User session management
 - Role-based UI rendering
 
+#### Best Practices & Benchmarking
+→ **Read**: `BENCHMARKING.md`
+- Performance benchmarks and targets
+- Code quality standards
+- Accessibility requirements
+- Security best practices
+- Testing coverage goals
+- Monitoring and measurement
+
 
 ## Documentation Files
 
@@ -55,6 +64,7 @@ This index helps developers quickly locate the right documentation when working 
 | `COMPONENTS.md` | Frontend architecture, React patterns, UI components | Building UI, adding pages, managing state |
 | `API.md` | REST API endpoints reference | Understanding API contracts, integrating with backend |
 | `AUTH.md` | Frontend authentication implementation | Implementing auth flows, using AuthContext |
+| `BENCHMARKING.md` | Performance benchmarks, code quality standards, best practices | Ensuring quality, optimizing performance, meeting standards |
 
 
 ### Quick Decision Tree
@@ -73,6 +83,9 @@ Need to make a change? Ask yourself:
 │
 ┌─ Is it about authentication (frontend)?
 │  └─→ AUTH.md
+│
+┌─ Is it about performance or code quality?
+│  └─→ BENCHMARKING.md
 ```
 
 ## Common Tasks & Documentation
@@ -105,6 +118,8 @@ Need to make a change? Ask yourself:
 - **New API endpoints used** → Update `API.md` (if documenting frontend usage)
 - **Auth flow changes** → Update `AUTH.md`
 - **Development workflow changes** → Update `DEVELOPMENT.md`
+- **Performance benchmarks change** → Update `BENCHMARKING.md`
+- **New quality standards** → Update `BENCHMARKING.md`
 
 ### Documentation Standards
 
