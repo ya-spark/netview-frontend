@@ -10,6 +10,7 @@ export interface Collaborator {
   status?: 'invited' | 'accepted' | 'rejected';
   createdAt: string; // ISO 8601 date string
   tenantName?: string; // Added for invitation response
+  invitationToken?: string; // Token to accept the invitation (only in pending invitations response)
 }
 
 export interface CollaboratorCreate {
@@ -58,6 +59,7 @@ export interface PendingInvitation {
   role: 'SuperAdmin' | 'Owner' | 'Admin' | 'Editor' | 'Viewer';
   status: 'invited';
   tenantName?: string;
+  invitationToken?: string; // Token to accept the invitation
   createdAt: string;
 }
 

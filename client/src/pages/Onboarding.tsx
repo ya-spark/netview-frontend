@@ -44,6 +44,7 @@ export default function Onboarding() {
   const [codeVerified, setCodeVerified] = useState(false);
   const [codeSent, setCodeSent] = useState(false); // Track if code has been sent
   const [resendCooldown, setResendCooldown] = useState(0); // Countdown timer in seconds
+  const [acceptingInvitation, setAcceptingInvitation] = useState(false);
   const { toast } = useToast();
   
   // Check for pending invitations by email FIRST (before business email validation)
@@ -65,7 +66,8 @@ export default function Onboarding() {
     },
   });
   
-  const pendingInvitations = pendingInvitationsData?.data || [];
+  // Type the pending invitations properly
+  const pendingInvitations = (pendingInvitationsData?.data || []) as Array<import('@/types/collaborator').PendingInvitation>;
   const hasPendingInvitations = pendingInvitations.length > 0;
   
   // Use useRef to track if we've already attempted to send (persists across re-renders)
@@ -611,27 +613,89 @@ export default function Onboarding() {
                         </div>
                       ))}
                       <div className="space-y-2">
-                        <Button
-                          onClick={() => {
-                            // Get the first invitation token - we need to fetch it from the invitation
-                            const firstInvitation = pendingInvitations[0];
-                            if (firstInvitation) {
-                              // Try to get the invitation token by fetching the invitation details
-                              // For now, redirect user to check email
-                              toast({
-                                title: "Check Your Email",
-                                description: `Please check your email (${userEmail}) for the invitation link from ${firstInvitation.tenantName || 'the organization'}. Click the link to accept the invitation and join the existing organization.`,
-                                variant: "default",
-                              });
-                            }
-                          }}
-                          className="w-full"
-                          variant="default"
-                        >
-                          Check Email for Invitation Link
-                        </Button>
+                        {pendingInvitations.map((inv) => (
+                          <div key={inv.id} className="space-y-2">
+                            <Button
+                              onClick={async () => {
+                                if (!inv.invitationToken) {
+                                  toast({
+                                    title: "Invitation Token Missing",
+                                    description: "Unable to accept invitation. Please check your email for the invitation link.",
+                                    variant: "destructive",
+                                  });
+                                  return;
+                                }
+                                
+                                setAcceptingInvitation(true);
+                                try {
+                                  logger.info('Accepting invitation from onboarding', {
+                                    component: 'Onboarding',
+                                    action: 'accept_invitation',
+                                    invitationId: inv.id,
+                                    tenantName: inv.tenantName,
+                                    email: userEmail,
+                                  });
+                                  
+                                  // Accept invitation (tenantId is optional - backend will use tenant from invitation)
+                                  await CollaboratorApiService.acceptInvitationByToken(
+                                    inv.invitationToken,
+                                    userEmail
+                                  );
+                                  
+                                  logger.info('Invitation accepted successfully', {
+                                    component: 'Onboarding',
+                                    action: 'accept_invitation_success',
+                                    invitationId: inv.id,
+                                  });
+                                  
+                                  // Sync backend user to get updated tenant info
+                                  if (firebaseUser && syncBackendUser) {
+                                    await syncBackendUser(firebaseUser);
+                                  }
+                                  
+                                  toast({
+                                    title: "Invitation Accepted",
+                                    description: `You've been added to ${inv.tenantName || 'the organization'} as ${inv.role}.`,
+                                  });
+                                  
+                                  // Redirect to dashboard after a short delay
+                                  setTimeout(() => {
+                                    setLocation('/dashboard');
+                                  }, 1500);
+                                } catch (error: any) {
+                                  logger.error('Failed to accept invitation', error, {
+                                    component: 'Onboarding',
+                                    action: 'accept_invitation_error',
+                                    invitationId: inv.id,
+                                  });
+                                  toast({
+                                    title: "Failed to Accept Invitation",
+                                    description: error.message || "An error occurred while accepting the invitation. Please try again or check your email for the invitation link.",
+                                    variant: "destructive",
+                                  });
+                                } finally {
+                                  setAcceptingInvitation(false);
+                                }
+                              }}
+                              className="w-full"
+                              variant="default"
+                              disabled={acceptingInvitation}
+                            >
+                              {acceptingInvitation ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Accepting...
+                                </>
+                              ) : (
+                                <>
+                                  Accept Invitation from {inv.tenantName || 'Organization'}
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        ))}
                         <p className="text-xs text-muted-foreground text-center">
-                          Please accept your pending invitation to join the existing organization. After accepting, you'll be redirected to the dashboard.
+                          Accept the invitation to join the existing organization. You'll be redirected to the dashboard after accepting.
                         </p>
                       </div>
                     </div>
@@ -663,7 +727,7 @@ export default function Onboarding() {
                           <span className="text-sm font-medium">Public email not allowed</span>
                         </div>
                         <p className="text-sm text-muted-foreground text-center">
-                          Please use a business email address to continue.
+                          Please use a business email address to continue, or accept a pending invitation if you have one.
                         </p>
                       </div>
                     ) : (

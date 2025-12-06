@@ -198,14 +198,23 @@ export class CollaboratorApiService {
   }
 
   /**
-   * Accept invitation by token (requires authentication)
+   * Accept invitation by token (requires authentication, tenantId is optional - will use tenant from invitation)
    */
   static async acceptInvitationByToken(
     token: string,
     userEmail: string,
-    tenantId: string
+    tenantId?: string
   ): Promise<CollaboratorSingleResponse> {
-    const headers = getCollaboratorHeaders(userEmail, tenantId);
+    // Build headers - only include tenantId if provided (user might not have one yet)
+    const headers: Record<string, string> = {
+      'X-User-Email': userEmail,
+    };
+    
+    // Only add tenantId if provided - backend will use tenant from invitation if not provided
+    if (tenantId) {
+      headers['X-Tenant-ID'] = tenantId;
+    }
+    
     const response = await apiRequest('POST', `/api/collaborators/accept-by-token?token=${encodeURIComponent(token)}`, undefined, headers);
     return response.json();
   }
