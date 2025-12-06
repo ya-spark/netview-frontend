@@ -148,7 +148,7 @@ export default function Onboarding() {
     }
   }, [currentStep, checkingInvitations, hasPendingInvitations, hasAcceptedInvitation]);
 
-  // Auto-progress from Step 2 to Step 3 if business email is valid
+  // Auto-progress from Step 2 to Step 3 (email verification) if business email is valid
   useEffect(() => {
     if (currentStep === 2 && !hasAcceptedInvitation && emailValid === true) {
       logger.debug('Auto-progressing from Step 2 to Step 3 (business email valid)', {
@@ -164,13 +164,13 @@ export default function Onboarding() {
     }
   }, [currentStep, hasAcceptedInvitation, emailValid]);
 
-  // Auto-send verification code when reaching step 4
+  // Auto-send verification code when reaching step 3
   useEffect(() => {
-    if (currentStep === 4 && firebaseUser && !hasAttemptedSend.current) {
+    if (currentStep === 3 && firebaseUser && !hasAttemptedSend.current) {
       handleSendCode();
     }
     
-    if (currentStep !== 4) {
+    if (currentStep !== 3) {
       hasAttemptedSend.current = false;
       setCodeSent(false);
       setResendCooldown(0);
@@ -253,7 +253,7 @@ export default function Onboarding() {
       
       setHasAcceptedInvitation(true);
       setEmailValid(null);
-      setCurrentStep(4); // Skip to email code verification
+      setCurrentStep(3); // Skip to email code verification (step 3)
     } catch (error: any) {
       const err = error instanceof Error ? error : new Error(String(error));
       logger.error('Failed to accept invitation', err, { component: 'Onboarding', action: 'accept_invitation_error', invitationId: inv.id });
@@ -317,10 +317,17 @@ export default function Onboarding() {
         await syncBackendUser(firebaseUser);
       }
       
-      // Redirect to dashboard after a short delay
-      setTimeout(() => {
-        setLocation('/dashboard');
-      }, 2000);
+      // If invitation was accepted, redirect to dashboard (skip tenant creation)
+      if (hasAcceptedInvitation) {
+        setTimeout(() => {
+          setLocation('/dashboard');
+        }, 2000);
+      } else {
+        // If no invitation, move to step 4 (tenant creation)
+        setTimeout(() => {
+          setCurrentStep(4);
+        }, 1500);
+      }
     } catch (error: any) {
       const err = error instanceof Error ? error : new Error(String(error));
       logger.error('Failed to verify code', err, { component: 'Onboarding', action: 'verify_code', email: firebaseUser?.email });
@@ -352,10 +359,10 @@ export default function Onboarding() {
       });
       setTenantCreated(true);
       
-      // Auto-progress to step 4 (email code verification) after a short delay
+      // Redirect to dashboard after tenant creation
       setTimeout(() => {
-        setCurrentStep(4);
-      }, 1500);
+        setLocation('/dashboard');
+      }, 2000);
     } catch (error: any) {
       const err = error instanceof Error ? error : new Error(String(error));
       logger.error('Failed to create tenant', err, { component: 'Onboarding', action: 'create_tenant' });
@@ -371,8 +378,8 @@ export default function Onboarding() {
 
   // Navigate to step (with validation)
   const goToStep = (step: Step) => {
-    // Don't allow navigation if invitation was accepted (can only go to step 1 or 4)
-    if (hasAcceptedInvitation && step !== 1 && step !== 4) {
+    // Don't allow navigation if invitation was accepted (can only go to step 1 or 3)
+    if (hasAcceptedInvitation && step !== 1 && step !== 3) {
       toast({
         title: "Cannot Navigate",
         description: "You've accepted an invitation. Please complete email verification.",
@@ -382,7 +389,7 @@ export default function Onboarding() {
     }
     
     // Don't allow skipping business email check if email is invalid
-    if (step === 3 && emailValid === false) {
+    if (step === 3 && emailValid === false && !hasAcceptedInvitation) {
       toast({
         title: "Business Email Required",
         description: "Please use a business email address to continue.",
@@ -402,15 +409,15 @@ export default function Onboarding() {
     switch (step) {
       case 1: return 'Invitations';
       case 2: return 'Business Email';
-      case 3: return 'Create Tenant';
-      case 4: return 'Email Verification';
+      case 3: return 'Email Verification';
+      case 4: return 'Create Tenant';
       default: return '';
     }
   };
 
   // Get total steps based on invitation status
   const getTotalSteps = (): Step[] => {
-    return hasAcceptedInvitation ? [1, 4] : [1, 2, 3, 4];
+    return hasAcceptedInvitation ? [1, 3] : [1, 2, 3, 4];
   };
 
   if (checkingTenant) {
@@ -590,64 +597,15 @@ export default function Onboarding() {
 
                 {emailValid === true && (
                   <div className="text-center space-y-2">
-                    <p className="text-sm text-muted-foreground">Moving to tenant creation...</p>
+                    <p className="text-sm text-muted-foreground">Moving to email verification...</p>
                     <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" />
                   </div>
                 )}
               </div>
             )}
 
-            {/* Step 3: Tenant Creation (only if no invitation accepted) */}
-            {currentStep === 3 && !hasAcceptedInvitation && (
-              <div className="space-y-6">
-                <div className="text-center space-y-2">
-                  <div className="flex justify-center">
-                    <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
-                      <Building2 className="w-8 h-8 text-primary" />
-                    </div>
-                  </div>
-                  <p className="text-sm font-medium">Step 3: Create Your Organization</p>
-                  <p className="text-sm text-muted-foreground">Enter a name for your organization</p>
-                </div>
-
-                <Form {...tenantNameForm}>
-                  <form onSubmit={tenantNameForm.handleSubmit(handleCreateTenant)} className="space-y-4">
-                    <FormField
-                      control={tenantNameForm.control}
-                      name="tenantName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Organization Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Acme Inc." {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <Button type="submit" className="w-full" disabled={loading || tenantCreated}>
-                      {loading ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Creating...
-                        </>
-                      ) : tenantCreated ? (
-                        <>
-                          <CheckCircle2 className="w-4 h-4 mr-2" />
-                          Created
-                        </>
-                      ) : (
-                        'Create Organization'
-                      )}
-                    </Button>
-                  </form>
-                </Form>
-              </div>
-            )}
-
-            {/* Step 4: Email Code Verification */}
-            {currentStep === 4 && (
+            {/* Step 3: Email Code Verification */}
+            {currentStep === 3 && (
               <div className="space-y-4">
                 <div className="text-center space-y-2">
                   <div className="flex justify-center">
@@ -655,7 +613,7 @@ export default function Onboarding() {
                       <Mail className="w-8 h-8 text-primary" />
                     </div>
                   </div>
-                  <p className="text-sm font-medium">Step {hasAcceptedInvitation ? '2' : '4'}: Verify Your Email</p>
+                  <p className="text-sm font-medium">Step 3: Verify Your Email</p>
                   <p className="text-sm text-muted-foreground">A verification code has been sent to</p>
                   <p className="text-sm font-medium">{userEmail}</p>
                 </div>
@@ -741,6 +699,55 @@ export default function Onboarding() {
                     )}
                   </Button>
                 )}
+              </div>
+            )}
+
+            {/* Step 4: Tenant Creation (only if no invitation accepted) */}
+            {currentStep === 4 && !hasAcceptedInvitation && (
+              <div className="space-y-6">
+                <div className="text-center space-y-2">
+                  <div className="flex justify-center">
+                    <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                      <Building2 className="w-8 h-8 text-primary" />
+                    </div>
+                  </div>
+                  <p className="text-sm font-medium">Step 4: Create Your Organization</p>
+                  <p className="text-sm text-muted-foreground">Enter a name for your organization</p>
+                </div>
+
+                <Form {...tenantNameForm}>
+                  <form onSubmit={tenantNameForm.handleSubmit(handleCreateTenant)} className="space-y-4">
+                    <FormField
+                      control={tenantNameForm.control}
+                      name="tenantName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Organization Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Acme Inc." {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <Button type="submit" className="w-full" disabled={loading || tenantCreated}>
+                      {loading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Creating...
+                        </>
+                      ) : tenantCreated ? (
+                        <>
+                          <CheckCircle2 className="w-4 h-4 mr-2" />
+                          Created
+                        </>
+                      ) : (
+                        'Create Organization'
+                      )}
+                    </Button>
+                  </form>
+                </Form>
               </div>
             )}
           </CardContent>

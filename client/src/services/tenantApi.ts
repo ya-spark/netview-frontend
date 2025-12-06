@@ -1,6 +1,7 @@
 // Tenant API service functions for organization/tenant management
 
 import { apiRequest } from '../lib/queryClient';
+import { logger } from '../lib/logger';
 
 /**
  * Generate a tenant ID from organization name
