@@ -10,6 +10,7 @@ import { HttpHttpsConfigSection } from './probe-config-sections/HttpHttpsConfigS
 import { DnsConfigSection } from './probe-config-sections/DnsConfigSection';
 import { SslTlsConfigSection } from './probe-config-sections/SslTlsConfigSection';
 import { AuthenticationConfigSection } from './probe-config-sections/AuthenticationConfigSection';
+import { logger } from '@/lib/logger';
 import type { Probe } from '@/types/probe';
 import type { GatewayResponse } from '@/types/gateway';
 import type { NotificationGroup } from '@/types/notification';
@@ -169,7 +170,12 @@ export function ProbeEditDialog({
         try {
           config.headers = JSON.parse(headers);
         } catch (e) {
-          // If invalid JSON, ignore headers
+          const err = e instanceof Error ? e : new Error(String(e));
+          logger.warn('Invalid JSON in headers field, ignoring', {
+            component: 'ProbeEditDialog',
+            action: 'parse_headers',
+            probeId: probe?.id,
+          }, err);
         }
       }
       config.ssl_verify = sslVerify;

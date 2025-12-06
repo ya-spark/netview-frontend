@@ -106,6 +106,13 @@ async function throwIfResNotOk(res: Response, url?: string) {
         errorMessage = text || errorMessage;
       }
     } catch (parseError) {
+      const err = parseError instanceof Error ? parseError : new Error(String(parseError));
+      logger.debug('Failed to parse error response, trying text', {
+        component: 'queryClient',
+        action: 'parse_error_fallback',
+        status: res.status,
+        url,
+      }, err);
       // If parsing fails, read as text
       try {
         const text = await res.text();

@@ -248,7 +248,11 @@ export default function CreateProbe() {
         try {
           config.headers = JSON.parse(headers);
         } catch (e) {
-          // If invalid JSON, ignore headers
+          const err = e instanceof Error ? e : new Error(String(e));
+          logger.warn('Invalid JSON in headers field, ignoring', {
+            component: 'CreateProbe',
+            action: 'parse_headers',
+          }, err);
         }
       }
       config.ssl_verify = sslVerify;

@@ -18,6 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ProbeApiService } from '@/services/probeApi';
 import { GatewayApiService } from '@/services/gatewayApi';
 import { AlertApiService } from '@/services/alertApi';
+import { logger } from '@/lib/logger';
 import type { Probe, ProbeResult, ProbeStatus as ProbeStatusType } from '@/types/probe';
 import type { GatewayResponse } from '@/types/gateway';
 import type { AlertResponse } from '@/types/alert';
@@ -61,6 +62,12 @@ export default function Monitor() {
             const response = await ProbeApiService.getProbeResults(probe.id, { limit: 1 });
             results[probe.id] = response.data;
           } catch (error) {
+            const err = error instanceof Error ? error : new Error(String(error));
+            logger.debug('Failed to fetch probe results', {
+              component: 'Monitor',
+              action: 'fetch_probe_results',
+              probeId: probe.id,
+            }, err);
             results[probe.id] = [];
           }
         })

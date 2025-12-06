@@ -6,6 +6,7 @@ import { X, Mail } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { CollaboratorApiService } from '@/services/collaboratorApi';
 import { useAuth } from '@/contexts/AuthContext';
+import { logger } from '@/lib/logger';
 import type { PendingInvitation } from '@/types/collaborator';
 
 interface InvitationBannerProps {
@@ -24,7 +25,11 @@ export function InvitationBanner({ onDismiss }: InvitationBannerProps) {
         const parsed = JSON.parse(stored);
         setDismissedInvitations(new Set(parsed));
       } catch (e) {
-        // Invalid JSON, ignore
+        const err = e instanceof Error ? e : new Error(String(e));
+        logger.debug('Failed to parse dismissed invitations from localStorage', {
+          component: 'InvitationBanner',
+          action: 'parse_localStorage',
+        }, err);
       }
     }
   }, []);

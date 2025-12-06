@@ -113,6 +113,12 @@ function DashboardSidebar() {
             const response = await ProbeApiService.getProbeResults(probe.id, { limit: 1 });
             results[probe.id] = response.data;
           } catch (error) {
+            const err = error instanceof Error ? error : new Error(String(error));
+            logger.debug('Failed to fetch probe results', {
+              component: 'Sidebar',
+              action: 'fetch_probe_results',
+              probeId: probe.id,
+            }, err);
             results[probe.id] = [];
           }
         })

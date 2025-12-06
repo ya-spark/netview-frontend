@@ -13,6 +13,7 @@ import { SslTlsProbeForm } from './SslTlsProbeForm';
 import { AuthenticationProbeForm } from './AuthenticationProbeForm';
 import { ArrowLeft, HelpCircle, Play, Trash2, Edit } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { logger } from '@/lib/logger';
 import type { Probe } from '@/types/probe';
 import type { GatewayResponse } from '@/types/gateway';
 import type { NotificationGroup } from '@/types/notification';
@@ -191,7 +192,12 @@ export function ProbeEditForm({
         try {
           config.headers = JSON.parse(headers);
         } catch (e) {
-          // If invalid JSON, ignore headers
+          const err = e instanceof Error ? e : new Error(String(e));
+          logger.warn('Invalid JSON in headers field, ignoring', {
+            component: 'ProbeEditForm',
+            action: 'parse_headers',
+            probeId: probe?.id,
+          }, err);
         }
       }
       config.ssl_verify = sslVerify;
