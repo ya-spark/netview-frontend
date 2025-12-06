@@ -136,9 +136,9 @@ export default function Reports() {
         reportType,
       });
     } catch (error) {
-      logger.error('Failed to download report', {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to download report', err, {
         component: 'Reports',
-        error: error instanceof Error ? error.message : String(error),
         reportType,
       });
 

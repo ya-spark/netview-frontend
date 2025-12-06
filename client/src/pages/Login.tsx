@@ -72,7 +72,8 @@ export default function Login() {
       logger.info('Google sign-in successful', { component: 'Login', action: 'google_signin' });
       // AuthContext will handle backend sync and redirect via useEffect
     } catch (error: any) {
-      logger.exception('Google sign-in failed', error as Error, {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.exception('Google sign-in failed', err, {
         component: 'Login',
         action: 'google_signin',
       });

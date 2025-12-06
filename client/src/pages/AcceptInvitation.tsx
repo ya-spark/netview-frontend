@@ -64,7 +64,11 @@ export default function AcceptInvitation() {
       }, 1500);
     },
     onError: (error: any) => {
-      logger.error('Failed to accept invitation', { error });
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to accept invitation', err, {
+        component: 'AcceptInvitation',
+        action: 'accept_invitation',
+      });
       toast({
         title: 'Failed to accept invitation',
         description: error.message || 'An error occurred while accepting the invitation.',

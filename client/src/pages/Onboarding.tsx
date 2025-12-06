@@ -84,7 +84,8 @@ export default function Onboarding() {
         });
         return result;
       } catch (error: any) {
-        logger.error('Failed to check pending invitations', error, {
+        const err = error instanceof Error ? error : new Error(String(error));
+        logger.error('Failed to check pending invitations', err, {
           component: 'Onboarding',
           email: userEmail,
         });
@@ -105,7 +106,7 @@ export default function Onboarding() {
   const pendingInvitations = (pendingInvitationsData?.data || []) as Array<import('@/types/collaborator').PendingInvitation>;
   const hasPendingInvitations = pendingInvitations.length > 0;
   
-  // Log invitation check results
+  // Log invitation check results and verify tokens are present
   useEffect(() => {
     if (!authLoading && firebaseUser) {
       logger.info('Pending invitations check result', {
@@ -117,8 +118,23 @@ export default function Onboarding() {
         error: invitationsError,
         queryEnabled: shouldCheckInvitations,
       });
+      
+      // Debug: Log each invitation's token status
+      if (pendingInvitations.length > 0) {
+        pendingInvitations.forEach((inv, index) => {
+          logger.debug('Invitation details', {
+            component: 'Onboarding',
+            index,
+            invitationId: inv.id,
+            email: inv.email,
+            tenantName: inv.tenantName,
+            hasToken: !!inv.invitationToken,
+            tokenLength: inv.invitationToken?.length || 0,
+          });
+        });
+      }
     }
-  }, [authLoading, firebaseUser, checkingInvitations, hasPendingInvitations, pendingInvitations.length, invitationsError, shouldCheckInvitations, userEmail]);
+  }, [authLoading, firebaseUser, checkingInvitations, hasPendingInvitations, pendingInvitations.length, invitationsError, shouldCheckInvitations, userEmail, pendingInvitations]);
   
   // Use useRef to track if we've already attempted to send (persists across re-renders)
   const hasAttemptedSend = useRef(false);
@@ -160,7 +176,7 @@ export default function Onboarding() {
         component: 'Onboarding',
         action: 'check_auth',
         userId: user.id,
-        tenantId: String(user.tenantId),
+        tenantId: user.tenantId as unknown as number,
       });
       setLocation('/dashboard');
       return;
@@ -317,16 +333,6 @@ export default function Onboarding() {
     // Only send if code verification step is reached and we haven't attempted yet
     // handleSendCode has its own guards for sendingCode and codeSent
     const codeVerificationStep: Step = (hasAcceptedInvitation ? 2 : 3) as Step;
-    if (currentStep === codeVerificationStep && firebaseUser && !hasAttemptedSend.current) {
-      logger.debug('Auto-sending verification code', {
-        component: 'Onboarding',
-        action: 'auto_send_code',
-        currentStep,
-        hasFirebaseUser: !!firebaseUser,
-      });
-      // Call handleSendCode - it will check sendingCode and codeSent internally
-      handleSendCode();
-    }
     
     // Reset flag when leaving code verification step
     if (currentStep !== codeVerificationStep) {
@@ -334,6 +340,7 @@ export default function Onboarding() {
         component: 'Onboarding',
         action: 'reset_code_flags',
         currentStep,
+        codeVerificationStep,
       });
       hasAttemptedSend.current = false;
       setCodeSent(false); // Also reset codeSent when leaving code verification step
@@ -342,6 +349,25 @@ export default function Onboarding() {
         clearInterval(resendTimerRef.current);
         resendTimerRef.current = null;
       }
+      return; // Don't send code if we're not on the verification step
+    }
+    
+    // Send code if we're on the verification step
+    if (currentStep === codeVerificationStep && firebaseUser && !hasAttemptedSend.current) {
+      logger.debug('Auto-sending verification code', {
+        component: 'Onboarding',
+        action: 'auto_send_code',
+        currentStep,
+        hasFirebaseUser: !!firebaseUser,
+        hasAcceptedInvitation,
+        codeVerificationStep,
+      });
+      // Add a small delay to ensure UI has updated before sending code
+      // This prevents the toast from showing before the step 2 UI is visible
+      const timer = setTimeout(() => {
+        handleSendCode();
+      }, 150);
+      return () => clearTimeout(timer);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep, firebaseUser, hasAcceptedInvitation]); // Only depend on currentStep, firebaseUser, and hasAcceptedInvitation to prevent re-runs
@@ -363,7 +389,7 @@ export default function Onboarding() {
         component: 'Onboarding',
         action: 'check_tenant_after_registration',
         userId: user.id,
-        tenantId: String(user.tenantId),
+        tenantId: user.tenantId as unknown as number,
       });
       setTenantCreated(true);
       setTimeout(() => {
@@ -663,12 +689,6 @@ export default function Onboarding() {
                   <p className="text-sm text-muted-foreground">Your email address</p>
                   <p className="text-sm font-medium">{userEmail}</p>
                 </div>
-              <div className="space-y-6">
-                <div className="text-center space-y-2">
-                  <p className="text-sm font-medium">You Have Pending Invitations</p>
-                  <p className="text-sm text-muted-foreground">Your email address</p>
-                  <p className="text-sm font-medium">{userEmail}</p>
-                </div>
 
                 <Alert className="border-primary/50 bg-primary/5">
                   <AlertCircle className="h-4 w-4" />
@@ -725,16 +745,21 @@ export default function Onboarding() {
                                     await syncBackendUser(firebaseUser);
                                   }
                                   
-                                  toast({
-                                    title: "Invitation Accepted",
-                                    description: `You've been added to ${inv.tenantName || 'the organization'} as ${inv.role}. Please verify your email to continue.`,
-                                  });
-                                  
                                   // Mark that invitation was accepted and move to code verification step
+                                  // Update both states together to ensure UI updates properly
                                   setHasAcceptedInvitation(true);
                                   setCurrentStep(2); // Move to code verification step (skip business email check and tenant creation)
+                                  
+                                  // Show toast after a brief delay to ensure UI has updated
+                                  setTimeout(() => {
+                                    toast({
+                                      title: "Invitation Accepted",
+                                      description: `You've been added to ${inv.tenantName || 'the organization'} as ${inv.role}. Please verify your email to continue.`,
+                                    });
+                                  }, 50);
                                 } catch (error: any) {
-                                  logger.error('Failed to accept invitation', error, {
+                                  const err = error instanceof Error ? error : new Error(String(error));
+                                  logger.error('Failed to accept invitation', err, {
                                     component: 'Onboarding',
                                     action: 'accept_invitation_error',
                                     invitationId: inv.id,

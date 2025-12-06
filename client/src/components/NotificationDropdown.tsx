@@ -56,7 +56,11 @@ export function NotificationDropdown({ children }: NotificationDropdownProps) {
       queryClient.invalidateQueries({ queryKey: ['/api/notifications/user/count'] });
     },
     onError: (error) => {
-      logger.error('Failed to mark notification as read', { error });
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to mark notification as read', err, {
+        component: 'NotificationDropdown',
+        action: 'mark_notification_read',
+      });
       toast({
         title: 'Error',
         description: 'Failed to mark notification as read',

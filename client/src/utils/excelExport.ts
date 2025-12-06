@@ -76,9 +76,9 @@ export function generateExcelReport(options: ExportOptions): void {
       reportType: options.reportType,
     });
   } catch (error) {
-    logger.error('Failed to generate Excel report', {
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error('Failed to generate Excel report', err, {
       component: 'excelExport',
-      error: error instanceof Error ? error.message : String(error),
       reportType: options.reportType,
     });
     throw error;
