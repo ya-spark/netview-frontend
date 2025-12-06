@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Layout } from '@/components/Layout';
+import { InvitationBanner } from '@/components/InvitationBanner';
 import { Activity, AlertTriangle, Server, RefreshCw, ArrowDown, ArrowUp, CreditCard } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProbeApiService } from '@/services/probeApi';
@@ -174,6 +175,9 @@ export default function Dashboard() {
   return (
     <Layout>
       <div className="p-3 sm:p-4 lg:p-6 space-y-6">
+        {/* Invitation Banner */}
+        <InvitationBanner />
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>

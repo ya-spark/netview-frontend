@@ -27,6 +27,7 @@ import Reports from "@/pages/Reports";
 import Settings from "@/pages/Settings";
 import Billing from "@/pages/Billing";
 import Collaborators from "@/pages/Collaborators";
+import AcceptInvitation from "@/pages/AcceptInvitation";
 import NotFound from "@/pages/not-found";
 import { isBusinessEmail } from "@/utils/emailValidation";
 
@@ -226,6 +227,12 @@ function Router() {
       <Route path="/email-verification">
         <PreAuthRoute>
           <EmailVerificationRoute />
+        </PreAuthRoute>
+      </Route>
+
+      <Route path="/accept-invitation">
+        <PreAuthRoute>
+          <AcceptInvitation />
         </PreAuthRoute>
       </Route>
 

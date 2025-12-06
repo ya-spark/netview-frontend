@@ -7,7 +7,9 @@ export interface Collaborator {
   lastName: string | null;
   role: 'SuperAdmin' | 'Owner' | 'Admin' | 'Editor' | 'Viewer';
   isActive: boolean;
+  status?: 'invited' | 'accepted' | 'rejected';
   createdAt: string; // ISO 8601 date string
+  tenantName?: string; // Added for invitation response
 }
 
 export interface CollaboratorCreate {
@@ -45,6 +47,25 @@ export interface CollaboratorDeleteResponse {
   data: {
     message: string;
     collaborator_id: string;
+  };
+}
+
+export interface PendingInvitation {
+  id: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  role: 'SuperAdmin' | 'Owner' | 'Admin' | 'Editor' | 'Viewer';
+  status: 'invited';
+  tenantName?: string;
+  createdAt: string;
+}
+
+export interface InvitationTokenResponse {
+  success: boolean;
+  timestamp: string;
+  data: Collaborator & {
+    tenantName: string;
   };
 }
 

@@ -8,6 +8,7 @@ import type {
   CollaboratorListResponse,
   CollaboratorSingleResponse,
   CollaboratorDeleteResponse,
+  InvitationTokenResponse,
 } from '../types/collaborator';
 
 /**
@@ -137,6 +138,75 @@ export class CollaboratorApiService {
   ): Promise<CollaboratorSingleResponse> {
     const headers = getCollaboratorHeaders(userEmail, tenantId);
     const response = await apiRequest('POST', `/api/collaborators/${collaboratorId}/reject`, undefined, headers);
+    return response.json();
+  }
+
+  /**
+   * Get pending invitations for the authenticated user
+   */
+  static async getPendingInvitations(
+    userEmail: string,
+    tenantId: string
+  ): Promise<CollaboratorListResponse> {
+    const headers = getCollaboratorHeaders(userEmail, tenantId);
+    const response = await apiRequest('GET', '/api/collaborators/pending', undefined, headers);
+    return response.json();
+  }
+
+  /**
+   * Get pending invitations by email (public endpoint, no auth required)
+   */
+  static async getPendingInvitationsByEmail(email: string): Promise<CollaboratorListResponse> {
+    // This is a public endpoint, so we need to call it without auth headers
+    const fullUrl = `/api/collaborators/pending-by-email?email=${encodeURIComponent(email)}`;
+    const res = await fetch(fullUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+    
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`API request failed: ${res.status} ${res.statusText} - ${errorText}`);
+    }
+    
+    return res.json();
+  }
+
+  /**
+   * Get invitation details by token (public endpoint, no auth required)
+   */
+  static async getInvitationByToken(token: string): Promise<InvitationTokenResponse> {
+    // This is a public endpoint, so we need to call it without auth headers
+    const fullUrl = `/api/collaborators/invitation-by-token?token=${encodeURIComponent(token)}`;
+    const res = await fetch(fullUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+    
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`API request failed: ${res.status} ${res.statusText} - ${errorText}`);
+    }
+    
+    return res.json();
+  }
+
+  /**
+   * Accept invitation by token (requires authentication)
+   */
+  static async acceptInvitationByToken(
+    token: string,
+    userEmail: string,
+    tenantId: string
+  ): Promise<CollaboratorSingleResponse> {
+    const headers = getCollaboratorHeaders(userEmail, tenantId);
+    const response = await apiRequest('POST', `/api/collaborators/accept-by-token?token=${encodeURIComponent(token)}`, undefined, headers);
     return response.json();
   }
 }

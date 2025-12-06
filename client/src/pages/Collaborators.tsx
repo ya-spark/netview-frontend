@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Search, Settings, Mail, User, Edit, Trash2, Crown, Shield, Eye, UserCog, Loader2 } from 'lucide-react';
+import { Plus, Search, Settings, Mail, User, Edit, Trash2, Crown, Shield, Eye, UserCog, Loader2, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/contexts/AuthContext';
@@ -467,11 +467,52 @@ export default function Collaborators() {
                     </div>
                     <div className="flex items-center space-x-3">
                       {getRoleBadge(collaborator.role)}
+                      {collaborator.status && (
+                        <Badge 
+                          variant={
+                            collaborator.status === 'accepted' 
+                              ? 'default' 
+                              : collaborator.status === 'invited' 
+                              ? 'secondary' 
+                              : 'outline'
+                          }
+                        >
+                          {collaborator.status === 'accepted' 
+                            ? 'Accepted' 
+                            : collaborator.status === 'invited' 
+                            ? 'Invited' 
+                            : collaborator.status === 'rejected'
+                            ? 'Rejected'
+                            : 'Unknown'}
+                        </Badge>
+                      )}
                       <Badge variant={collaborator.isActive ? "secondary" : "outline"}>
                         {collaborator.isActive ? 'Active' : 'Inactive'}
                       </Badge>
                       {canManageCollaborators && (
                         <div className="flex items-center space-x-1">
+                          {collaborator.status === 'invited' && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => {
+                                // Resend invitation - create a new one (this will generate a new token)
+                                createCollaboratorMutation.mutate({
+                                  email: collaborator.email,
+                                  role: collaborator.role,
+                                  is_active: true,
+                                });
+                                toast({
+                                  title: 'Invitation resent',
+                                  description: `A new invitation has been sent to ${collaborator.email}`,
+                                });
+                              }}
+                              data-testid={`button-resend-invitation-${collaborator.id}`}
+                              title="Resend Invitation"
+                            >
+                              <Send className="w-4 h-4" />
+                            </Button>
+                          )}
                           <Button 
                             variant="ghost" 
                             size="sm" 

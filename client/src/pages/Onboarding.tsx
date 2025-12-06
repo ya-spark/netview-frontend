@@ -12,9 +12,12 @@ import { Layout } from '@/components/Layout';
 import { useAuth } from '@/contexts/AuthContext';
 import { sendVerificationCode, verifyCode, registerUser } from '@/services/authApi';
 import { createTenant } from '@/services/tenantApi';
+import { CollaboratorApiService } from '@/services/collaboratorApi';
 import { isBusinessEmail } from '@/utils/emailValidation';
 import { logger } from '@/lib/logger';
-import { CheckCircle2, XCircle, Loader2, Mail, Building2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { CheckCircle2, XCircle, Loader2, Mail, Building2, AlertCircle } from 'lucide-react';
 
 const verifyCodeSchema = z.object({
   code: z.string().length(6, 'Verification code must be 6 digits').regex(/^\d+$/, 'Code must be numeric'),
@@ -42,6 +45,28 @@ export default function Onboarding() {
   const [codeSent, setCodeSent] = useState(false); // Track if code has been sent
   const [resendCooldown, setResendCooldown] = useState(0); // Countdown timer in seconds
   const { toast } = useToast();
+  
+  // Check for pending invitations by email FIRST (before business email validation)
+  // Wait a bit for auth to settle before checking
+  const userEmail = firebaseUser?.email || emailVerification?.email || '';
+  const { data: pendingInvitationsData, isLoading: checkingInvitations, error: invitationsError } = useQuery({
+    queryKey: ['/api/collaborators/pending-by-email', userEmail],
+    queryFn: async () => {
+      if (!userEmail) return { data: [], count: 0 };
+      return await CollaboratorApiService.getPendingInvitationsByEmail(userEmail);
+    },
+    enabled: !!userEmail && !!firebaseUser && !user?.tenantId && !authLoading,
+    retry: (failureCount, error: any) => {
+      // Don't retry on 401 errors - endpoint should be public
+      if (error?.message?.includes('401') || error?.message?.includes('Authentication')) {
+        return false;
+      }
+      return failureCount < 1;
+    },
+  });
+  
+  const pendingInvitations = pendingInvitationsData?.data || [];
+  const hasPendingInvitations = pendingInvitations.length > 0;
   
   // Use useRef to track if we've already attempted to send (persists across re-renders)
   const hasAttemptedSend = useRef(false);
@@ -102,20 +127,28 @@ export default function Onboarding() {
       return;
     }
 
-    // User authenticated but no tenant - show onboarding
-    logger.debug('User authenticated but no tenant, showing onboarding', {
+    // User authenticated but no tenant - check for pending invitations first
+    logger.debug('User authenticated but no tenant, checking for pending invitations', {
       component: 'Onboarding',
       action: 'check_auth',
       firebaseEmail: firebaseUser.email,
     });
-    // Check email validity for step 1
-    const isValid = isBusinessEmail(firebaseUser.email || '');
-    setEmailValid(isValid);
+    
+    // Don't set emailValid yet - wait for invitation check
+    // Email validation will happen after invitation check completes
   }, [firebaseUser, user, authLoading, emailVerification, setLocation]);
-
-  // Auto-progress from step 1 to step 2 if email is valid
+  
+  // Check email validity after invitation check completes (if no pending invitations)
   useEffect(() => {
-    if (currentStep === 1 && emailValid === true) {
+    if (!checkingInvitations && !hasPendingInvitations && firebaseUser?.email) {
+      const isValid = isBusinessEmail(firebaseUser.email);
+      setEmailValid(isValid);
+    }
+  }, [checkingInvitations, hasPendingInvitations, firebaseUser?.email]);
+
+  // Auto-progress from step 1 to step 2 if email is valid (but not if there are pending invitations)
+  useEffect(() => {
+    if (currentStep === 1 && emailValid === true && !checkingInvitations && !hasPendingInvitations) {
       const timer = setTimeout(() => {
         logger.debug('Auto-progressing to step 2 after email validation', {
           component: 'Onboarding',
@@ -126,7 +159,20 @@ export default function Onboarding() {
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [currentStep, emailValid]);
+  }, [currentStep, emailValid, checkingInvitations, hasPendingInvitations]);
+  
+  // Block progress if there are pending invitations
+  useEffect(() => {
+    if (hasPendingInvitations && currentStep > 1) {
+      // If user somehow progressed past step 1 with pending invitations, block them
+      logger.warn('User has pending invitations but progressed past step 1, blocking progress', {
+        component: 'Onboarding',
+        action: 'block_progress',
+        pendingInvitations: pendingInvitations.length,
+      });
+      setCurrentStep(1);
+    }
+  }, [hasPendingInvitations, currentStep, pendingInvitations.length]);
 
   // Memoize handleSendCode to prevent recreation on every render
   const handleSendCode = useCallback(async () => {
@@ -483,8 +529,6 @@ export default function Onboarding() {
     return null;
   }
 
-  const userEmail = firebaseUser.email || '';
-
   return (
     <Layout showSidebar={false}>
       <div className="min-h-screen flex items-center justify-center bg-muted/20 py-12 px-4 sm:px-6 lg:px-8">
@@ -531,8 +575,73 @@ export default function Onboarding() {
           </div>
 
           <CardContent className="space-y-6">
-            {/* Step 1: Business Email Validation */}
-            {currentStep === 1 && (
+            {/* Step 0: Check for Pending Invitations (before business email validation) */}
+            {currentStep === 1 && checkingInvitations && (
+              <div className="space-y-6">
+                <div className="text-center space-y-2">
+                  <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+                  <p className="text-sm font-medium">Checking for invitations...</p>
+                  <p className="text-sm text-muted-foreground">Your email address</p>
+                  <p className="text-sm font-medium">{userEmail}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Step 0.5: Show Pending Invitations (if found) */}
+            {currentStep === 1 && !checkingInvitations && hasPendingInvitations && (
+              <div className="space-y-6">
+                <div className="text-center space-y-2">
+                  <p className="text-sm font-medium">You Have Pending Invitations</p>
+                  <p className="text-sm text-muted-foreground">Your email address</p>
+                  <p className="text-sm font-medium">{userEmail}</p>
+                </div>
+
+                <Alert className="border-primary/50 bg-primary/5">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    <div className="space-y-3">
+                      <p className="font-medium">
+                        You have {pendingInvitations.length} pending invitation{pendingInvitations.length > 1 ? 's' : ''}
+                      </p>
+                      {pendingInvitations.map((inv) => (
+                        <div key={inv.id} className="text-sm space-y-1 p-2 bg-background rounded border">
+                          <p>
+                            <strong>{inv.tenantName || 'An organization'}</strong> has invited you to join as <strong>{inv.role}</strong>
+                          </p>
+                        </div>
+                      ))}
+                      <div className="space-y-2">
+                        <Button
+                          onClick={() => {
+                            // Get the first invitation token - we need to fetch it from the invitation
+                            const firstInvitation = pendingInvitations[0];
+                            if (firstInvitation) {
+                              // Try to get the invitation token by fetching the invitation details
+                              // For now, redirect user to check email
+                              toast({
+                                title: "Check Your Email",
+                                description: `Please check your email (${userEmail}) for the invitation link from ${firstInvitation.tenantName || 'the organization'}. Click the link to accept the invitation and join the existing organization.`,
+                                variant: "default",
+                              });
+                            }
+                          }}
+                          className="w-full"
+                          variant="default"
+                        >
+                          Check Email for Invitation Link
+                        </Button>
+                        <p className="text-xs text-muted-foreground text-center">
+                          Please accept your pending invitation to join the existing organization. After accepting, you'll be redirected to the dashboard.
+                        </p>
+                      </div>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
+
+            {/* Step 1: Business Email Validation (only if no pending invitations) */}
+            {currentStep === 1 && !checkingInvitations && !hasPendingInvitations && (
               <div className="space-y-6">
                 <div className="text-center space-y-2">
                   <p className="text-sm font-medium">Step 1: Verify Business Email</p>

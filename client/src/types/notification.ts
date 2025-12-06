@@ -33,3 +33,38 @@ export interface NotificationGroupSingleResponse {
   data: NotificationGroup;
 }
 
+// User Notification types
+
+export interface UserNotification {
+  id: string;
+  user_email: string;
+  tenant_id?: number;
+  type: 'collaborator_invitation' | 'alert' | 'system' | string;
+  title: string;
+  message?: string;
+  data?: {
+    collaborator_id?: string;
+    invitation_token?: string;
+    tenant_id?: number;
+    tenant_name?: string;
+    role?: string;
+    [key: string]: any;
+  };
+  is_read: boolean;
+  created_at: string;
+  read_at?: string;
+}
+
+export interface UserNotificationListResponse {
+  success: boolean;
+  timestamp: string;
+  data: UserNotification[];
+  count: number;
+}
+
+export interface UserNotificationSingleResponse {
+  success: boolean;
+  timestamp: string;
+  data: UserNotification;
+}
+

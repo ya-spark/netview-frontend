@@ -14,12 +14,24 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { Bell, Settings, CreditCard, Users, LogOut, Menu } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { logger } from "@/lib/logger";
+import { NotificationDropdown } from "@/components/NotificationDropdown";
+import { useQuery } from "@tanstack/react-query";
+import { UserNotificationApiService } from "@/services/notificationApi";
 
 export function Header() {
   const [location] = useLocation();
   const { user, firebaseUser, signOut } = useAuth();
-  const [notificationCount] = useState(3);
   const { toggleSidebar } = useSidebar();
+
+  // Fetch unread notification count
+  const { data: countData } = useQuery({
+    queryKey: ['/api/notifications/user/count'],
+    queryFn: () => UserNotificationApiService.getUnreadNotificationCount(),
+    enabled: !!user?.email,
+    refetchInterval: 30000, // Refetch every 30 seconds
+  });
+
+  const notificationCount = countData?.data?.count || 0;
 
   // User is authenticated if they have Firebase auth (even if backend user doesn't exist yet)
   const isAuthenticated = !!user || !!firebaseUser;
@@ -124,22 +136,24 @@ export function Header() {
             {isAuthenticated ? (
               <div className="flex items-center space-x-4">
                 {/* Notifications */}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="relative"
-                  data-testid="button-notifications"
-                >
-                  <Bell className="h-5 w-5" />
-                  {notificationCount > 0 && (
-                    <Badge
-                      variant="destructive"
-                      className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs p-0"
-                    >
-                      {notificationCount}
-                    </Badge>
-                  )}
-                </Button>
+                <NotificationDropdown>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="relative"
+                    data-testid="button-notifications"
+                  >
+                    <Bell className="h-5 w-5" />
+                    {notificationCount > 0 && (
+                      <Badge
+                        variant="destructive"
+                        className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs p-0"
+                      >
+                        {notificationCount}
+                      </Badge>
+                    )}
+                  </Button>
+                </NotificationDropdown>
 
                 {/* User Profile */}
                 <DropdownMenu>
