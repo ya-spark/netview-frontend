@@ -13,7 +13,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { sendVerificationCode, verifyCode, registerUser } from '@/services/authApi';
 import { createTenant } from '@/services/tenantApi';
 import { CollaboratorApiService } from '@/services/collaboratorApi';
-import { isBusinessEmail } from '@/utils/emailValidation';
 import { logger } from '@/lib/logger';
 import { useQuery } from '@tanstack/react-query';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -30,7 +29,7 @@ const tenantNameSchema = z.object({
 type VerifyCodeFormData = z.infer<typeof verifyCodeSchema>;
 type TenantNameFormData = z.infer<typeof tenantNameSchema>;
 
-type Step = 1 | 2 | 3 | 4;
+type Step = 1 | 3 | 4;
 
 export default function Onboarding() {
   const [, setLocation] = useLocation();
@@ -40,7 +39,6 @@ export default function Onboarding() {
   const [loading, setLoading] = useState(false);
   const [checkingTenant, setCheckingTenant] = useState(true);
   const [sendingCode, setSendingCode] = useState(false);
-  const [emailValid, setEmailValid] = useState<boolean | null>(null);
   const [tenantCreated, setTenantCreated] = useState(false);
   const [codeVerified, setCodeVerified] = useState(false);
   const [codeSent, setCodeSent] = useState(false);
@@ -115,54 +113,26 @@ export default function Onboarding() {
       return;
     }
 
-    // If email verification is pending and no invitation flow, start at step 2
+    // If email verification is pending and no invitation flow, start at step 3 (email verification)
     if (emailVerification && !hasPendingInvitations && !hasAcceptedInvitation) {
-      setCurrentStep(2);
-      const isValid = isBusinessEmail(emailVerification.email);
-      setEmailValid(isValid);
+      setCurrentStep(3);
     }
   }, [firebaseUser, user, authLoading, emailVerification, setLocation, hasPendingInvitations, hasAcceptedInvitation]);
 
-  // Check email validity when not in invitation flow
-  useEffect(() => {
-    if (!checkingInvitations && !hasPendingInvitations && !hasAcceptedInvitation && firebaseUser?.email) {
-      const isValid = isBusinessEmail(firebaseUser.email);
-      setEmailValid(isValid);
-    } else if (hasAcceptedInvitation && emailValid !== null) {
-      setEmailValid(null);
-    }
-  }, [checkingInvitations, hasPendingInvitations, hasAcceptedInvitation, firebaseUser?.email, emailValid]);
-
-  // Auto-progress from Step 1 to Step 2 if no invitations found
+  // Auto-progress from Step 1 to Step 3 (email verification) if no invitations found
   useEffect(() => {
     if (currentStep === 1 && !checkingInvitations && !hasPendingInvitations && !hasAcceptedInvitation) {
-      logger.debug('Auto-progressing from Step 1 to Step 2 (no invitations)', {
+      logger.debug('Auto-progressing from Step 1 to Step 3 (no invitations)', {
         component: 'Onboarding',
         action: 'auto_progress',
         currentStep,
       });
       const timer = setTimeout(() => {
-        setCurrentStep(2);
+        setCurrentStep(3);
       }, 1500); // Small delay to show the "no invitations" message
       return () => clearTimeout(timer);
     }
   }, [currentStep, checkingInvitations, hasPendingInvitations, hasAcceptedInvitation]);
-
-  // Auto-progress from Step 2 to Step 3 (email verification) if business email is valid
-  useEffect(() => {
-    if (currentStep === 2 && !hasAcceptedInvitation && emailValid === true) {
-      logger.debug('Auto-progressing from Step 2 to Step 3 (business email valid)', {
-        component: 'Onboarding',
-        action: 'auto_progress',
-        currentStep,
-        emailValid,
-      });
-      const timer = setTimeout(() => {
-        setCurrentStep(3);
-      }, 2000); // Delay to show the validation success message
-      return () => clearTimeout(timer);
-    }
-  }, [currentStep, hasAcceptedInvitation, emailValid]);
 
   // Auto-send verification code when reaching step 3
   useEffect(() => {
@@ -237,13 +207,58 @@ export default function Onboarding() {
     
     setAcceptingInvitation(true);
     try {
+      // Extract user details from Firebase user if available
+      let userDetails: { firstName?: string; lastName?: string; name?: string } | undefined;
+      
+      if (firebaseUser) {
+        const displayName = firebaseUser.displayName;
+        if (displayName) {
+          // Parse displayName into first_name and last_name
+          const nameParts = displayName.trim().split(/\s+/);
+          if (nameParts.length > 0) {
+            userDetails = {
+              name: displayName,
+              firstName: nameParts[0],
+              lastName: nameParts.length > 1 ? nameParts.slice(1).join(' ') : undefined,
+            };
+          } else {
+            userDetails = {
+              name: displayName,
+              firstName: displayName,
+            };
+          }
+          logger.info('Extracted user details from Firebase', { component: 'Onboarding', userDetails });
+        }
+      }
+      
       logger.info('Accepting invitation', { component: 'Onboarding', action: 'accept_invitation', invitationId: inv.id });
-      await CollaboratorApiService.acceptInvitationByToken(inv.invitationToken, userEmail);
+      await CollaboratorApiService.acceptInvitationByToken(inv.invitationToken, userEmail, undefined, userDetails);
       
       logger.info('Invitation accepted successfully', { component: 'Onboarding', action: 'accept_invitation_success', invitationId: inv.id });
       
+      // Wait a moment for backend to fully commit user creation before syncing
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Retry syncing backend user (user was just created, may need a moment)
       if (firebaseUser && syncBackendUser) {
-        await syncBackendUser(firebaseUser);
+        let retries = 3;
+        let syncSuccess = false;
+        while (retries > 0 && !syncSuccess) {
+          try {
+            await syncBackendUser(firebaseUser);
+            syncSuccess = true;
+            logger.info('Backend user synced successfully after invitation acceptance', { component: 'Onboarding' });
+          } catch (syncError: any) {
+            retries--;
+            if (retries > 0) {
+              logger.warn(`Backend user sync failed, retrying... (${retries} attempts left)`, { component: 'Onboarding' });
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            } else {
+              logger.error('Failed to sync backend user after invitation acceptance', syncError instanceof Error ? syncError : new Error(String(syncError)), { component: 'Onboarding' });
+              // Continue anyway - user was created, just sync failed
+            }
+          }
+        }
       }
       
       toast({
@@ -252,7 +267,6 @@ export default function Onboarding() {
       });
       
       setHasAcceptedInvitation(true);
-      setEmailValid(null);
       setCurrentStep(3); // Skip to email code verification (step 3)
     } catch (error: any) {
       const err = error instanceof Error ? error : new Error(String(error));
@@ -366,9 +380,22 @@ export default function Onboarding() {
     } catch (error: any) {
       const err = error instanceof Error ? error : new Error(String(error));
       logger.error('Failed to create tenant', err, { component: 'Onboarding', action: 'create_tenant' });
+      
+      // Check if it's a business email error from backend
+      let errorMessage = error.message || "Failed to create tenant. Please try again.";
+      let errorTitle = "Creation Failed";
+      
+      if (error.code === 'PUBLIC_EMAIL_NOT_ALLOWED' || error.details?.code === 'PUBLIC_EMAIL_NOT_ALLOWED') {
+        errorTitle = "Business Email Required";
+        errorMessage = error.details?.message || "Only business email addresses are allowed for tenant creation. Please use a business email address.";
+      } else if (error.message?.includes('Business email') || error.message?.includes('business email')) {
+        errorTitle = "Business Email Required";
+        errorMessage = error.message;
+      }
+      
       toast({
-        title: "Creation Failed",
-        description: error.message || "Failed to create tenant. Please try again.",
+        title: errorTitle,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -388,16 +415,6 @@ export default function Onboarding() {
       return;
     }
     
-    // Don't allow skipping business email check if email is invalid
-    if (step === 3 && emailValid === false && !hasAcceptedInvitation) {
-      toast({
-        title: "Business Email Required",
-        description: "Please use a business email address to continue.",
-        variant: "default",
-      });
-      return;
-    }
-    
     setCurrentStep(step);
   };
 
@@ -408,7 +425,6 @@ export default function Onboarding() {
     }
     switch (step) {
       case 1: return 'Invitations';
-      case 2: return 'Business Email';
       case 3: return 'Email Verification';
       case 4: return 'Create Tenant';
       default: return '';
@@ -417,7 +433,7 @@ export default function Onboarding() {
 
   // Get total steps based on invitation status
   const getTotalSteps = (): Step[] => {
-    return hasAcceptedInvitation ? [1, 3] : [1, 2, 3, 4];
+    return hasAcceptedInvitation ? [1, 3] : [1, 3, 4];
   };
 
   if (checkingTenant) {
@@ -556,47 +572,6 @@ export default function Onboarding() {
                   <div className="text-center space-y-4">
                     <p className="text-sm font-medium">Step 1: No Pending Invitations</p>
                     <p className="text-sm text-muted-foreground">No invitations found for {userEmail}</p>
-                    <p className="text-sm text-muted-foreground">Moving to business email check...</p>
-                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" />
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Step 2: Business Email Check (only if no invitation accepted) */}
-            {currentStep === 2 && !hasAcceptedInvitation && (
-              <div className="space-y-6">
-                <div className="text-center space-y-2">
-                  <p className="text-sm font-medium">Step 2: Verify Business Email</p>
-                  <p className="text-sm text-muted-foreground">Your email address</p>
-                  <p className="text-sm font-medium">{userEmail}</p>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-center justify-center">
-                    {emailValid === true ? (
-                      <div className="flex items-center space-x-2 text-green-600">
-                        <CheckCircle2 className="w-6 h-6" />
-                        <span className="text-sm font-medium">Valid business email</span>
-                      </div>
-                    ) : emailValid === false ? (
-                      <div className="flex flex-col items-center space-y-2">
-                        <div className="flex items-center space-x-2 text-red-600">
-                          <XCircle className="w-6 h-6" />
-                          <span className="text-sm font-medium">Public email not allowed</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground text-center">
-                          Please use a business email address to continue.
-                        </p>
-                      </div>
-                    ) : (
-                      <Loader2 className="w-6 h-6 animate-spin" />
-                    )}
-                  </div>
-                </div>
-
-                {emailValid === true && (
-                  <div className="text-center space-y-2">
                     <p className="text-sm text-muted-foreground">Moving to email verification...</p>
                     <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" />
                   </div>
@@ -613,7 +588,7 @@ export default function Onboarding() {
                       <Mail className="w-8 h-8 text-primary" />
                     </div>
                   </div>
-                  <p className="text-sm font-medium">Step 3: Verify Your Email</p>
+                  <p className="text-sm font-medium">Step {hasAcceptedInvitation ? '2' : '2'}: Verify Your Email</p>
                   <p className="text-sm text-muted-foreground">A verification code has been sent to</p>
                   <p className="text-sm font-medium">{userEmail}</p>
                 </div>
@@ -711,7 +686,7 @@ export default function Onboarding() {
                       <Building2 className="w-8 h-8 text-primary" />
                     </div>
                   </div>
-                  <p className="text-sm font-medium">Step 4: Create Your Organization</p>
+                  <p className="text-sm font-medium">Step 3: Create Your Organization</p>
                   <p className="text-sm text-muted-foreground">Enter a name for your organization</p>
                 </div>
 

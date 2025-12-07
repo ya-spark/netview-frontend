@@ -199,11 +199,17 @@ export class CollaboratorApiService {
 
   /**
    * Accept invitation by token (requires authentication, tenantId is optional - will use tenant from invitation)
+   * Accepts optional user details (first_name, last_name, name) to populate user profile
    */
   static async acceptInvitationByToken(
     token: string,
     userEmail: string,
-    tenantId?: string
+    tenantId?: string,
+    userDetails?: {
+      firstName?: string;
+      lastName?: string;
+      name?: string;
+    }
   ): Promise<CollaboratorSingleResponse> {
     // Build headers - only include tenantId if provided (user might not have one yet)
     const headers: Record<string, string> = {
@@ -215,7 +221,14 @@ export class CollaboratorApiService {
       headers['X-Tenant-ID'] = tenantId;
     }
     
-    const response = await apiRequest('POST', `/api/collaborators/accept-by-token?token=${encodeURIComponent(token)}`, undefined, headers);
+    // Build request body with user details if provided
+    const body = userDetails ? {
+      first_name: userDetails.firstName,
+      last_name: userDetails.lastName,
+      name: userDetails.name,
+    } : undefined;
+    
+    const response = await apiRequest('POST', `/api/collaborators/accept-by-token?token=${encodeURIComponent(token)}`, body, headers);
     return response.json();
   }
 }

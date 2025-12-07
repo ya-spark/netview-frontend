@@ -10,7 +10,10 @@ import { logger } from "@/lib/logger";
 import Landing from "@/pages/Landing";
 import SignUp from "@/pages/SignUp";
 import Login from "@/pages/Login";
-import Onboarding from "@/pages/Onboarding";
+import OnboardingRouter from "@/pages/onboarding/OnboardingRouter";
+import VerifyEmail from "@/pages/onboarding/VerifyEmail";
+import Invites from "@/pages/onboarding/Invites";
+import SelectTenant from "@/pages/onboarding/SelectTenant";
 import EmailVerification from "@/pages/EmailVerification";
 import PublicEmailError from "@/pages/PublicEmailError";
 import TenantSelection from "@/pages/TenantSelection";
@@ -214,7 +217,25 @@ function Router() {
 
       <Route path="/onboarding">
         <OnboardingRoute>
-          <Onboarding />
+          <OnboardingRouter />
+        </OnboardingRoute>
+      </Route>
+
+      <Route path="/onboarding/verify-email">
+        <OnboardingRoute>
+          <VerifyEmail />
+        </OnboardingRoute>
+      </Route>
+
+      <Route path="/onboarding/invites">
+        <OnboardingRoute>
+          <Invites />
+        </OnboardingRoute>
+      </Route>
+
+      <Route path="/onboarding/select-tenant">
+        <OnboardingRoute>
+          <SelectTenant />
         </OnboardingRoute>
       </Route>
 

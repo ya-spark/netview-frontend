@@ -54,7 +54,7 @@ export default function Login() {
         });
         setLocation('/dashboard');
       } else {
-        // If Firebase user but no backend user or no tenant, go to onboarding
+        // If Firebase user but no backend user or no tenant, go to onboarding router
         logger.info('User authenticated, redirecting to onboarding', {
           component: 'Login',
           userId: firebaseUser.uid,

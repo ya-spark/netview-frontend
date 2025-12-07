@@ -125,6 +125,29 @@ export async function registerUser(
 }
 
 /**
+ * Get all tenants the current user belongs to
+ * @returns Promise that resolves with list of Tenant objects
+ */
+export async function getUserTenants(): Promise<any[]> {
+  logger.debug('Fetching user tenants from backend', {
+    component: 'authApi',
+    action: 'get_user_tenants',
+  });
+  const response = await apiRequest('GET', '/api/auth/my-tenants');
+  const responseData = await response.json();
+  
+  // Handle different response formats
+  const tenants = responseData.data || responseData || [];
+  
+  logger.info('User tenants fetched successfully', {
+    component: 'authApi',
+    action: 'get_user_tenants',
+    tenantCount: Array.isArray(tenants) ? tenants.length : 0,
+  });
+  return Array.isArray(tenants) ? tenants : [];
+}
+
+/**
  * Logout from the backend system
  * Clears authentication and user-related information on the server
  * @returns Promise that resolves when logout is complete

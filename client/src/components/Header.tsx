@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Check } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -11,16 +12,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { useSidebar } from "@/components/ui/sidebar";
-import { Bell, Settings, CreditCard, Users, LogOut, Menu } from "lucide-react";
+import { Bell, Settings, CreditCard, Users, LogOut, Menu, Building2, ChevronDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { logger } from "@/lib/logger";
 import { NotificationDropdown } from "@/components/NotificationDropdown";
 import { useQuery } from "@tanstack/react-query";
 import { UserNotificationApiService } from "@/services/notificationApi";
+import { getUserTenants } from "@/services/authApi";
 
 export function Header() {
   const [location] = useLocation();
-  const { user, firebaseUser, signOut } = useAuth();
+  const { user, firebaseUser, signOut, selectedTenant, setSelectedTenant, syncBackendUser } = useAuth();
   const { toggleSidebar } = useSidebar();
 
   // Fetch unread notification count
@@ -135,6 +137,16 @@ export function Header() {
             {/* Right side - User Menu or Sign up button */}
             {isAuthenticated ? (
               <div className="flex items-center space-x-4">
+                {/* Tenant Switcher */}
+                {user && (
+                  <TenantSwitcher 
+                    selectedTenant={selectedTenant}
+                    setSelectedTenant={setSelectedTenant}
+                    syncBackendUser={syncBackendUser}
+                    firebaseUser={firebaseUser}
+                  />
+                )}
+
                 {/* Notifications */}
                 <NotificationDropdown>
                   <Button
@@ -256,5 +268,94 @@ export function Header() {
           </div>
       </div>
     </header>
+  );
+}
+
+// Tenant Switcher Component
+function TenantSwitcher({ 
+  selectedTenant, 
+  setSelectedTenant, 
+  syncBackendUser,
+  firebaseUser 
+}: { 
+  selectedTenant: any; 
+  setSelectedTenant: (tenant: any) => void;
+  syncBackendUser: (firebaseUser: any) => Promise<void>;
+  firebaseUser: any;
+}) {
+  const userEmail = firebaseUser?.email || '';
+  const [switching, setSwitching] = useState(false);
+
+  const { data: tenantsData, isLoading } = useQuery({
+    queryKey: ['/api/auth/my-tenants', userEmail],
+    queryFn: async () => {
+      const tenants = await getUserTenants();
+      return tenants;
+    },
+    enabled: !!userEmail && !!firebaseUser,
+    retry: 1,
+  });
+
+  const tenants = (tenantsData || []) as Array<{ id: string | number; name: string }>;
+
+  const handleSwitchTenant = async (tenant: { id: string | number; name: string }) => {
+    if (switching) return;
+    
+    setSwitching(true);
+    try {
+      setSelectedTenant({
+        id: String(tenant.id),
+        name: tenant.name,
+        email: userEmail,
+        createdAt: new Date().toISOString(),
+      });
+      
+      if (firebaseUser && syncBackendUser) {
+        await syncBackendUser(firebaseUser);
+      }
+      
+      // Reload page to refresh data with new tenant context
+      window.location.reload();
+    } catch (error) {
+      logger.error('Failed to switch tenant', error instanceof Error ? error : new Error(String(error)), {
+        component: 'TenantSwitcher',
+      });
+    } finally {
+      setSwitching(false);
+    }
+  };
+
+  if (tenants.length <= 1) {
+    return null; // Don't show switcher if user only has one tenant
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="sm" className="hidden sm:flex items-center space-x-2">
+          <Building2 className="h-4 w-4" />
+          <span className="max-w-[150px] truncate">{selectedTenant?.name || 'Select Organization'}</span>
+          <ChevronDown className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        {tenants.map((tenant) => (
+          <DropdownMenuItem
+            key={tenant.id}
+            onClick={() => handleSwitchTenant(tenant)}
+            disabled={switching || selectedTenant?.id === String(tenant.id)}
+            className="flex items-center justify-between"
+          >
+            <div className="flex items-center space-x-2">
+              <Building2 className="h-4 w-4" />
+              <span>{tenant.name}</span>
+            </div>
+            {selectedTenant?.id === String(tenant.id) && (
+              <Check className="h-4 w-4 text-primary" />
+            )}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

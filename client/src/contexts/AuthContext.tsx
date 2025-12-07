@@ -182,6 +182,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           firebaseEmail: firebaseUser.email,
         });
         // Don't set error state here - let individual pages handle it
+        // Also don't check for email verification for existing users
       }
     }
   };
@@ -217,6 +218,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       unsubscribe();
     };
   }, [isPublicRoute]);
+
+  // Restore selected tenant from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('selectedTenant');
+      if (stored) {
+        const tenant = JSON.parse(stored);
+        setSelectedTenant(tenant);
+        logger.debug('Restored selected tenant from localStorage', {
+          component: 'AuthContext',
+          tenantId: tenant.id,
+        });
+      }
+    } catch (error) {
+      logger.warn('Failed to restore selected tenant from localStorage', { component: 'AuthContext' });
+    }
+  }, []);
 
   useEffect(() => {
     // Skip auth initialization for public pages
@@ -510,7 +528,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const loadTenants = async (email: string): Promise<Tenant[]> => {
-    if (!user) {
+    if (!firebaseUser) {
       throw new Error('User must be authenticated to load tenants');
     }
     
@@ -518,50 +536,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       component: 'AuthContext',
       action: 'load_tenants',
       email,
-      userId: user.id,
     });
     
-    // For regular users, tenant is included in user object
-    // For SuperAdmins, use /api/admin/tenants endpoint
-    // For now, return empty array as tenant info is in user object
-    const tenantList: Tenant[] = [];
+    // Import getUserTenants function
+    const { getUserTenants } = await import('@/services/authApi');
+    const tenantList = await getUserTenants();
     
-    if (user.tenantId && user.tenantName) {
-      tenantList.push({
-        id: user.tenantId,
-        name: user.tenantName,
-        email: user.email,
-        createdAt: user.createdAt,
-      });
-    }
+    // Convert to Tenant format
+    const tenants: Tenant[] = tenantList.map((t: any) => ({
+      id: String(t.id),
+      name: t.name,
+      email: email,
+      createdAt: t.createdAt || new Date().toISOString(),
+    }));
     
     logger.info('Tenants loaded', {
       component: 'AuthContext',
       action: 'load_tenants',
-      tenantCount: tenantList.length,
-      userId: user.id,
+      tenantCount: tenants.length,
     });
-    setTenants(tenantList);
-    return tenantList;
+    setTenants(tenants);
+    return tenants;
   };
 
   const handleSetSelectedTenant = (tenant: Tenant | null) => {
-    if (!user) {
-      throw new Error('User must be authenticated to select a tenant');
-    }
-    
     setSelectedTenant(tenant);
     
-    // Update user state with selected tenant
-    // Note: Actual tenant selection should be handled by backend API
-    if (tenant) {
-      const updatedUser = {
-        ...user,
-        tenantId: tenant.id,
-        tenantName: tenant.name,
-        updatedAt: new Date().toISOString(),
-      };
-      setUser(updatedUser);
+    // Update API headers with selected tenant
+    if (tenant && user) {
+      setCurrentUserInfo(user.email, tenant.id);
+      
+      // Persist in localStorage for session continuity
+      if (tenant) {
+        localStorage.setItem('selectedTenant', JSON.stringify({
+          id: tenant.id,
+          name: tenant.name,
+          email: tenant.email,
+        }));
+      } else {
+        localStorage.removeItem('selectedTenant');
+      }
+      
+      // Update user state with selected tenant
+      if (user) {
+        const updatedUser = {
+          ...user,
+          tenantId: tenant.id,
+          tenantName: tenant.name,
+          updatedAt: new Date().toISOString(),
+        };
+        setUser(updatedUser);
+      }
+    } else {
+      localStorage.removeItem('selectedTenant');
+      setCurrentUserInfo(user?.email || '', '');
     }
   };
 
