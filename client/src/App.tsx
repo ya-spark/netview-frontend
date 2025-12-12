@@ -61,6 +61,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Redirect to="/signup" />;
   }
 
+  // If user doesn't have firstName set, redirect to settings to complete profile
+  if (!user.firstName || !user.firstName.trim()) {
+    return <Redirect to="/settings" />;
+  }
+
   // If user doesn't have a tenant selected, redirect to tenant selection
   if (!selectedTenant || !user.tenantId) {
     return <Redirect to="/tenant-selection" />;

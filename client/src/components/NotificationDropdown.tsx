@@ -23,25 +23,27 @@ interface NotificationDropdownProps {
 }
 
 export function NotificationDropdown({ children }: NotificationDropdownProps) {
-  const { user } = useAuth();
+  const { user, selectedTenant } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Fetch unread notification count
+  // Only fetch when user is authenticated AND has a tenant selected (required for API authentication)
   const { data: countData } = useQuery({
     queryKey: ['/api/notifications/user/count'],
     queryFn: () => UserNotificationApiService.getUnreadNotificationCount(),
-    enabled: !!user?.email,
+    enabled: !!user?.email && !!selectedTenant?.id,
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 
   const unreadCount = countData?.data?.count || 0;
 
   // Fetch recent notifications
+  // Only fetch when user is authenticated AND has a tenant selected (required for API authentication)
   const { data: notificationsData } = useQuery({
     queryKey: ['/api/notifications/user'],
     queryFn: () => UserNotificationApiService.getUserNotifications(true, 10, 0), // Unread only, limit 10
-    enabled: !!user?.email,
+    enabled: !!user?.email && !!selectedTenant?.id,
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 

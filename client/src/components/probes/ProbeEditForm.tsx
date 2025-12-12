@@ -595,17 +595,15 @@ export function ProbeEditForm({
           )}
 
           {/* Advanced Settings Button */}
-          {!viewMode && (
-            <div className="flex justify-center pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowAdvanced(!showAdvanced)}
-              >
-                {showAdvanced ? 'Hide' : 'Show'} Advanced Configuration
-              </Button>
-            </div>
-          )}
+          <div className="flex justify-center pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+            >
+              {showAdvanced ? 'Hide' : 'Show'} Advanced Configuration
+            </Button>
+          </div>
 
           {/* Advanced Settings Panel */}
           {showAdvanced && !viewMode && (
@@ -772,13 +770,36 @@ export function ProbeEditForm({
           )}
 
           {/* View mode advanced settings */}
-          {viewMode && (
+          {showAdvanced && viewMode && (
             <div className="space-y-4 pt-4 border-t">
               <h3 className="text-lg font-semibold">Advanced Configuration</h3>
+              
+              {/* Description */}
               {renderReadOnlyField('Description', probeDescription || 'N/A', 'Optional description to help identify this probe')}
+
+              {/* Gateway Type */}
               {renderReadOnlyField('Gateway Type', gatewayType, 'Choose Core for shared gateways or Tenant Specific for your own gateway')}
-              {gatewayId && renderReadOnlyField('Gateway', gateways?.data?.find(g => g.id === gatewayId)?.name || gatewayId)}
+              
+              {/* Gateway */}
+              {gatewayType === 'Core' && (
+                gatewayId ? (
+                  renderReadOnlyField('Gateway', coreGateways.find(g => g.id === gatewayId)?.name || gatewayId || 'N/A', 'Select the Core gateway to use for this probe')
+                ) : (
+                  renderReadOnlyField('Gateway', 'N/A', 'Select the Core gateway to use for this probe')
+                )
+              )}
+              {gatewayType === 'TenantSpecific' && (
+                gatewayId ? (
+                  renderReadOnlyField('Gateway', tenantSpecificGateways.find(g => g.id === gatewayId)?.name || gatewayId || 'N/A')
+                ) : (
+                  renderReadOnlyField('Gateway', 'None', 'No Tenant specific gateway selected')
+                )
+              )}
+
+              {/* Notification Group */}
               {renderReadOnlyField('Notification Group', notificationGroupId ? notificationGroups.find(g => g.id === notificationGroupId)?.name || 'N/A' : 'None', 'Select a notification group to receive alerts when this probe fails')}
+
+              {/* General advanced settings */}
               {renderReadOnlyField('Check Interval (seconds)', checkInterval, 'How often the probe should run checks (minimum 60 seconds, maximum 86400 seconds)')}
               {renderReadOnlyField('Timeout (seconds)', probeTimeout, 'Maximum time to wait for probe execution before timing out (minimum 5 seconds, maximum 300 seconds)')}
               {renderReadOnlyField('Retries', retries, 'Number of retry attempts if the probe check fails (0-10)')}

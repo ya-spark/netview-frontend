@@ -16,10 +16,10 @@ import {
 interface User {
   id: string;
   email: string;
-  firstName: string;
-  lastName: string;
+  firstName: string; // Can be empty string initially, should be set from frontend
+  lastName: string | null; // Can be null
   role: string;
-  tenantId: string;
+  tenantId: string | null; // Can be null
   tenantName?: string;
   company?: string;
   createdAt: string;
@@ -226,15 +226,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (stored) {
         const tenant = JSON.parse(stored);
         setSelectedTenant(tenant);
+        
+        // Update API headers with restored tenant info
+        // Use tenant email if available, otherwise try to get from firebaseUser
+        const email = tenant.email || firebaseUser?.email || '';
+        if (email && tenant.id) {
+          setCurrentUserInfo(email, tenant.id);
+        }
+        
         logger.debug('Restored selected tenant from localStorage', {
           component: 'AuthContext',
           tenantId: tenant.id,
+          email,
         });
       }
     } catch (error) {
       logger.warn('Failed to restore selected tenant from localStorage', { component: 'AuthContext' });
     }
-  }, []);
+  }, [firebaseUser]);
 
   useEffect(() => {
     // Skip auth initialization for public pages

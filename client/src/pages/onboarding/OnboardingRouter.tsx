@@ -31,7 +31,27 @@ export default function OnboardingRouter() {
           email: firebaseUser.email,
         });
 
-        // Check if user exists in backend
+        // FIRST: Check Firebase email verification status before calling backend
+        // The backend /api/auth/me endpoint doesn't check email verification,
+        // so we need to check it here to ensure proper workflow
+        const isEmailVerified = firebaseUser.emailVerified || false;
+        const isGoogleSignIn = firebaseUser.providerData?.some(
+          (provider: any) => provider.providerId === 'google.com'
+        ) || false;
+
+        // If email not verified and not Google sign-in, redirect to verification
+        if (!isEmailVerified && !isGoogleSignIn) {
+          logger.info('Email not verified in Firebase, redirecting to verify-email', {
+            component: 'OnboardingRouter',
+            email: firebaseUser.email,
+            emailVerified: isEmailVerified,
+            isGoogleSignIn,
+          });
+          setLocation('/onboarding/verify-email');
+          return;
+        }
+
+        // SECOND: Check if user exists in backend (only if email is verified or Google sign-in)
         const user = await getCurrentUser();
         
         logger.info('User exists in backend, redirecting to invites check', {

@@ -15,11 +15,12 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { logger } from '@/lib/logger';
-import { User, Shield, Bell } from 'lucide-react';
+import { User, Shield, Bell, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const profileSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
-  lastName: z.string().min(1, 'Last name is required'),
+  lastName: z.string().optional().nullable(),
   email: z.string().email('Invalid email address'),
   company: z.string().optional(),
   region: z.string().optional(),
@@ -34,7 +35,7 @@ const notificationSchema = z.object({
 });
 
 export default function Settings() {
-  const { user } = useAuth();
+  const { user, firebaseUser, syncBackendUser } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -44,11 +45,24 @@ export default function Settings() {
     });
   }, [user?.id]);
 
+  // Update form when user data changes
+  useEffect(() => {
+    if (user) {
+      profileForm.reset({
+        firstName: user.firstName || '',
+        lastName: user.lastName || null,
+        email: user.email || '',
+        company: user.company || '',
+        region: user.region || '',
+      });
+    }
+  }, [user, profileForm]);
+
   const profileForm = useForm<z.infer<typeof profileSchema>>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
       firstName: user?.firstName || '',
-      lastName: user?.lastName || '',
+      lastName: user?.lastName || null,
       email: user?.email || '',
       company: user?.company || '',
       region: user?.region || '',
@@ -76,7 +90,7 @@ export default function Settings() {
       const response = await apiRequest('PUT', `/api/users/${user?.id}`, data);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       logger.info('Profile updated successfully', {
         component: 'Settings',
         action: 'update_profile',
@@ -84,6 +98,10 @@ export default function Settings() {
       });
       toast({ title: 'Success', description: 'Profile updated successfully' });
       queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+      // Refresh user data in AuthContext
+      if (firebaseUser && syncBackendUser) {
+        await syncBackendUser(firebaseUser);
+      }
     },
     onError: (error: any) => {
       const err = error instanceof Error ? error : new Error(String(error));
@@ -150,6 +168,15 @@ export default function Settings() {
           </TabsList>
 
           <TabsContent value="profile" className="space-y-6">
+            {(!user?.firstName || !user.firstName.trim()) && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Profile Incomplete</AlertTitle>
+                <AlertDescription>
+                  Please complete your profile by providing your first name. This is required to continue using the application.
+                </AlertDescription>
+              </Alert>
+            )}
             <Card>
               <CardHeader>
                 <CardTitle>Personal Information</CardTitle>

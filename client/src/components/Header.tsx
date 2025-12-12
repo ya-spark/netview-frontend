@@ -26,10 +26,11 @@ export function Header() {
   const { toggleSidebar } = useSidebar();
 
   // Fetch unread notification count
+  // Only fetch when user is authenticated AND has a tenant selected (required for API authentication)
   const { data: countData } = useQuery({
     queryKey: ['/api/notifications/user/count'],
     queryFn: () => UserNotificationApiService.getUnreadNotificationCount(),
-    enabled: !!user?.email,
+    enabled: !!user?.email && !!selectedTenant?.id,
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 
