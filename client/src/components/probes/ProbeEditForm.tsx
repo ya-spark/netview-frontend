@@ -177,6 +177,18 @@ export function ProbeEditForm({
       return;
     }
 
+    // Validate check_interval before submission
+    if (checkInterval < 60 || checkInterval > 86400) {
+      logger.warn('Invalid check_interval value', {
+        component: 'ProbeEditForm',
+        action: 'validate_check_interval',
+        checkInterval,
+        probeId: probe?.id,
+      });
+      // This will be caught by the form validation, but we should show a better error
+      return;
+    }
+
     const config: Record<string, any> = {};
 
     if (probe.type === 'ICMP/Ping') {
@@ -729,15 +741,28 @@ export function ProbeEditForm({
 
               {/* General advanced settings */}
               {renderField('Check Interval (seconds) *', 'edit-check-interval',
-                <Input
-                  id="edit-check-interval"
-                  type="number"
-                  value={checkInterval}
-                  onChange={(e) => setCheckInterval(parseInt(e.target.value) || 300)}
-                  placeholder="300"
-                  min="60"
-                  max="86400"
-                />,
+                <div className="space-y-1">
+                  <Input
+                    id="edit-check-interval"
+                    type="number"
+                    value={checkInterval}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value);
+                      if (!isNaN(value)) {
+                        // Enforce minimum of 60
+                        setCheckInterval(Math.max(60, Math.min(86400, value)));
+                      } else if (e.target.value === '') {
+                        setCheckInterval(300); // Default to 300 if empty
+                      }
+                    }}
+                    placeholder="300"
+                    min="60"
+                    max="86400"
+                  />
+                  {checkInterval < 60 && (
+                    <p className="text-sm text-destructive">Check interval must be at least 60 seconds</p>
+                  )}
+                </div>,
                 'How often the probe should run checks (minimum 60 seconds, maximum 86400 seconds)'
               )}
               

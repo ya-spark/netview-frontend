@@ -175,8 +175,26 @@ export class ProbeApiService {
    * Get latest results for all probes (batch)
    */
   static async getLatestResults(limit: number = 1000): Promise<ProbeResultsListResponse> {
+    logger.info('Fetching latest probe results from controller', {
+      component: 'probeApi',
+      action: 'get_latest_results',
+      limit,
+    });
+    
+    const startTime = Date.now();
     const response = await apiRequest('GET', `/api/results/latest?limit=${limit}`);
-    return response.json();
+    const result = await response.json();
+    const duration = Date.now() - startTime;
+    
+    logger.info('Successfully fetched latest probe results from controller', {
+      component: 'probeApi',
+      action: 'get_latest_results',
+      limit,
+      resultCount: result?.data?.length || 0,
+      duration: `${duration}ms`,
+    });
+    
+    return result;
   }
 
   /**

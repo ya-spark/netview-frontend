@@ -119,7 +119,7 @@ export function MonitorOverview({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-5 gap-4">
+                <div className="grid grid-cols-4 gap-4">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-foreground">{probeStatuses.total}</div>
                     <div className="text-xs text-muted-foreground mt-1">Total</div>
@@ -131,10 +131,6 @@ export function MonitorOverview({
                   <div className="text-center">
                     <div className="text-2xl font-bold text-red-600 dark:text-red-400">{probeStatuses.down}</div>
                     <div className="text-xs text-muted-foreground mt-1">Down</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{probeStatuses.warning}</div>
-                    <div className="text-xs text-muted-foreground mt-1">Warning</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-gray-600 dark:text-gray-400">{probeStatuses.pending}</div>

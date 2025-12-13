@@ -316,7 +316,35 @@ export default function Manage() {
         action: 'update_probe',
         userId: user?.id,
       });
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      
+      // Extract validation error details if available
+      let errorMessage = error.message || 'Failed to update probe';
+      if (error.details && Array.isArray(error.details)) {
+        // Handle FastAPI validation errors
+        const validationErrors = error.details
+          .filter((detail: any) => detail.type && detail.loc && detail.msg)
+          .map((detail: any) => {
+            const field = detail.loc[detail.loc.length - 1];
+            return `${field}: ${detail.msg}`;
+          });
+        if (validationErrors.length > 0) {
+          errorMessage = validationErrors.join('; ');
+        }
+      } else if (error.details && typeof error.details === 'object') {
+        // Handle other error detail formats
+        if (error.details.message) {
+          errorMessage = error.details.message;
+        } else if (Array.isArray(error.details.errors)) {
+          const validationErrors = error.details.errors
+            .map((e: any) => `${e.loc?.join('.') || 'field'}: ${e.msg || e.message || 'Invalid value'}`)
+            .join('; ');
+          if (validationErrors) {
+            errorMessage = validationErrors;
+          }
+        }
+      }
+      
+      toast({ title: 'Validation Error', description: errorMessage, variant: 'destructive' });
     },
   });
 

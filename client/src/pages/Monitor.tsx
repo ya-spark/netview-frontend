@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRoute, useLocation } from 'wouter';
 import { Layout } from '@/components/Layout';
@@ -50,12 +50,36 @@ export default function Monitor() {
   const gatewayId = gatewaysParams?.gatewayId;
 
   // Fetch all probes
-  const { data: probesData, isLoading: probesLoading, refetch: refetchProbes } = useQuery({
+  const { data: probesData, isLoading: probesLoading, refetch: refetchProbes, error: probesError } = useQuery({
     queryKey: ['/api/probes'],
-    queryFn: () => ProbeApiService.listProbes(),
+    queryFn: () => {
+      console.log('[FRONTEND] Loading probes list from controller:', {
+        tenantId: selectedTenant?.id,
+        timestamp: new Date().toISOString()
+      });
+      return ProbeApiService.listProbes();
+    },
     enabled: !!user && !!selectedTenant,
     refetchInterval: 30000,
   });
+
+  // Log probe loading results
+  useEffect(() => {
+    if (probesData) {
+      console.log('[FRONTEND] Successfully loaded probes list from controller:', {
+        tenantId: selectedTenant?.id,
+        probeCount: probesData?.data?.length || 0,
+        timestamp: new Date().toISOString()
+      });
+    }
+    if (probesError) {
+      console.error('[FRONTEND] Failed to load probes list from controller:', {
+        tenantId: selectedTenant?.id,
+        error: probesError,
+        timestamp: new Date().toISOString()
+      });
+    }
+  }, [probesData, probesError, selectedTenant?.id]);
 
   // Fetch all gateways
   const { data: gatewaysData, isLoading: gatewaysLoading, refetch: refetchGateways } = useQuery({
@@ -74,16 +98,49 @@ export default function Monitor() {
   });
 
   // Fetch latest probe results for all probes from controller (batch endpoint)
-  const { data: latestResultsData } = useQuery({
+  const { data: latestResultsData, error: latestResultsError } = useQuery({
     queryKey: ['/api/results/latest', selectedTenant?.id],
-    queryFn: () => ProbeApiService.getLatestResults(1000),
+    queryFn: () => {
+      console.log('[FRONTEND] Loading latest probe results from controller:', {
+        tenantId: selectedTenant?.id,
+        timestamp: new Date().toISOString()
+      });
+      return ProbeApiService.getLatestResults(1000);
+    },
     enabled: !!user && !!selectedTenant,
     refetchInterval: 30000,
   });
 
+  // Log latest results loading
+  useEffect(() => {
+    if (latestResultsData) {
+      console.log('[FRONTEND] Successfully loaded latest probe results from controller:', {
+        tenantId: selectedTenant?.id,
+        resultCount: latestResultsData?.data?.length || 0,
+        timestamp: new Date().toISOString()
+      });
+    }
+    if (latestResultsError) {
+      console.error('[FRONTEND] Failed to load latest probe results from controller:', {
+        tenantId: selectedTenant?.id,
+        error: latestResultsError,
+        timestamp: new Date().toISOString()
+      });
+    }
+  }, [latestResultsData, latestResultsError, selectedTenant?.id]);
+
   // Convert latest results array to a map by probe_id for easy lookup
   const probeResultsData = useMemo(() => {
-    if (!latestResultsData?.data) return {};
+    if (!latestResultsData?.data) {
+      console.log('[FRONTEND] No latest results data available for processing');
+      return {};
+    }
+    
+    console.log('[FRONTEND] Processing latest probe results into map:', {
+      totalResults: latestResultsData.data.length,
+      timestamp: new Date().toISOString()
+    });
+    
     const resultsMap: Record<string, ProbeResult[]> = {};
     latestResultsData.data.forEach((result: ProbeResult) => {
       if (result.probe_id) {
@@ -93,6 +150,13 @@ export default function Monitor() {
         resultsMap[result.probe_id].push(result);
       }
     });
+    
+    console.log('[FRONTEND] Successfully processed probe results into map:', {
+      uniqueProbes: Object.keys(resultsMap).length,
+      totalResults: latestResultsData.data.length,
+      timestamp: new Date().toISOString()
+    });
+    
     return resultsMap;
   }, [latestResultsData]);
 
@@ -270,8 +334,8 @@ export default function Monitor() {
         {currentSection === 'probes' && probeId && (
           <ProbeDetail
             probeId={probeId}
-            probeDetailData={probeDetailData}
-            probeLogsData={probeLogsData}
+            probeDetailData={probeDetailData || undefined}
+            probeLogsData={probeLogsData || undefined}
             probeResultsData={probeResultsData}
             isLoading={probeDetailLoading}
             logsLoading={probeLogsLoading}
@@ -296,9 +360,9 @@ export default function Monitor() {
         {currentSection === 'gateways' && gatewayId && (
           <GatewayDetail
             gatewayId={gatewayId}
-            gatewayDetailData={gatewayDetailData}
-            gatewayLogsData={gatewayLogsData}
-            gatewayUptimeData={gatewayUptimeData}
+            gatewayDetailData={gatewayDetailData ?? undefined}
+            gatewayLogsData={gatewayLogsData ?? undefined}
+            gatewayUptimeData={gatewayUptimeData ?? undefined}
             probesData={probesData}
             probeResultsData={probeResultsData}
             isLoading={gatewayDetailLoading}

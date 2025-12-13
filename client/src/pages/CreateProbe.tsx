@@ -209,7 +209,35 @@ export default function CreateProbe() {
         action: 'create_probe',
         userId: user?.id,
       });
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      
+      // Extract validation error details if available
+      let errorMessage = error.message || 'Failed to create probe';
+      if (error.details && Array.isArray(error.details)) {
+        // Handle FastAPI validation errors
+        const validationErrors = error.details
+          .filter((detail: any) => detail.type && detail.loc && detail.msg)
+          .map((detail: any) => {
+            const field = detail.loc[detail.loc.length - 1];
+            return `${field}: ${detail.msg}`;
+          });
+        if (validationErrors.length > 0) {
+          errorMessage = validationErrors.join('; ');
+        }
+      } else if (error.details && typeof error.details === 'object') {
+        // Handle other error detail formats
+        if (error.details.message) {
+          errorMessage = error.details.message;
+        } else if (Array.isArray(error.details.errors)) {
+          const validationErrors = error.details.errors
+            .map((e: any) => `${e.loc?.join('.') || 'field'}: ${e.msg || e.message || 'Invalid value'}`)
+            .join('; ');
+          if (validationErrors) {
+            errorMessage = validationErrors;
+          }
+        }
+      }
+      
+      toast({ title: 'Validation Error', description: errorMessage, variant: 'destructive' });
     },
   });
 
@@ -228,6 +256,16 @@ export default function CreateProbe() {
       toast({ 
         title: 'Validation Error', 
         description: 'Please select a Core gateway', 
+        variant: 'destructive' 
+      });
+      return;
+    }
+
+    // Validate check_interval
+    if (checkInterval < 60 || checkInterval > 86400) {
+      toast({ 
+        title: 'Validation Error', 
+        description: 'Check interval must be between 60 and 86400 seconds', 
         variant: 'destructive' 
       });
       return;
@@ -756,16 +794,29 @@ export default function CreateProbe() {
                               </Tooltip>
                             </TooltipProvider>
                           </div>
-                      <Input
-                        id="check-interval"
-                        type="number"
-                        value={checkInterval}
-                        onChange={(e) => setCheckInterval(parseInt(e.target.value) || 300)}
-                        className="sm:col-span-3"
-                        placeholder="300"
-                        min="60"
-                        max="86400"
-                      />
+                      <div className="sm:col-span-3 space-y-1">
+                        <Input
+                          id="check-interval"
+                          type="number"
+                          value={checkInterval}
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value);
+                            if (!isNaN(value)) {
+                              // Enforce minimum of 60
+                              setCheckInterval(Math.max(60, Math.min(86400, value)));
+                            } else if (e.target.value === '') {
+                              setCheckInterval(300); // Default to 300 if empty
+                            }
+                          }}
+                          className="w-full"
+                          placeholder="300"
+                          min="60"
+                          max="86400"
+                        />
+                        {checkInterval < 60 && (
+                          <p className="text-sm text-destructive">Check interval must be at least 60 seconds</p>
+                        )}
+                      </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
                       <div className="sm:text-right flex items-center justify-end gap-1">
