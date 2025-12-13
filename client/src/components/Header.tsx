@@ -27,11 +27,20 @@ export function Header() {
 
   // Fetch unread notification count
   // Only fetch when user is authenticated AND has a tenant selected (required for API authentication)
-  const { data: countData } = useQuery({
+  const { data: countData, error: countError } = useQuery({
     queryKey: ['/api/notifications/user/count'],
     queryFn: () => UserNotificationApiService.getUnreadNotificationCount(),
     enabled: !!user?.email && !!selectedTenant?.id,
     refetchInterval: 30000, // Refetch every 30 seconds
+    retry: false, // Don't retry on error - just show 0 count
+    onError: (error) => {
+      // Log error but don't show toast - errors are handled silently in notification component
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.debug('Failed to fetch notification count', err, {
+        component: 'Header',
+        action: 'get_unread_count',
+      });
+    },
   });
 
   const notificationCount = countData?.data?.count || 0;
@@ -295,6 +304,9 @@ function TenantSwitcher({
     },
     enabled: !!userEmail && !!firebaseUser,
     retry: 1,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
   });
 
   const tenants = (tenantsData || []) as Array<{ id: string | number; name: string }>;

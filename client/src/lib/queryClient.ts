@@ -135,10 +135,13 @@ async function throwIfResNotOk(res: Response, url?: string) {
     
     // For critical errors (401, 403, 500), trigger global error handler
     // But skip for EMAIL_NOT_VERIFIED and verification-related endpoints as they're handled specially
+    // Also skip for notification endpoints - they handle errors locally
     const isVerificationEndpoint = url ? (url.includes('/send-verification-code') || url.includes('/verify-code')) : false;
+    const isNotificationEndpoint = url ? (url.includes('/notifications/user')) : false;
     if ((res.status === 401 || res.status === 403 || res.status === 500) && 
         errorCode !== 'EMAIL_NOT_VERIFIED' && 
-        !isVerificationEndpoint) {
+        !isVerificationEndpoint &&
+        !isNotificationEndpoint) {
       if (globalErrorHandler) {
         globalErrorHandler(error);
       }

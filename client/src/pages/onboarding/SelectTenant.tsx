@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { getUserTenants } from '@/services/authApi';
 import { logger } from '@/lib/logger';
+import { setCurrentUserInfo } from '@/lib/queryClient';
 import { useQuery } from '@tanstack/react-query';
 import { Building2, Check, Loader2, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -50,60 +51,91 @@ export default function SelectTenant() {
     },
     enabled: !!userEmail && !!firebaseUser,
     retry: 1,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
   });
 
   const tenants = (tenantsData || []) as Tenant[];
 
   // Auto-select if single tenant
   useEffect(() => {
-    if (!loadingTenants && tenants.length === 1 && firebaseUser) {
+    if (!loadingTenants && tenants.length === 1 && firebaseUser && !selecting) {
       const tenant = tenants[0];
       logger.info('Auto-selecting single tenant', {
         component: 'SelectTenant',
-        tenantId: tenant.id,
+        tenantId: typeof tenant.id === 'number' ? tenant.id : Number(tenant.id),
         tenantName: tenant.name,
       });
       
-      // Set selected tenant and sync
-      setSelectedTenant({
+      // Set selecting state to prevent multiple triggers
+      setSelecting(String(tenant.id));
+      
+      // Set selected tenant
+      const tenantObj = {
         id: String(tenant.id),
         name: tenant.name,
         email: userEmail,
         createdAt: tenant.createdAt || new Date().toISOString(),
-      });
+      };
+      setSelectedTenant(tenantObj);
+      
+      // Set current user info for API headers
+      setCurrentUserInfo(userEmail, String(tenant.id));
       
       // Sync backend user to update context
-      if (syncBackendUser) {
-        syncBackendUser(firebaseUser).then(() => {
-          logger.info('Redirecting to dashboard after auto-selection', { component: 'SelectTenant' });
+      const performSync = async () => {
+        try {
+          if (syncBackendUser) {
+            await syncBackendUser(firebaseUser);
+          }
+          logger.info('Redirecting to dashboard after auto-selection', { 
+            component: 'SelectTenant',
+            tenantId: typeof tenant.id === 'number' ? tenant.id : Number(tenant.id),
+          });
+          // Small delay to ensure state is updated
           setTimeout(() => {
             setLocation('/dashboard');
-          }, 500);
-        });
-      } else {
-        setTimeout(() => {
-          setLocation('/dashboard');
-        }, 500);
-      }
+          }, 300);
+        } catch (error: any) {
+          logger.error('Error during auto-selection sync', error instanceof Error ? error : new Error(String(error)), {
+            component: 'SelectTenant',
+            tenantId: typeof tenant.id === 'number' ? tenant.id : Number(tenant.id),
+          });
+          // Still redirect even if sync fails
+          setTimeout(() => {
+            setLocation('/dashboard');
+          }, 300);
+        } finally {
+          setSelecting(null);
+        }
+      };
+      
+      performSync();
     }
-  }, [tenants, loadingTenants, firebaseUser, setSelectedTenant, setLocation, syncBackendUser, userEmail]);
+  }, [tenants, loadingTenants, firebaseUser, setSelectedTenant, setLocation, syncBackendUser, userEmail, selecting]);
 
   const handleSelectTenant = async (tenant: Tenant) => {
     setSelecting(String(tenant.id));
     try {
+      const tenantIdNum = typeof tenant.id === 'number' ? tenant.id : parseInt(String(tenant.id), 10);
       logger.info('Selecting tenant', {
         component: 'SelectTenant',
         action: 'select_tenant',
-        tenantId: tenant.id,
+        tenantId: tenantIdNum,
         tenantName: tenant.name,
       });
       
-      setSelectedTenant({
+      const tenantObj = {
         id: String(tenant.id),
         name: tenant.name,
         email: userEmail,
         createdAt: tenant.createdAt || new Date().toISOString(),
-      });
+      };
+      setSelectedTenant(tenantObj);
+      
+      // Set current user info for API headers
+      setCurrentUserInfo(userEmail, String(tenant.id));
       
       // Sync backend user to update context
       if (firebaseUser && syncBackendUser) {
@@ -124,7 +156,7 @@ export default function SelectTenant() {
       logger.error('Failed to select tenant', err, {
         component: 'SelectTenant',
         action: 'select_tenant',
-        tenantId: tenant.id,
+        tenantId: typeof tenant.id === 'number' ? tenant.id : Number(tenant.id),
       });
       toast({
         title: "Error",

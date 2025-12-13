@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useRoute, useLocation } from 'wouter';
 import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -24,13 +25,36 @@ import type { GatewayResponse } from '@/types/gateway';
 import type { AlertResponse } from '@/types/alert';
 
 export default function Monitor() {
-  const { user } = useAuth();
+  const { user, selectedTenant } = useAuth();
+  const [location, setLocation] = useLocation();
+  
+  // Detect current section and item IDs from route
+  const [isOverviewRoute] = useRoute('/monitor/overview');
+  const [isAlertsRoute, alertsParams] = useRoute('/monitor/alerts/:alertId?');
+  const [isProbesRoute, probesParams] = useRoute('/monitor/probes/:probeId?');
+  const [isGatewaysRoute, gatewaysParams] = useRoute('/monitor/gateways/:gatewayId?');
+  const [isMapRoute] = useRoute('/monitor/map');
+  const [isLogsRoute] = useRoute('/monitor/logs');
+  const [isMonitorRoot] = useRoute('/monitor');
+  
+  // Determine current section (default to overview)
+  const currentSection = isOverviewRoute || isMonitorRoot ? 'overview' :
+    isAlertsRoute ? 'alerts' :
+    isProbesRoute ? 'probes' :
+    isGatewaysRoute ? 'gateways' :
+    isMapRoute ? 'map' :
+    isLogsRoute ? 'logs' : 'overview';
+  
+  // Get item IDs from route params
+  const alertId = alertsParams?.alertId;
+  const probeId = probesParams?.probeId;
+  const gatewayId = gatewaysParams?.gatewayId;
 
   // Fetch all probes
   const { data: probesData, isLoading: probesLoading, refetch: refetchProbes } = useQuery({
     queryKey: ['/api/probes'],
     queryFn: () => ProbeApiService.listProbes(),
-    enabled: !!user,
+    enabled: !!user && !!selectedTenant,
     refetchInterval: 30000,
   });
 
@@ -38,7 +62,7 @@ export default function Monitor() {
   const { data: gatewaysData, isLoading: gatewaysLoading, refetch: refetchGateways } = useQuery({
     queryKey: ['/api/gateways'],
     queryFn: () => GatewayApiService.listGateways(),
-    enabled: !!user,
+    enabled: !!user && !!selectedTenant,
     refetchInterval: 30000,
   });
 
@@ -46,13 +70,14 @@ export default function Monitor() {
   const { data: alertsData, isLoading: alertsLoading, refetch: refetchAlerts } = useQuery({
     queryKey: ['/api/alerts'],
     queryFn: () => AlertApiService.listAlerts(),
-    enabled: !!user,
+    enabled: !!user && !!selectedTenant,
     refetchInterval: 30000,
   });
 
   // Fetch probe results for all probes (last result for each)
+  // Include selectedTenant.id in query key to refetch when tenant changes
   const { data: probeResultsData } = useQuery({
-    queryKey: ['/api/probe-results'],
+    queryKey: ['/api/probe-results', selectedTenant?.id],
     queryFn: async () => {
       if (!probesData?.data) return {};
       const results: Record<string, ProbeResult[]> = {};
@@ -74,7 +99,7 @@ export default function Monitor() {
       );
       return results;
     },
-    enabled: !!user && !!probesData?.data,
+    enabled: !!user && !!selectedTenant && !!probesData?.data,
     refetchInterval: 30000,
   });
 
@@ -132,6 +157,12 @@ export default function Monitor() {
     if (!alertsData?.data) return [];
     return alertsData.data;
   }, [alertsData]);
+
+  // Get selected alert if alertId is in route
+  const selectedAlert = useMemo(() => {
+    if (!alertId || !alerts.length) return null;
+    return alerts.find((alert) => alert.id === alertId) || null;
+  }, [alertId, alerts]);
 
   const handleRefresh = () => {
     refetchProbes();
@@ -285,7 +316,12 @@ export default function Monitor() {
                   {alerts.map((alert) => (
                     <div
                       key={alert.id}
-                      className="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors"
+                      className={`flex items-center gap-3 p-3 border rounded-lg transition-colors cursor-pointer ${
+                        alertId === alert.id
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:bg-muted/50'
+                      }`}
+                      onClick={() => setLocation(`/monitor/alerts/${alert.id}`)}
                     >
                       <div className="flex-shrink-0">
                         {getAlertIcon(alert)}
@@ -315,6 +351,60 @@ export default function Monitor() {
                   ))}
                 </div>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Alert Detail View */}
+        {selectedAlert && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5" />
+                  Alert Details
+                </CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLocation('/monitor/alerts')}
+                >
+                  Back to Alerts
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-foreground">
+                    {selectedAlert.probe_name || 'Unknown Probe'}
+                  </span>
+                  <Badge
+                    variant={selectedAlert.is_resolved ? 'outline' : 'default'}
+                    className={
+                      selectedAlert.is_resolved
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                        : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                    }
+                  >
+                    {selectedAlert.is_resolved ? 'Resolved' : 'Active'}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground mb-1">Message</p>
+                  <p className="text-sm text-muted-foreground">{selectedAlert.message}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground mb-1">Created At</p>
+                  <p className="text-sm text-muted-foreground">{formatDate(selectedAlert.created_at)}</p>
+                </div>
+                {selectedAlert.resolved_at && (
+                  <div>
+                    <p className="text-sm font-medium text-foreground mb-1">Resolved At</p>
+                    <p className="text-sm text-muted-foreground">{formatDate(selectedAlert.resolved_at)}</p>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         )}

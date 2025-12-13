@@ -328,9 +328,63 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
-      <Route path="/monitor">
+      <Route path="/manage/billing">
+        <ProtectedRoute>
+          <Billing />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/manage/settings">
+        <ProtectedRoute>
+          <Settings />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/manage/collaborators">
+        <ProtectedRoute>
+          <Collaborators />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/monitor/overview">
         <ProtectedRoute>
           <Monitor />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/monitor/alerts/:alertId?">
+        <ProtectedRoute>
+          <Monitor />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/monitor/probes/:probeId?">
+        <ProtectedRoute>
+          <Monitor />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/monitor/gateways/:gatewayId?">
+        <ProtectedRoute>
+          <Monitor />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/monitor/map">
+        <ProtectedRoute>
+          <Monitor />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/monitor/logs">
+        <ProtectedRoute>
+          <Monitor />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/monitor">
+        <ProtectedRoute>
+          <Redirect to="/monitor/overview" />
         </ProtectedRoute>
       </Route>
 
@@ -342,19 +396,19 @@ function Router() {
 
       <Route path="/settings">
         <ProtectedRoute>
-          <Settings />
+          <Redirect to="/manage/settings" />
         </ProtectedRoute>
       </Route>
 
       <Route path="/billing">
         <ProtectedRoute>
-          <Billing />
+          <Redirect to="/manage/billing" />
         </ProtectedRoute>
       </Route>
 
       <Route path="/collaborators">
         <ProtectedRoute>
-          <Collaborators />
+          <Redirect to="/manage/collaborators" />
         </ProtectedRoute>
       </Route>
 

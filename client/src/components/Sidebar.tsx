@@ -63,11 +63,11 @@ const formatTimeAgo = (timestamp: string): string => {
 
 // Dashboard Sidebar Component
 function DashboardSidebar() {
-  const { user } = useAuth();
+  const { user, selectedTenant } = useAuth();
 
   const { data: statsResponse } = useQuery({
     queryKey: ["/api/dashboard"],
-    enabled: !!user,
+    enabled: !!user && !!selectedTenant,
     queryFn: async () => {
       logger.debug('Fetching dashboard stats for sidebar', {
         component: 'Sidebar',
@@ -90,20 +90,21 @@ function DashboardSidebar() {
   // Fetch all probes
   const { data: probesData } = useQuery({
     queryKey: ["/api/probes"],
-    enabled: !!user,
+    enabled: !!user && !!selectedTenant,
     queryFn: () => ProbeApiService.listProbes(),
   });
 
   // Fetch all gateways
   const { data: gatewaysData } = useQuery({
     queryKey: ["/api/gateways"],
-    enabled: !!user,
+    enabled: !!user && !!selectedTenant,
     queryFn: () => GatewayApiService.listGateways(),
   });
 
   // Fetch probe results for all probes (last result for each)
+  // Include selectedTenant.id in query key to refetch when tenant changes
   const { data: probeResultsData } = useQuery({
-    queryKey: ["/api/probe-results"],
+    queryKey: ["/api/probe-results", selectedTenant?.id],
     queryFn: async () => {
       if (!probesData?.data) return {};
       const results: Record<string, ProbeResult[]> = {};
@@ -125,7 +126,7 @@ function DashboardSidebar() {
       );
       return results;
     },
-    enabled: !!user && !!probesData?.data,
+    enabled: !!user && !!selectedTenant && !!probesData?.data,
   });
 
   // Calculate critical notifications from real data
@@ -347,21 +348,21 @@ function ManageSidebar() {
   const adminNavigation = [
     {
       name: "Billing",
-      href: "/billing",
+      href: "/manage/billing",
       icon: CreditCard,
-      current: location === "/billing",
+      current: location === "/manage/billing" || location === "/billing",
     },
     {
       name: "Settings",
-      href: "/settings",
+      href: "/manage/settings",
       icon: Settings,
-      current: location === "/settings",
+      current: location === "/manage/settings" || location === "/settings",
     },
     {
       name: "Collaborators",
-      href: "/collaborators",
+      href: "/manage/collaborators",
       icon: Users,
-      current: location === "/collaborators",
+      current: location === "/manage/collaborators" || location === "/collaborators",
       requiresAdminRole: true,
     },
   ];
@@ -433,39 +434,43 @@ function ManageSidebar() {
 // Monitor Sidebar Component
 function MonitorSidebar() {
   const [location] = useLocation();
-  const hash = location.includes("#") ? location.split("#")[1] : "";
 
   const monitorNavigation = [
     {
       name: "Overview",
-      href: "/monitor#overview",
+      href: "/monitor/overview",
       icon: Eye,
-      current: hash === "overview" || (location === "/monitor" && hash === ""),
+      current: location === "/monitor/overview" || location === "/monitor",
     },
     {
       name: "Critical Alerts",
-      href: "/monitor#alerts",
+      href: "/monitor/alerts",
       icon: AlertTriangle,
-      current: hash === "alerts",
+      current: location.startsWith("/monitor/alerts"),
     },
     {
       name: "Probes",
-      href: "/monitor#probes",
+      href: "/monitor/probes",
       icon: Activity,
-      current: hash === "probes",
+      current: location.startsWith("/monitor/probes"),
     },
     {
       name: "Gateways",
-      href: "/monitor#gateways",
+      href: "/monitor/gateways",
       icon: Server,
-      current: hash === "gateways",
+      current: location.startsWith("/monitor/gateways"),
     },
-    { name: "Map", href: "/monitor#map", icon: Map, current: hash === "map" },
+    {
+      name: "Map",
+      href: "/monitor/map",
+      icon: Map,
+      current: location === "/monitor/map",
+    },
     {
       name: "Logs",
-      href: "/monitor#logs",
+      href: "/monitor/logs",
       icon: FileText,
-      current: hash === "logs",
+      current: location === "/monitor/logs",
     },
   ];
 
@@ -475,27 +480,21 @@ function MonitorSidebar() {
         <div className="text-sm font-medium text-foreground mb-3">Monitor</div>
         {monitorNavigation.map((item) => {
           const Icon = item.icon;
-          const handleClick = () => {
-            // Extract hash from href and set it directly
-            const hashPart = item.href.split("#")[1];
-            window.location.hash = hashPart || "";
-          };
-
           return (
-            <Button
-              key={item.name}
-              onClick={handleClick}
-              variant={item.current ? "default" : "ghost"}
-              className={`w-full justify-start ${
-                item.current
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              }`}
-              data-testid={`nav-monitor-${item.name.toLowerCase().replace(/\s+/g, "-")}`}
-            >
-              <Icon className="mr-3 h-4 w-4" />
-              {item.name}
-            </Button>
+            <Link key={item.name} href={item.href}>
+              <Button
+                variant={item.current ? "default" : "ghost"}
+                className={`w-full justify-start ${
+                  item.current
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                }`}
+                data-testid={`nav-monitor-${item.name.toLowerCase().replace(/\s+/g, "-")}`}
+              >
+                <Icon className="mr-3 h-4 w-4" />
+                {item.name}
+              </Button>
+            </Link>
           );
         })}
       </nav>

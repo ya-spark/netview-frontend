@@ -24,7 +24,7 @@ import { Building2, Mail, Loader2, AlertCircle, CheckCircle2 } from 'lucide-reac
  */
 export default function Invites() {
   const [, setLocation] = useLocation();
-  const { firebaseUser, syncBackendUser } = useAuth();
+  const { firebaseUser, setSelectedTenant, syncBackendUser } = useAuth();
   const [acceptingInvitation, setAcceptingInvitation] = useState<string | null>(null);
   const [creatingTenant, setCreatingTenant] = useState(false);
   const { toast } = useToast();
@@ -73,31 +73,55 @@ export default function Invites() {
   };
 
   const handleAcceptInvitation = async (inv: import('@/types/collaborator').PendingInvitation) => {
-    if (!inv.invitationToken) {
-      toast({
-        title: "Invitation Token Missing",
-        description: "Unable to accept invitation. Please check your email for the invitation link.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
     setAcceptingInvitation(inv.id);
     try {
-      const userDetails = getUserDetails();
-      
       logger.info('Accepting invitation', { component: 'Invites', action: 'accept_invitation', invitationId: inv.id });
-      await CollaboratorApiService.acceptInvitationByToken(
-        inv.invitationToken,
-        userEmail,
-        undefined,
-        userDetails
-      );
+      
+      // If user is logged in, use collaborator_id endpoint (no token needed)
+      // Otherwise, use token-based endpoint
+      if (firebaseUser) {
+        // User is logged in - use collaborator_id endpoint
+        // tenantId is required - must match the invitation's tenant
+        if (!inv.tenantId) {
+          throw new Error("Tenant ID is required to accept this invitation");
+        }
+        await CollaboratorApiService.acceptInvite(
+          inv.id,
+          userEmail,
+          inv.tenantId.toString() // tenantId is required - backend will verify it matches invitation
+        );
+      } else if (inv.invitationToken) {
+        // User not logged in - use token-based endpoint
+        const userDetails = getUserDetails();
+        await CollaboratorApiService.acceptInvitationByToken(
+          inv.invitationToken,
+          userEmail,
+          undefined,
+          userDetails
+        );
+      } else {
+        throw new Error("Unable to accept invitation: user not logged in and no invitation token available");
+      }
       
       logger.info('Invitation accepted successfully', { component: 'Invites', action: 'accept_invitation_success', invitationId: inv.id });
       
       // Wait a moment for backend to fully commit user creation before syncing
       await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Set the selected tenant to the invitation's tenant
+      if (inv.tenantId && inv.tenantName) {
+        setSelectedTenant({
+          id: String(inv.tenantId),
+          name: inv.tenantName,
+          email: userEmail,
+          createdAt: new Date().toISOString(),
+        });
+        logger.info('Set selected tenant after invitation acceptance', {
+          component: 'Invites',
+          tenantId: inv.tenantId,
+          tenantName: inv.tenantName,
+        });
+      }
       
       // Retry syncing backend user
       if (firebaseUser && syncBackendUser) {
@@ -125,9 +149,14 @@ export default function Invites() {
         description: `You've been added to ${inv.tenantName || 'the organization'} as ${inv.role}.`,
       });
       
-      // Redirect to tenant selection
+      // Redirect directly to dashboard of the accepted tenant
       setTimeout(() => {
-        setLocation('/onboarding/select-tenant');
+        logger.info('Redirecting to dashboard after invitation acceptance', {
+          component: 'Invites',
+          tenantId: inv.tenantId,
+          tenantName: inv.tenantName,
+        });
+        setLocation('/dashboard');
       }, 1500);
     } catch (error: any) {
       const err = error instanceof Error ? error : new Error(String(error));

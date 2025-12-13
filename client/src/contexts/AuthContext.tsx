@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react';
 import { useLocation } from 'wouter';
 import { getCurrentUser, registerUser, logout as logoutApi } from '@/services/authApi';
 import { ApiError, setCurrentUserInfo } from '@/lib/queryClient';
@@ -77,22 +77,72 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const publicRoutes = ['/', '/features', '/pricing', '/docs', '/login'];
   const isPublicRoute = publicRoutes.includes(location);
 
+  // Refs to prevent infinite loops and track sync state
+  const isSyncingRef = useRef(false);
+  const lastSyncedEmailRef = useRef<string | null>(null);
+  const selectedTenantRef = useRef<Tenant | null>(null);
+  const userRef = useRef<User | null>(null);
+
+  // Update refs when state changes
+  useEffect(() => {
+    selectedTenantRef.current = selectedTenant;
+  }, [selectedTenant]);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
   // Sync backend user state when Firebase auth state changes
-  const syncBackendUser = async (firebaseUser: FirebaseUser | null) => {
+  const syncBackendUser = useCallback(async (firebaseUser: FirebaseUser | null) => {
+    // Prevent concurrent syncs
+    if (isSyncingRef.current) {
+      logger.debug('Sync already in progress, skipping', {
+        component: 'AuthContext',
+        action: 'sync_backend_user',
+        firebaseEmail: firebaseUser?.email || 'null',
+      });
+      return;
+    }
+
+    // Prevent syncing the same user repeatedly
+    const currentEmail = firebaseUser?.email || null;
+    if (currentEmail === lastSyncedEmailRef.current && userRef.current && firebaseUser) {
+      logger.debug('User already synced, skipping duplicate sync', {
+        component: 'AuthContext',
+        action: 'sync_backend_user',
+        firebaseEmail: currentEmail,
+        userId: userRef.current.id,
+      });
+      return;
+    }
+
     if (!firebaseUser) {
+      logger.debug('No Firebase user, clearing state', {
+        component: 'AuthContext',
+        action: 'sync_backend_user',
+      });
       setUser(null);
       setSelectedTenant(null);
       setTenants([]);
       setEmailVerification(null);
+      lastSyncedEmailRef.current = null;
+      userRef.current = null;
+      selectedTenantRef.current = null;
       return;
     }
 
+    isSyncingRef.current = true;
+    lastSyncedEmailRef.current = firebaseUser.email;
+
     try {
-      logger.debug('Syncing backend user state for Firebase user', {
+      logger.info('Starting backend user sync', {
         component: 'AuthContext',
-        action: 'sync_backend_user',
+        action: 'sync_backend_user_start',
         firebaseEmail: firebaseUser.email,
+        currentUserId: userRef.current?.id,
+        hasSelectedTenant: !!selectedTenantRef.current,
       });
+      
       const backendUser = await getCurrentUser();
       
       // Validate user data
@@ -104,6 +154,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
         setSelectedTenant(null);
         setTenants([]);
+        userRef.current = null;
+        selectedTenantRef.current = null;
         return;
       }
       
@@ -114,22 +166,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         userEmail: backendUser.email,
         userRole: backendUser.role,
         tenantId: backendUser.tenantId,
+        previousUserId: userRef.current?.id,
       });
+      
       setUser(backendUser);
+      userRef.current = backendUser;
       
-      // Update global user info for API headers (dev mode requires X-User-Email and X-Tenant-ID)
-      setCurrentUserInfo(backendUser.email, backendUser.tenantId);
-      
-      // Set selected tenant if user has one
+      // Set selected tenant if user has one from backend
       if (backendUser.tenantId && backendUser.tenantName) {
-        setSelectedTenant({
+        logger.debug('Setting selected tenant from backend user', {
+          component: 'AuthContext',
+          action: 'sync_backend_user',
+          tenantId: backendUser.tenantId,
+          tenantName: backendUser.tenantName,
+        });
+        const tenant = {
           id: backendUser.tenantId,
           name: backendUser.tenantName,
           email: backendUser.email,
           createdAt: backendUser.createdAt || new Date().toISOString(),
+        };
+        setSelectedTenant(tenant);
+        selectedTenantRef.current = tenant;
+        setCurrentUserInfo(backendUser.email, backendUser.tenantId);
+      } else if (selectedTenantRef.current) {
+        // Preserve existing selectedTenant if backend user doesn't have one
+        logger.debug('Backend user has no tenantId, preserving existing selectedTenant', {
+          component: 'AuthContext',
+          action: 'sync_backend_user',
+          hasSelectedTenant: !!selectedTenantRef.current,
+          preservedTenantId: selectedTenantRef.current.id,
         });
+        setCurrentUserInfo(backendUser.email, selectedTenantRef.current.id);
       } else {
-        setSelectedTenant(null);
+        logger.debug('No tenant to preserve, clearing tenant info', {
+          component: 'AuthContext',
+          action: 'sync_backend_user',
+        });
+        setCurrentUserInfo(backendUser.email, '');
       }
       setTenants([]);
     } catch (error: any) {
@@ -158,6 +232,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
         setSelectedTenant(null);
         setTenants([]);
+        userRef.current = null;
+        selectedTenantRef.current = null;
         return;
       }
       
@@ -174,6 +250,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
         setSelectedTenant(null);
         setTenants([]);
+        userRef.current = null;
+        selectedTenantRef.current = null;
       } else {
         const err = error instanceof Error ? error : new Error(String(error));
         logger.error('Error syncing backend user', err, {
@@ -184,30 +262,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Don't set error state here - let individual pages handle it
         // Also don't check for email verification for existing users
       }
+    } finally {
+      isSyncingRef.current = false;
+      logger.debug('Backend user sync completed', {
+        component: 'AuthContext',
+        action: 'sync_backend_user_complete',
+        firebaseEmail: firebaseUser.email,
+      });
     }
-  };
+  }, []); // No dependencies - use refs instead
 
   // Listen to Firebase auth state changes
   useEffect(() => {
     logger.debug('Setting up Firebase auth state listener', {
       component: 'AuthContext',
       action: 'setup_auth_listener',
+      isPublicRoute,
     });
     const unsubscribe = onAuthStateChange(async (firebaseUser) => {
-      logger.debug('Firebase auth state changed', {
+      logger.info('Firebase auth state changed', {
         component: 'AuthContext',
         action: 'auth_state_changed',
         firebaseEmail: firebaseUser?.email || 'signed out',
+        previousEmail: lastSyncedEmailRef.current,
       });
       setFirebaseUser(firebaseUser);
       
       // Skip backend sync for public routes
       if (isPublicRoute) {
+        logger.debug('Skipping backend sync for public route', {
+          component: 'AuthContext',
+          action: 'auth_state_changed',
+        });
         return;
       }
       
-      // Sync backend user state
-      await syncBackendUser(firebaseUser);
+      // Only sync if Firebase user exists
+      if (firebaseUser) {
+        logger.debug('Triggering backend user sync from auth state change', {
+          component: 'AuthContext',
+          action: 'auth_state_changed',
+          firebaseEmail: firebaseUser.email,
+        });
+        await syncBackendUser(firebaseUser);
+      } else {
+        logger.debug('No Firebase user, clearing state', {
+          component: 'AuthContext',
+          action: 'auth_state_changed',
+        });
+        setUser(null);
+        setSelectedTenant(null);
+        setTenants([]);
+        lastSyncedEmailRef.current = null;
+        userRef.current = null;
+        selectedTenantRef.current = null;
+      }
     });
 
     return () => {
@@ -217,7 +326,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       unsubscribe();
     };
-  }, [isPublicRoute]);
+  }, [isPublicRoute, syncBackendUser]);
 
   // Restore selected tenant from localStorage on mount
   useEffect(() => {
@@ -246,8 +355,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [firebaseUser]);
 
   useEffect(() => {
+    logger.debug('Auth initialization effect triggered', {
+      component: 'AuthContext',
+      action: 'auth_init_effect',
+      isPublicRoute,
+      location,
+      hasFirebaseUser: !!firebaseUser,
+      hasUser: !!user,
+      userEmail: user?.email,
+      firebaseEmail: firebaseUser?.email,
+    });
+
     // Skip auth initialization for public pages
     if (isPublicRoute) {
+      logger.debug('Skipping auth initialization for public route', {
+        component: 'AuthContext',
+        action: 'auth_init_effect',
+      });
       setLoading(false);
       return;
     }
@@ -272,8 +396,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        // Sync backend user state
-        await syncBackendUser(currentFirebaseUser);
+        // Only sync if we don't already have a user or if Firebase user email changed
+        // Also check if we're not already syncing
+        if (!isSyncingRef.current && (!user || user.email !== currentFirebaseUser.email)) {
+          logger.debug('Syncing backend user - user missing or email changed', {
+            component: 'AuthContext',
+            action: 'check_auth',
+            hasUser: !!user,
+            currentEmail: currentFirebaseUser.email,
+            userEmail: user?.email,
+            isSyncing: isSyncingRef.current,
+          });
+          await syncBackendUser(currentFirebaseUser);
+        } else {
+          logger.debug('User already synced or sync in progress, skipping', {
+            component: 'AuthContext',
+            action: 'check_auth',
+            userId: user?.id,
+            userEmail: user?.email,
+            isSyncing: isSyncingRef.current,
+          });
+        }
       } finally {
         // Always set loading to false after sync completes
         setLoading(false);
@@ -281,7 +424,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     checkAuth();
-  }, [isPublicRoute, location]);
+  }, [isPublicRoute, firebaseUser?.email, user?.id, syncBackendUser, location]);
 
   const signOut = async () => {
     try {
@@ -536,7 +679,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const loadTenants = async (email: string): Promise<Tenant[]> => {
+  const loadTenants = useCallback(async (email: string): Promise<Tenant[]> => {
     if (!firebaseUser) {
       throw new Error('User must be authenticated to load tenants');
     }
@@ -566,7 +709,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     setTenants(tenants);
     return tenants;
-  };
+  }, [firebaseUser]);
 
   const handleSetSelectedTenant = (tenant: Tenant | null) => {
     setSelectedTenant(tenant);

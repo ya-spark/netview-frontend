@@ -116,13 +116,19 @@ export class CollaboratorApiService {
   /**
    * Accept a collaborator invite
    * Requires authenticated user with email matching collaborator email
+   * tenantId is required - must match the invitation's tenant (backend will verify)
    */
   static async acceptInvite(
     collaboratorId: string,
     userEmail: string,
     tenantId: string
   ): Promise<CollaboratorSingleResponse> {
-    const headers = getCollaboratorHeaders(userEmail, tenantId);
+    // Build headers with required tenantId
+    const headers: Record<string, string> = {
+      'X-User-Email': userEmail,
+      'X-Tenant-ID': tenantId, // Required - backend will verify it matches invitation's tenant
+    };
+    
     const response = await apiRequest('POST', `/api/collaborators/${collaboratorId}/accept`, undefined, headers);
     return response.json();
   }

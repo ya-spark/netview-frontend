@@ -38,18 +38,36 @@ export function InvitationBanner({ onDismiss }: InvitationBannerProps) {
   const { data: invitationsData, isLoading } = useQuery({
     queryKey: ['/api/collaborators/pending', user?.email, user?.tenantId],
     queryFn: async () => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c2da348a-4c9d-412f-a7c7-795cb56e870b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvitationBanner.tsx:40',message:'Fetching pending invitations',data:{hasEmail:!!user?.email,hasTenantId:!!user?.tenantId,email:user?.email,tenantId:user?.tenantId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       if (!user?.email || !user?.tenantId) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/c2da348a-4c9d-412f-a7c7-795cb56e870b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvitationBanner.tsx:42',message:'Missing user email or tenantId, returning empty',data:{hasEmail:!!user?.email,hasTenantId:!!user?.tenantId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
         return { data: [], count: 0 };
       }
-      return CollaboratorApiService.getPendingInvitations(
+      const result = await CollaboratorApiService.getPendingInvitations(
         user.email,
         user.tenantId.toString()
       );
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c2da348a-4c9d-412f-a7c7-795cb56e870b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvitationBanner.tsx:48',message:'Received pending invitations response',data:{count:result?.data?.length||0,invitations:result?.data?.map((inv:any)=>({id:inv.id,tenantName:inv.tenantName,hasTenantName:!!inv.tenantName}))||[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      return result;
     },
     enabled: !!user?.email && !!user?.tenantId,
   });
 
   const pendingInvitations: PendingInvitation[] = invitationsData?.data || [];
+  
+  // #region agent log
+  useEffect(() => {
+    if (pendingInvitations.length > 0) {
+      fetch('http://127.0.0.1:7242/ingest/c2da348a-4c9d-412f-a7c7-795cb56e870b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvitationBanner.tsx:52',message:'Pending invitations processed',data:{count:pendingInvitations.length,firstInvitation:{id:pendingInvitations[0]?.id,tenantName:pendingInvitations[0]?.tenantName,hasTenantName:!!pendingInvitations[0]?.tenantName,role:pendingInvitations[0]?.role}},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    }
+  }, [pendingInvitations]);
+  // #endregion
 
   // Filter out dismissed invitations
   const visibleInvitations = pendingInvitations.filter(

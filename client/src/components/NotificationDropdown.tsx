@@ -29,22 +29,40 @@ export function NotificationDropdown({ children }: NotificationDropdownProps) {
 
   // Fetch unread notification count
   // Only fetch when user is authenticated AND has a tenant selected (required for API authentication)
-  const { data: countData } = useQuery({
+  const { data: countData, error: countError } = useQuery({
     queryKey: ['/api/notifications/user/count'],
     queryFn: () => UserNotificationApiService.getUnreadNotificationCount(),
     enabled: !!user?.email && !!selectedTenant?.id,
     refetchInterval: 30000, // Refetch every 30 seconds
+    retry: false, // Don't retry on error - just show 0 count
+    onError: (error) => {
+      // Log error but don't show toast - errors are handled silently in notification component
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.debug('Failed to fetch notification count', err, {
+        component: 'NotificationDropdown',
+        action: 'get_unread_count',
+      });
+    },
   });
 
   const unreadCount = countData?.data?.count || 0;
 
   // Fetch recent notifications
   // Only fetch when user is authenticated AND has a tenant selected (required for API authentication)
-  const { data: notificationsData } = useQuery({
+  const { data: notificationsData, error: notificationsError } = useQuery({
     queryKey: ['/api/notifications/user'],
     queryFn: () => UserNotificationApiService.getUserNotifications(true, 10, 0), // Unread only, limit 10
     enabled: !!user?.email && !!selectedTenant?.id,
     refetchInterval: 30000, // Refetch every 30 seconds
+    retry: false, // Don't retry on error - just show empty list
+    onError: (error) => {
+      // Log error but don't show toast - errors are handled silently in notification component
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.debug('Failed to fetch notifications', err, {
+        component: 'NotificationDropdown',
+        action: 'get_notifications',
+      });
+    },
   });
 
   const notifications: UserNotification[] = notificationsData?.data || [];

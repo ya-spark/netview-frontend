@@ -38,6 +38,17 @@ export default function Settings() {
   const { user, firebaseUser, syncBackendUser } = useAuth();
   const { toast } = useToast();
 
+  const profileForm = useForm<z.infer<typeof profileSchema>>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      firstName: user?.firstName || '',
+      lastName: user?.lastName || null,
+      email: user?.email || '',
+      company: user?.company || '',
+      region: user?.region || '',
+    },
+  });
+
   useEffect(() => {
     logger.debug('Settings page initialized', {
       component: 'Settings',
@@ -57,17 +68,6 @@ export default function Settings() {
       });
     }
   }, [user, profileForm]);
-
-  const profileForm = useForm<z.infer<typeof profileSchema>>({
-    resolver: zodResolver(profileSchema),
-    defaultValues: {
-      firstName: user?.firstName || '',
-      lastName: user?.lastName || null,
-      email: user?.email || '',
-      company: user?.company || '',
-      region: user?.region || '',
-    },
-  });
 
   const notificationForm = useForm<z.infer<typeof notificationSchema>>({
     resolver: zodResolver(notificationSchema),

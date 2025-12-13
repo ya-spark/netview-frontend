@@ -59,7 +59,8 @@ export interface PendingInvitation {
   role: 'SuperAdmin' | 'Owner' | 'Admin' | 'Editor' | 'Viewer';
   status: 'invited';
   tenantName?: string;
-  invitationToken?: string; // Token to accept the invitation
+  tenantId?: number; // Tenant ID from the invitation (required for accepting)
+  invitationToken?: string; // Token to accept the invitation (only needed if user is not logged in)
   createdAt: string;
 }
 

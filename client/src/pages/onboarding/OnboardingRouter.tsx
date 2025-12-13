@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
-import { getCurrentUser } from '@/services/authApi';
+import { getCurrentUser, getUserTenants } from '@/services/authApi';
 import { logger } from '@/lib/logger';
 import { Loader2 } from 'lucide-react';
 
@@ -11,11 +11,13 @@ import { Loader2 } from 'lucide-react';
  * Flow:
  * 1. Check if user exists in backend
  * 2. If 404/403 EMAIL_NOT_VERIFIED → /onboarding/verify-email
- * 3. If 200 → Check for invites → /onboarding/invites or /onboarding/select-tenant
+ * 3. If 200 → Check if user has tenants:
+ *    - If has tenants → /onboarding/select-tenant
+ *    - If no tenants → /onboarding/invites
  */
 export default function OnboardingRouter() {
   const [, setLocation] = useLocation();
-  const { firebaseUser, loading: authLoading } = useAuth();
+  const { firebaseUser, loading: authLoading, selectedTenant } = useAuth();
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
@@ -54,14 +56,55 @@ export default function OnboardingRouter() {
         // SECOND: Check if user exists in backend (only if email is verified or Google sign-in)
         const user = await getCurrentUser();
         
-        logger.info('User exists in backend, redirecting to invites check', {
+        logger.info('User exists in backend, checking for tenants', {
           component: 'OnboardingRouter',
           userId: user.id,
           hasTenant: !!user.tenantId,
         });
 
-        // User exists - check for invites
-        setLocation('/onboarding/invites');
+        // THIRD: Check if user has tenants
+        // If user already has a selected tenant, go directly to dashboard
+        if (selectedTenant) {
+          logger.info('User has selected tenant, redirecting to dashboard', {
+            component: 'OnboardingRouter',
+            tenantName: selectedTenant.name,
+          });
+          setLocation('/dashboard');
+          return;
+        }
+
+        // Check if user has any tenants
+        try {
+          const tenants = await getUserTenants();
+          const hasTenants = Array.isArray(tenants) && tenants.length > 0;
+          
+          logger.info('User tenants check completed', {
+            component: 'OnboardingRouter',
+            tenantCount: tenants.length,
+            hasTenants,
+          });
+
+          if (hasTenants) {
+            // User has tenants - redirect to tenant selection
+            logger.info('User has tenants, redirecting to select-tenant', {
+              component: 'OnboardingRouter',
+              tenantCount: tenants.length,
+            });
+            setLocation('/onboarding/select-tenant');
+          } else {
+            // User has no tenants - check for pending invitations
+            logger.info('User has no tenants, redirecting to invites', {
+              component: 'OnboardingRouter',
+            });
+            setLocation('/onboarding/invites');
+          }
+        } catch (tenantsError: any) {
+          // If getting tenants fails, still redirect to invites as fallback
+          logger.warn('Failed to fetch user tenants, redirecting to invites as fallback', {
+            component: 'OnboardingRouter',
+          }, tenantsError instanceof Error ? tenantsError : new Error(String(tenantsError)));
+          setLocation('/onboarding/invites');
+        }
       } catch (error: any) {
         const isNotFound = error.status === 404;
         const isEmailNotVerified = error.status === 403 && error.code === 'EMAIL_NOT_VERIFIED';
@@ -98,7 +141,7 @@ export default function OnboardingRouter() {
     };
 
     checkUserStatus();
-  }, [firebaseUser, authLoading, setLocation]);
+  }, [firebaseUser, authLoading, setLocation, selectedTenant]);
 
   if (checking || authLoading) {
     return (

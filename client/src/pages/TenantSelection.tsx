@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { logger } from '@/lib/logger';
+import { setCurrentUserInfo } from '@/lib/queryClient';
 import { Building2, Plus, Check, Loader2 } from 'lucide-react';
 import { generateTenantId, validateTenantIdAvailability } from '@/services/tenantApi';
 
@@ -120,14 +121,20 @@ export default function TenantSelection() {
     // Load tenants when component mounts
     // Auth check is handled by TenantSelectionRoute
     if (user?.email) {
-      logger.debug('Loading tenants for TenantSelection', {
+      logger.info('Loading tenants for TenantSelection', {
         component: 'TenantSelection',
         action: 'load_tenants',
         userEmail: user.email,
+        tenantCount: tenants.length,
+        hasSelectedTenant: !!selectedTenant,
       });
-      loadTenants(user.email);
+      loadTenants(user.email).catch((error) => {
+        logger.error('Failed to load tenants', error instanceof Error ? error : new Error(String(error)), {
+          component: 'TenantSelection',
+        });
+      });
     }
-  }, [user, loadTenants]);
+  }, [user?.email]); // Only depend on user.email
 
   const handleCreateTenant = async (data: TenantFormData) => {
     if (!user) return;
@@ -224,7 +231,13 @@ export default function TenantSelection() {
   };
 
   const handleSelectTenant = async (tenant: typeof tenants[0]) => {
-    if (!user) return;
+    if (!user) {
+      logger.warn('Cannot select tenant - no user', {
+        component: 'TenantSelection',
+        action: 'select_tenant',
+      });
+      return;
+    }
     
     setLoading(true);
     try {
@@ -234,8 +247,25 @@ export default function TenantSelection() {
         tenantId: tenant.id,
         tenantName: tenant.name,
         userId: user.id,
+        userEmail: user.email,
       });
+      
+      // Set current user info for API headers BEFORE setting selected tenant
+      setCurrentUserInfo(user.email, String(tenant.id));
+      logger.debug('Set current user info for API headers', {
+        component: 'TenantSelection',
+        action: 'select_tenant',
+        email: user.email,
+        tenantId: tenant.id,
+      });
+      
+      // Set selected tenant
       setSelectedTenant(tenant);
+      logger.debug('Selected tenant set in context', {
+        component: 'TenantSelection',
+        action: 'select_tenant',
+        tenantId: tenant.id,
+      });
       
       toast({
         title: "Organization Selected",
@@ -244,6 +274,10 @@ export default function TenantSelection() {
 
       // Redirect to dashboard
       setTimeout(() => {
+        logger.debug('Redirecting to dashboard', {
+          component: 'TenantSelection',
+          action: 'select_tenant',
+        });
         setLocation('/dashboard');
       }, 500);
     } catch (error: any) {
