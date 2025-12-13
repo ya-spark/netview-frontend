@@ -103,8 +103,10 @@ export default function Login() {
                 tenantName: tenant.name,
               });
               
-              // Set as primary tenant in backend
-              await setPrimaryTenant(tenantId);
+              // Sync backend user FIRST to ensure user exists before setting primary tenant
+              if (firebaseUser && syncBackendUser) {
+                await syncBackendUser(firebaseUser);
+              }
               
               // Set selected tenant in context
               const tenantObj = {
@@ -118,7 +120,10 @@ export default function Login() {
               // Set current user info for API headers
               setCurrentUserInfo(firebaseUser.email || '', String(tenant.id));
               
-              // Sync backend user to update context with new tenantId
+              // Set as primary tenant in backend (after user is synced)
+              await setPrimaryTenant(tenantId);
+              
+              // Sync backend user again to update context with new tenantId
               if (firebaseUser && syncBackendUser) {
                 await syncBackendUser(firebaseUser);
               }
@@ -262,9 +267,6 @@ export default function Login() {
                 tenantName: tenant.name,
               });
               
-              // Set as primary tenant in backend
-              await setPrimaryTenant(tenantId);
-              
               // Set selected tenant in context
               const tenantObj = {
                 id: String(tenant.id),
@@ -276,6 +278,9 @@ export default function Login() {
               
               // Set current user info for API headers
               setCurrentUserInfo(user.email, String(tenant.id));
+              
+              // Set as primary tenant in backend
+              await setPrimaryTenant(tenantId);
               
               // Sync backend user to update context with new tenantId
               if (firebaseUser && syncBackendUser) {
