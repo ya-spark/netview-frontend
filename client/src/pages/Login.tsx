@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation, Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +13,8 @@ import { signInWithGoogle, signInWithEmailPassword } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Chrome } from 'lucide-react';
 import { logger } from '@/lib/logger';
+import { getUserTenants, setPrimaryTenant } from '@/services/authApi';
+import { setCurrentUserInfo } from '@/lib/queryClient';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -26,7 +28,8 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const { toast } = useToast();
-  const { firebaseUser, user, loading: authLoading } = useAuth();
+  const { firebaseUser, user, loading: authLoading, setSelectedTenant, syncBackendUser } = useAuth();
+  const checkingTenantsRef = useRef(false);
 
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -72,8 +75,149 @@ export default function Login() {
     if (firebaseUser) {
       const redirectPath = getRedirectPath();
       
-      // If backend user exists with tenant
-      if (user?.tenantId) {
+      // If backend user doesn't exist yet, check if they have tenants anyway
+      // (user might exist but sync hasn't completed, or they might be a collaborator)
+      if (!user && !checkingTenantsRef.current) {
+        checkingTenantsRef.current = true;
+        
+        const checkTenantsForNewUser = async () => {
+          try {
+            logger.info('Firebase user authenticated but no backend user yet, checking for tenants', {
+              component: 'Login',
+              action: 'check_tenants_for_new_user',
+              firebaseUserId: firebaseUser.uid,
+              firebaseEmail: firebaseUser.email,
+            });
+            
+            const tenants = await getUserTenants();
+            
+            if (tenants.length === 1) {
+              // User has exactly one tenant - set it as primary and redirect
+              const tenant = tenants[0];
+              const tenantId = typeof tenant.id === 'number' ? tenant.id : parseInt(String(tenant.id), 10);
+              
+              logger.info('User has exactly one tenant, setting as primary', {
+                component: 'Login',
+                action: 'set_primary_tenant',
+                tenantId,
+                tenantName: tenant.name,
+              });
+              
+              // Set as primary tenant in backend
+              await setPrimaryTenant(tenantId);
+              
+              // Set selected tenant in context
+              const tenantObj = {
+                id: String(tenant.id),
+                name: tenant.name,
+                email: firebaseUser.email || '',
+                createdAt: tenant.createdAt || new Date().toISOString(),
+              };
+              setSelectedTenant(tenantObj);
+              
+              // Set current user info for API headers
+              setCurrentUserInfo(firebaseUser.email || '', String(tenant.id));
+              
+              // Sync backend user to update context with new tenantId
+              if (firebaseUser && syncBackendUser) {
+                await syncBackendUser(firebaseUser);
+              }
+              
+              // Redirect to dashboard or saved path
+              if (redirectPath && isValidProtectedRoute(redirectPath)) {
+                logger.info('Redirecting to saved path after setting primary tenant', {
+                  component: 'Login',
+                  action: 'redirect_after_set_primary',
+                }, { redirectPath });
+                setLocation(redirectPath);
+              } else {
+                logger.info('Redirecting to dashboard after setting primary tenant', {
+                  component: 'Login',
+                  action: 'redirect_after_set_primary',
+                });
+                setLocation('/dashboard');
+              }
+            } else if (tenants.length > 1) {
+              // User has multiple tenants - go to tenant selection
+              logger.info('User has multiple tenants, redirecting to tenant selection', {
+                component: 'Login',
+                action: 'redirect_to_tenant_selection',
+                tenantCount: tenants.length,
+              });
+              
+              if (redirectPath && isValidProtectedRoute(redirectPath)) {
+                const redirectData = {
+                  path: redirectPath,
+                  tenantId: null,
+                };
+                sessionStorage.setItem('loginRedirect', JSON.stringify(redirectData));
+              }
+              setLocation('/tenant-selection');
+            } else {
+              // User has no tenants - go to onboarding
+              logger.info('User has no tenants, redirecting to onboarding', {
+                component: 'Login',
+                action: 'redirect_to_onboarding',
+              });
+              
+              if (redirectPath && isValidProtectedRoute(redirectPath)) {
+                const redirectData = {
+                  path: redirectPath,
+                  tenantId: null,
+                };
+                sessionStorage.setItem('loginRedirect', JSON.stringify(redirectData));
+              }
+              setLocation('/onboarding');
+            }
+          } catch (error: any) {
+            const err = error instanceof Error ? error : new Error(String(error));
+            logger.error('Error checking tenants for new user', err, {
+              component: 'Login',
+              action: 'check_tenants_for_new_user',
+            });
+            // On error, fall back to onboarding
+            if (redirectPath && isValidProtectedRoute(redirectPath)) {
+              const redirectData = {
+                path: redirectPath,
+                tenantId: null,
+              };
+              sessionStorage.setItem('loginRedirect', JSON.stringify(redirectData));
+            }
+            setLocation('/onboarding');
+          } finally {
+            checkingTenantsRef.current = false;
+          }
+        };
+        
+        checkTenantsForNewUser();
+        return;
+      }
+      
+      // If we're still checking tenants, don't proceed
+      if (!user && checkingTenantsRef.current) {
+        return;
+      }
+      
+      // If backend user still doesn't exist after checking tenants, go to onboarding
+      if (!user) {
+        logger.info('Firebase user authenticated but no backend user, redirecting to onboarding', {
+          component: 'Login',
+          action: 'redirect_to_onboarding',
+          firebaseUserId: firebaseUser.uid,
+        });
+        if (redirectPath && isValidProtectedRoute(redirectPath)) {
+          const redirectData = {
+            path: redirectPath,
+            tenantId: null,
+          };
+          sessionStorage.setItem('loginRedirect', JSON.stringify(redirectData));
+        }
+        setLocation('/onboarding');
+        return;
+      }
+      
+      // Backend user exists - check for tenant
+      if (user.tenantId) {
         // Use redirect path if valid, otherwise go to dashboard
         if (redirectPath && isValidProtectedRoute(redirectPath)) {
           logger.info('User has tenant, redirecting to saved path', {
@@ -90,32 +234,124 @@ export default function Login() {
           }, { redirectPath: redirectPath || 'none' });
           setLocation('/dashboard');
         }
-      } else {
-        // If Firebase user but no backend user or no tenant, go to onboarding router
-        // Preserve redirect parameter if it exists by storing in sessionStorage
-        // Also store tenant ID if user has one (from user.tenantId)
-        if (redirectPath && isValidProtectedRoute(redirectPath)) {
-          const redirectData = {
-            path: redirectPath,
-            tenantId: user?.tenantId || null,
-          };
-          sessionStorage.setItem('loginRedirect', JSON.stringify(redirectData));
-          logger.info('User authenticated, redirecting to onboarding with saved redirect', {
-            component: 'Login',
-            action: 'redirect_to_onboarding',
-            userId: firebaseUser.uid,
-          }, { redirectPath, tenantId: user?.tenantId || null });
-        } else {
-          logger.info('User authenticated, redirecting to onboarding', {
-            component: 'Login',
-            action: 'redirect_to_onboarding',
-            userId: firebaseUser.uid,
-          });
-        }
-        setLocation('/onboarding');
+      } else if (!checkingTenantsRef.current) {
+        // If user has no tenantId, check if they have tenants
+        // This handles Gmail users who may have tenants but no primary tenant set
+        checkingTenantsRef.current = true;
+        
+        const checkAndSetTenant = async () => {
+          try {
+            logger.info('User has no tenantId, checking for tenants', {
+              component: 'Login',
+              action: 'check_tenants',
+              userId: user.id,
+              userEmail: user.email,
+            });
+            
+            const tenants = await getUserTenants();
+            
+            if (tenants.length === 1) {
+              // User has exactly one tenant - set it as primary and auto-select
+              const tenant = tenants[0];
+              const tenantId = typeof tenant.id === 'number' ? tenant.id : parseInt(String(tenant.id), 10);
+              
+              logger.info('User has exactly one tenant, setting as primary', {
+                component: 'Login',
+                action: 'set_primary_tenant',
+                tenantId,
+                tenantName: tenant.name,
+              });
+              
+              // Set as primary tenant in backend
+              await setPrimaryTenant(tenantId);
+              
+              // Set selected tenant in context
+              const tenantObj = {
+                id: String(tenant.id),
+                name: tenant.name,
+                email: user.email,
+                createdAt: tenant.createdAt || new Date().toISOString(),
+              };
+              setSelectedTenant(tenantObj);
+              
+              // Set current user info for API headers
+              setCurrentUserInfo(user.email, String(tenant.id));
+              
+              // Sync backend user to update context with new tenantId
+              if (firebaseUser && syncBackendUser) {
+                await syncBackendUser(firebaseUser);
+              }
+              
+              // Redirect to dashboard or saved path
+              if (redirectPath && isValidProtectedRoute(redirectPath)) {
+                logger.info('Redirecting to saved path after setting primary tenant', {
+                  component: 'Login',
+                  action: 'redirect_after_set_primary',
+                }, { redirectPath });
+                setLocation(redirectPath);
+              } else {
+                logger.info('Redirecting to dashboard after setting primary tenant', {
+                  component: 'Login',
+                  action: 'redirect_after_set_primary',
+                });
+                setLocation('/dashboard');
+              }
+            } else if (tenants.length > 1) {
+              // User has multiple tenants - go to tenant selection
+              logger.info('User has multiple tenants, redirecting to tenant selection', {
+                component: 'Login',
+                action: 'redirect_to_tenant_selection',
+                tenantCount: tenants.length,
+              });
+              
+              if (redirectPath && isValidProtectedRoute(redirectPath)) {
+                const redirectData = {
+                  path: redirectPath,
+                  tenantId: null,
+                };
+                sessionStorage.setItem('loginRedirect', JSON.stringify(redirectData));
+              }
+              setLocation('/tenant-selection');
+            } else {
+              // User has no tenants - go to onboarding
+              logger.info('User has no tenants, redirecting to onboarding', {
+                component: 'Login',
+                action: 'redirect_to_onboarding',
+              });
+              
+              if (redirectPath && isValidProtectedRoute(redirectPath)) {
+                const redirectData = {
+                  path: redirectPath,
+                  tenantId: null,
+                };
+                sessionStorage.setItem('loginRedirect', JSON.stringify(redirectData));
+              }
+              setLocation('/onboarding');
+            }
+          } catch (error: any) {
+            const err = error instanceof Error ? error : new Error(String(error));
+            logger.error('Error checking tenants', err, {
+              component: 'Login',
+              action: 'check_tenants',
+            });
+            // On error, fall back to onboarding
+            if (redirectPath && isValidProtectedRoute(redirectPath)) {
+              const redirectData = {
+                path: redirectPath,
+                tenantId: null,
+              };
+              sessionStorage.setItem('loginRedirect', JSON.stringify(redirectData));
+            }
+            setLocation('/onboarding');
+          } finally {
+            checkingTenantsRef.current = false;
+          }
+        };
+        
+        checkAndSetTenant();
       }
     }
-  }, [firebaseUser, user, authLoading, setLocation]);
+  }, [firebaseUser, user, authLoading, setLocation, setSelectedTenant, syncBackendUser]);
 
   const handleGoogleLogin = async () => {
     setGoogleLoading(true);

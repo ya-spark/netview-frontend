@@ -15,6 +15,7 @@ import type {
   RegistrationKeyResponse,
   AuditLogListResponse,
 } from '../types/gateway';
+import type { SingleResponse } from '../types/probe';
 
 /**
  * Gateway API service class for all gateway-related operations
@@ -41,6 +42,14 @@ export class GatewayApiService {
    */
   static async getGateway(gatewayId: string): Promise<GatewaySingleResponse> {
     const response = await apiRequest('GET', `/api/gateways/${gatewayId}`);
+    return response.json();
+  }
+
+  /**
+   * Get gateway uptime
+   */
+  static async getGatewayUptime(gatewayId: string): Promise<SingleResponse> {
+    const response = await apiRequest('GET', `/api/gateways/${gatewayId}/uptime`);
     return response.json();
   }
 

@@ -82,11 +82,12 @@ export default function Dashboard() {
 
   // Calculate probe statuses from latest results
   const probeStatuses = useMemo(() => {
-    if (!probesData?.data || !probeResultsData) return { up: 0, down: 0, warning: 0, total: 0 };
+    if (!probesData?.data || !probeResultsData) return { up: 0, down: 0, warning: 0, pending: 0, total: 0 };
     
     let up = 0;
     let down = 0;
     let warning = 0;
+    let pending = 0;
     
     probesData.data.forEach((probe) => {
       if (!probe.is_active) return;
@@ -95,13 +96,22 @@ export default function Dashboard() {
       const latestResult = results[0];
       
       if (latestResult) {
-        if (latestResult.status === 'Success') {
+        const status = latestResult.status;
+        if (status === 'Success') {
           up++;
-        } else if (latestResult.status === 'Failure') {
+        } else if (status === 'Failure') {
           down++;
-        } else if (latestResult.status === 'Warning') {
+        } else if (status === 'Warning') {
           warning++;
+        } else if (status === 'Pending') {
+          pending++;
+        } else {
+          // Unknown or other status, count as pending
+          pending++;
         }
+      } else {
+        // No result yet, count as pending
+        pending++;
       }
     });
     
@@ -109,6 +119,7 @@ export default function Dashboard() {
       up,
       down,
       warning,
+      pending,
       total: probesData.data.length,
     };
   }, [probesData, probeResultsData]);
@@ -235,7 +246,7 @@ export default function Dashboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-4 gap-4">
+                  <div className="grid grid-cols-5 gap-4">
                     <div className="text-center">
                       <div className="text-2xl font-bold text-foreground">{probeStatuses.total}</div>
                       <div className="text-xs text-muted-foreground mt-1">Total</div>
@@ -251,6 +262,10 @@ export default function Dashboard() {
                     <div className="text-center">
                       <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{probeStatuses.warning}</div>
                       <div className="text-xs text-muted-foreground mt-1">Warning</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-gray-600 dark:text-gray-400">{probeStatuses.pending}</div>
+                      <div className="text-xs text-muted-foreground mt-1">Pending</div>
                     </div>
                   </div>
                 </CardContent>

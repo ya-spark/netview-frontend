@@ -148,6 +148,30 @@ export async function getUserTenants(): Promise<any[]> {
 }
 
 /**
+ * Set a tenant as the user's primary tenant
+ * @param tenantId The ID of the tenant to set as primary
+ * @returns Promise that resolves when primary tenant is set
+ */
+export async function setPrimaryTenant(tenantId: number | string): Promise<any> {
+  logger.info('Setting primary tenant', {
+    component: 'authApi',
+    action: 'set_primary_tenant',
+    tenantId: String(tenantId),
+  });
+  const response = await apiRequest('PUT', `/api/auth/set-primary-tenant/${tenantId}`, {});
+  const responseData = await response.json();
+  
+  const data = responseData.data || responseData;
+  
+  logger.info('Primary tenant set successfully', {
+    component: 'authApi',
+    action: 'set_primary_tenant',
+    tenantId: String(tenantId),
+  });
+  return data;
+}
+
+/**
  * Logout from the backend system
  * Clears authentication and user-related information on the server
  * @returns Promise that resolves when logout is complete

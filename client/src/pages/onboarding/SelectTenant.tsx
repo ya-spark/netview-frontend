@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
-import { getUserTenants } from '@/services/authApi';
+import { getUserTenants, setPrimaryTenant } from '@/services/authApi';
 import { logger } from '@/lib/logger';
 import { setCurrentUserInfo } from '@/lib/queryClient';
 import { useQuery } from '@tanstack/react-query';
@@ -27,6 +27,7 @@ export default function SelectTenant() {
   const { firebaseUser, setSelectedTenant, syncBackendUser, selectedTenant } = useAuth();
   const [selecting, setSelecting] = useState<string | null>(null);
   const { toast } = useToast();
+  const autoSelectingRef = useRef(false);
   
   const userEmail = firebaseUser?.email || '';
 
@@ -79,7 +80,7 @@ export default function SelectTenant() {
 
   const tenants = (tenantsData || []) as Tenant[];
 
-  const handleSelectTenant = async (tenant: Tenant) => {
+  const handleSelectTenant = useCallback(async (tenant: Tenant, setAsPrimary: boolean = false) => {
     setSelecting(String(tenant.id));
     try {
       const tenantIdNum = typeof tenant.id === 'number' ? tenant.id : parseInt(String(tenant.id), 10);
@@ -88,7 +89,18 @@ export default function SelectTenant() {
         action: 'select_tenant',
         tenantId: tenantIdNum,
         tenantName: tenant.name,
+        setAsPrimary,
       });
+      
+      // Set as primary tenant if requested (for single tenant auto-select)
+      if (setAsPrimary) {
+        await setPrimaryTenant(tenantIdNum);
+        logger.info('Set tenant as primary', {
+          component: 'SelectTenant',
+          action: 'set_primary_tenant',
+          tenantId: tenantIdNum,
+        });
+      }
       
       const tenantObj = {
         id: String(tenant.id),
@@ -158,8 +170,35 @@ export default function SelectTenant() {
       });
     } finally {
       setSelecting(null);
+      autoSelectingRef.current = false;
     }
-  };
+  }, [firebaseUser, syncBackendUser, setSelectedTenant, userEmail, toast, setLocation]);
+
+  // Auto-select and set primary if there's exactly one tenant
+  useEffect(() => {
+    if (tenants.length === 1 && !selecting && !autoSelectingRef.current && !loadingTenants) {
+      const tenant = tenants[0];
+      autoSelectingRef.current = true;
+      
+      const tenantId = typeof tenant.id === 'number' ? tenant.id : parseInt(String(tenant.id), 10);
+      logger.info('Auto-selecting single tenant and setting as primary', {
+        component: 'SelectTenant',
+        action: 'auto_select_tenant',
+        tenantId,
+        tenantName: tenant.name,
+      });
+      
+      // Auto-select with setAsPrimary flag
+      handleSelectTenant(tenant, true).catch((error: any) => {
+        const err = error instanceof Error ? error : new Error(String(error));
+        logger.error('Error auto-selecting tenant', err, {
+          component: 'SelectTenant',
+          action: 'auto_select_tenant',
+        });
+        autoSelectingRef.current = false;
+      });
+    }
+  }, [tenants.length, selecting, loadingTenants, tenants, handleSelectTenant]);
 
   if (!firebaseUser) {
     return null;
@@ -179,23 +218,17 @@ export default function SelectTenant() {
   }
 
   // If only one tenant, show loading while auto-selecting (don't show selection UI)
-  if (tenants.length === 1 && !selecting) {
-    const redirectData = getRedirectData();
-    const shouldAutoSelect = !redirectData.tenantId || 
-      tenants.some(t => String(t.id) === String(redirectData.tenantId));
-    
-    if (shouldAutoSelect) {
-      return (
-        <Layout showSidebar={false}>
-          <div className="min-h-screen flex items-center justify-center bg-muted/20">
-            <div className="text-center">
-              <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-              <p className="text-muted-foreground">Setting up your organization...</p>
-            </div>
+  if (tenants.length === 1 && (selecting || autoSelectingRef.current)) {
+    return (
+      <Layout showSidebar={false}>
+        <div className="min-h-screen flex items-center justify-center bg-muted/20">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+            <p className="text-muted-foreground">Setting up your organization...</p>
           </div>
-        </Layout>
-      );
-    }
+        </div>
+      </Layout>
+    );
   }
 
   // If auto-selecting, show loading state

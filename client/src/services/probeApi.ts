@@ -172,6 +172,22 @@ export class ProbeApiService {
   }
 
   /**
+   * Get latest results for all probes (batch)
+   */
+  static async getLatestResults(limit: number = 1000): Promise<ProbeResultsListResponse> {
+    const response = await apiRequest('GET', `/api/results/latest?limit=${limit}`);
+    return response.json();
+  }
+
+  /**
+   * Get probe uptime
+   */
+  static async getProbeUptime(probeId: string): Promise<ProbeSingleResponse> {
+    const response = await apiRequest('GET', `/api/probes/${probeId}/uptime`);
+    return response.json();
+  }
+
+  /**
    * Get probe types, optionally filtered by category
    */
   static async getProbeTypes(params?: ProbeTypesParams): Promise<ProbeTypesResponse> {
@@ -222,7 +238,10 @@ export class ProbeUtils {
         return { label: 'Failure', color: 'text-red-600' };
       case 'Warning':
         return { label: 'Warning', color: 'text-yellow-600' };
+      case 'Pending':
+        return { label: 'Pending', color: 'text-gray-600' };
       case 'unknown':
+      case 'Unknown':
         return { label: 'Unknown', color: 'text-gray-600' };
       default:
         return { label: 'Unknown', color: 'text-gray-600' };

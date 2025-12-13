@@ -2,27 +2,26 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRoute, useLocation } from 'wouter';
 import { Layout } from '@/components/Layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { 
-  Activity, 
-  AlertTriangle, 
-  CheckCircle,
-  Server, 
-  RefreshCw,
-  ArrowDown,
-  ArrowUp
-} from 'lucide-react';
+import { Map, Construction } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProbeApiService } from '@/services/probeApi';
 import { GatewayApiService } from '@/services/gatewayApi';
 import { AlertApiService } from '@/services/alertApi';
-import { logger } from '@/lib/logger';
-import type { Probe, ProbeResult, ProbeStatus as ProbeStatusType } from '@/types/probe';
+import { LogsApiService } from '@/services/logsApi';
+import type { Probe, ProbeResult } from '@/types/probe';
 import type { GatewayResponse } from '@/types/gateway';
 import type { AlertResponse } from '@/types/alert';
+import { MonitorHeader } from '@/components/monitor/MonitorHeader';
+import { MonitorOverview } from '@/components/monitor/MonitorOverview';
+import { ProbesList } from '@/components/monitor/ProbesList';
+import { ProbeDetail } from '@/components/monitor/ProbeDetail';
+import { GatewaysList } from '@/components/monitor/GatewaysList';
+import { GatewayDetail } from '@/components/monitor/GatewayDetail';
+import { LogsView } from '@/components/monitor/LogsView';
+import { formatDate } from '@/components/monitor/utils';
 
 export default function Monitor() {
   const { user, selectedTenant } = useAuth();
@@ -74,95 +73,76 @@ export default function Monitor() {
     refetchInterval: 30000,
   });
 
-  // Fetch probe results for all probes (last result for each)
-  // Include selectedTenant.id in query key to refetch when tenant changes
-  const { data: probeResultsData } = useQuery({
-    queryKey: ['/api/probe-results', selectedTenant?.id],
-    queryFn: async () => {
-      if (!probesData?.data) return {};
-      const results: Record<string, ProbeResult[]> = {};
-      await Promise.all(
-        probesData.data.map(async (probe) => {
-          try {
-            const response = await ProbeApiService.getProbeResults(probe.id, { limit: 1 });
-            results[probe.id] = response.data;
-          } catch (error) {
-            const err = error instanceof Error ? error : new Error(String(error));
-            logger.debug('Failed to fetch probe results', {
-              component: 'Monitor',
-              action: 'fetch_probe_results',
-              probeId: probe.id,
-            }, err);
-            results[probe.id] = [];
-          }
-        })
-      );
-      return results;
-    },
-    enabled: !!user && !!selectedTenant && !!probesData?.data,
+  // Fetch latest probe results for all probes from controller (batch endpoint)
+  const { data: latestResultsData } = useQuery({
+    queryKey: ['/api/results/latest', selectedTenant?.id],
+    queryFn: () => ProbeApiService.getLatestResults(1000),
+    enabled: !!user && !!selectedTenant,
     refetchInterval: 30000,
   });
 
-  // Calculate probe statuses from latest results
-  const probeStatuses = useMemo(() => {
-    if (!probesData?.data || !probeResultsData) return { up: 0, down: 0, warning: 0, total: 0 };
-    
-    let up = 0;
-    let down = 0;
-    let warning = 0;
-    
-    probesData.data.forEach((probe) => {
-      if (!probe.is_active) return;
-      
-      const results = probeResultsData[probe.id] || [];
-      const latestResult = results[0];
-      
-      if (latestResult) {
-        if (latestResult.status === 'Success') {
-          up++;
-        } else if (latestResult.status === 'Failure') {
-          down++;
-        } else if (latestResult.status === 'Warning') {
-          warning++;
+  // Convert latest results array to a map by probe_id for easy lookup
+  const probeResultsData = useMemo(() => {
+    if (!latestResultsData?.data) return {};
+    const resultsMap: Record<string, ProbeResult[]> = {};
+    latestResultsData.data.forEach((result: ProbeResult) => {
+      if (result.probe_id) {
+        if (!resultsMap[result.probe_id]) {
+          resultsMap[result.probe_id] = [];
         }
+        resultsMap[result.probe_id].push(result);
       }
     });
-    
-    return {
-      up,
-      down,
-      warning,
-      total: probesData.data.length,
-    };
-  }, [probesData, probeResultsData]);
+    return resultsMap;
+  }, [latestResultsData]);
 
-  // Calculate gateway statuses
-  const gatewayStatuses = useMemo(() => {
-    if (!gatewaysData?.data) return { online: 0, offline: 0, pending: 0, total: 0 };
-    
-    const online = gatewaysData.data.filter((g) => g.is_online && g.status === 'active').length;
-    const offline = gatewaysData.data.filter((g) => !g.is_online && g.status === 'active').length;
-    const pending = gatewaysData.data.filter((g) => g.status === 'pending').length;
-    
-    return {
-      online,
-      offline,
-      pending,
-      total: gatewaysData.data.length,
-    };
-  }, [gatewaysData]);
+  // Fetch selected probe details
+  const { data: probeDetailData, isLoading: probeDetailLoading } = useQuery({
+    queryKey: ['/api/probes', probeId],
+    queryFn: () => probeId ? ProbeApiService.getProbe(probeId) : null,
+    enabled: !!probeId && !!user && !!selectedTenant,
+  });
 
-  // Get alerts list
-  const alerts = useMemo(() => {
-    if (!alertsData?.data) return [];
-    return alertsData.data;
-  }, [alertsData]);
+  // Fetch selected gateway details
+  const { data: gatewayDetailData, isLoading: gatewayDetailLoading } = useQuery({
+    queryKey: ['/api/gateways', gatewayId],
+    queryFn: () => gatewayId ? GatewayApiService.getGateway(gatewayId) : null,
+    enabled: !!gatewayId && !!user && !!selectedTenant,
+  });
 
-  // Get selected alert if alertId is in route
-  const selectedAlert = useMemo(() => {
-    if (!alertId || !alerts.length) return null;
-    return alerts.find((alert) => alert.id === alertId) || null;
-  }, [alertId, alerts]);
+  // Fetch probe logs (last 10)
+  const { data: probeLogsData, isLoading: probeLogsLoading } = useQuery({
+    queryKey: ['/api/logs/probe', probeId],
+    queryFn: () => probeId ? LogsApiService.getProbeLogs(probeId, 10, 0) : null,
+    enabled: !!probeId && !!user && !!selectedTenant,
+  });
+
+  // Fetch gateway logs (last 10)
+  const { data: gatewayLogsData, isLoading: gatewayLogsLoading } = useQuery({
+    queryKey: ['/api/logs/gateway', gatewayId],
+    queryFn: () => gatewayId ? LogsApiService.getGatewayLogs(gatewayId, 10, 0) : null,
+    enabled: !!gatewayId && !!user && !!selectedTenant,
+  });
+
+  // Fetch gateway uptime
+  const { data: gatewayUptimeData } = useQuery({
+    queryKey: ['/api/gateways', gatewayId, 'uptime'],
+    queryFn: () => gatewayId ? GatewayApiService.getGatewayUptime(gatewayId) : null,
+    enabled: !!gatewayId && !!user && !!selectedTenant,
+  });
+
+  // Get gateway name for probe
+  const getGatewayName = (gatewayId?: string | null) => {
+    if (!gatewayId || !gatewaysData?.data) return 'Unknown';
+    const gateway = gatewaysData.data.find((g) => g.id === gatewayId);
+    return gateway?.name || 'Unknown';
+  };
+
+  // Get latest probe result for a probe
+  const getLatestProbeResult = (probeId: string): ProbeResult | null => {
+    const results = probeResultsData?.[probeId] || [];
+    return results[0] || null;
+  };
 
   const handleRefresh = () => {
     refetchProbes();
@@ -170,189 +150,54 @@ export default function Monitor() {
     refetchAlerts();
   };
 
-  // Helper function to format alert icon (Down for active, Up for resolved)
-  const getAlertIcon = (alert: AlertResponse) => {
-    if (alert.is_resolved) {
-      return <ArrowUp className="w-4 h-4 text-green-600" />;
-    }
-    return <ArrowDown className="w-4 h-4 text-red-600" />;
-  };
-
-  // Helper function to format date
-  const formatDate = (timestamp?: string) => {
-    if (!timestamp) return 'Unknown';
-    const date = new Date(timestamp);
-    return date.toLocaleString();
-  };
+  // Get selected alert if alertId is in route
+  const selectedAlert = useMemo(() => {
+    if (!alertId || !alertsData?.data) return null;
+    return alertsData.data.find((alert) => alert.id === alertId) || null;
+  }, [alertId, alertsData]);
 
   const isLoading = probesLoading || gatewaysLoading || alertsLoading;
+
+  // Get page title and description
+  const getPageTitle = () => {
+    if (currentSection === 'overview') return 'Overview';
+    if (currentSection === 'probes') return probeId ? 'Probe Details' : 'Probes';
+    if (currentSection === 'gateways') return gatewayId ? 'Gateway Details' : 'Gateways';
+    if (currentSection === 'map') return 'Map';
+    if (currentSection === 'logs') return 'Logs';
+    return 'Monitor';
+  };
+
+  const getPageDescription = () => {
+    if (currentSection === 'overview') return 'Real-time monitoring of all probes and gateways';
+    if (currentSection === 'probes') return probeId ? 'Detailed probe information and logs' : 'List of all probes with their current status';
+    if (currentSection === 'gateways') return gatewayId ? 'Detailed gateway information and logs' : 'List of all gateways with their connection status';
+    if (currentSection === 'map') return 'Geographic view of probes and gateways';
+    if (currentSection === 'logs') return 'View logs for gateways or probes';
+    return 'Real-time monitoring of all probes and gateways';
+  };
 
   return (
     <Layout>
       <div className="p-3 sm:p-4 lg:p-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2" data-testid="text-page-title">
-              Monitor
-            </h1>
-            <p className="text-muted-foreground">Real-time monitoring of all probes and gateways</p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={isLoading}
-            data-testid="button-refresh-monitor"
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-        </div>
+        <MonitorHeader
+          title={getPageTitle()}
+          description={getPageDescription()}
+          onRefresh={handleRefresh}
+          isLoading={isLoading}
+        />
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {isLoading ? (
-            <>
-              <Card>
-                <CardContent className="p-6">
-                  <Skeleton className="h-32 w-full" />
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-6">
-                  <Skeleton className="h-32 w-full" />
-                </CardContent>
-              </Card>
-            </>
-          ) : (
-            <>
-              {/* Probes Summary Card */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Activity className="w-5 h-5" />
-                    Probes
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-4 gap-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-foreground">{probeStatuses.total}</div>
-                      <div className="text-xs text-muted-foreground mt-1">Total</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600 dark:text-green-400">{probeStatuses.up}</div>
-                      <div className="text-xs text-muted-foreground mt-1">Up</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-red-600 dark:text-red-400">{probeStatuses.down}</div>
-                      <div className="text-xs text-muted-foreground mt-1">Down</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{probeStatuses.warning}</div>
-                      <div className="text-xs text-muted-foreground mt-1">Warning</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Gateways Summary Card */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Server className="w-5 h-5" />
-                    Gateways
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-4 gap-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-foreground">{gatewayStatuses.total}</div>
-                      <div className="text-xs text-muted-foreground mt-1">Total</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600 dark:text-green-400">{gatewayStatuses.online}</div>
-                      <div className="text-xs text-muted-foreground mt-1">Online</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-red-600 dark:text-red-400">{gatewayStatuses.offline}</div>
-                      <div className="text-xs text-muted-foreground mt-1">Offline</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{gatewayStatuses.pending}</div>
-                      <div className="text-xs text-muted-foreground mt-1">Pending</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </>
-          )}
-        </div>
-
-        {/* Alarms List */}
-        {isLoading ? (
-          <Card>
-            <CardContent className="p-6">
-              <Skeleton className="h-24 w-full" />
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5" />
-                Alarms
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {alerts.length === 0 ? (
-                <div className="text-center py-8">
-                  <CheckCircle className="w-12 h-12 text-green-600 dark:text-green-400 mx-auto mb-4" />
-                  <p className="text-muted-foreground">No alarms</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {alerts.map((alert) => (
-                    <div
-                      key={alert.id}
-                      className={`flex items-center gap-3 p-3 border rounded-lg transition-colors cursor-pointer ${
-                        alertId === alert.id
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border hover:bg-muted/50'
-                      }`}
-                      onClick={() => setLocation(`/monitor/alerts/${alert.id}`)}
-                    >
-                      <div className="flex-shrink-0">
-                        {getAlertIcon(alert)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-semibold text-foreground">
-                            {alert.probe_name || 'Unknown Probe'}
-                          </span>
-                          <Badge
-                            variant={alert.is_resolved ? 'outline' : 'default'}
-                            className={
-                              alert.is_resolved
-                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                            }
-                          >
-                            {alert.is_resolved ? 'Resolved' : 'Active'}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground truncate">{alert.message}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {formatDate(alert.created_at)}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        {/* Overview Section */}
+        {currentSection === 'overview' && (
+          <MonitorOverview
+            probesData={probesData}
+            gatewaysData={gatewaysData}
+            alertsData={alertsData}
+            probeResultsData={probeResultsData}
+            isLoading={isLoading}
+            onAlertClick={(alertId) => setLocation(`/monitor/alerts/${alertId}`)}
+            selectedAlertId={alertId}
+          />
         )}
 
         {/* Alert Detail View */}
@@ -361,7 +206,6 @@ export default function Monitor() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5" />
                   Alert Details
                 </CardTitle>
                 <Button
@@ -408,8 +252,92 @@ export default function Monitor() {
             </CardContent>
           </Card>
         )}
+
+        {/* Probes List View */}
+        {currentSection === 'probes' && !probeId && (
+          <ProbesList
+            probesData={probesData}
+            gatewaysData={gatewaysData}
+            probeResultsData={probeResultsData}
+            isLoading={probesLoading}
+            onProbeClick={(probeId) => setLocation(`/monitor/probes/${probeId}`)}
+            getLatestProbeResult={getLatestProbeResult}
+            getGatewayName={getGatewayName}
+          />
+        )}
+
+        {/* Probe Detail View */}
+        {currentSection === 'probes' && probeId && (
+          <ProbeDetail
+            probeId={probeId}
+            probeDetailData={probeDetailData}
+            probeLogsData={probeLogsData}
+            probeResultsData={probeResultsData}
+            isLoading={probeDetailLoading}
+            logsLoading={probeLogsLoading}
+            onBack={() => setLocation('/monitor/probes')}
+            onViewAllLogs={(probeId) => setLocation(`/monitor/logs?type=probe&id=${probeId}`)}
+            getLatestProbeResult={getLatestProbeResult}
+            getGatewayName={getGatewayName}
+          />
+        )}
+
+        {/* Gateways List View */}
+        {currentSection === 'gateways' && !gatewayId && (
+          <GatewaysList
+            gatewaysData={gatewaysData}
+            probesData={probesData}
+            isLoading={gatewaysLoading}
+            onGatewayClick={(gatewayId) => setLocation(`/monitor/gateways/${gatewayId}`)}
+          />
+        )}
+
+        {/* Gateway Detail View */}
+        {currentSection === 'gateways' && gatewayId && (
+          <GatewayDetail
+            gatewayId={gatewayId}
+            gatewayDetailData={gatewayDetailData}
+            gatewayLogsData={gatewayLogsData}
+            gatewayUptimeData={gatewayUptimeData}
+            probesData={probesData}
+            probeResultsData={probeResultsData}
+            isLoading={gatewayDetailLoading}
+            logsLoading={gatewayLogsLoading}
+            onBack={() => setLocation('/monitor/gateways')}
+            onViewAllLogs={(gatewayId) => setLocation(`/monitor/logs?type=gateway&id=${gatewayId}`)}
+            onProbeClick={(probeId) => setLocation(`/monitor/probes/${probeId}`)}
+            getLatestProbeResult={getLatestProbeResult}
+          />
+        )}
+
+        {/* Map View */}
+        {currentSection === 'map' && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Map className="w-5 h-5" />
+                Map
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-16">
+                <Construction className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-foreground mb-2">Under Construction</h3>
+                <p className="text-muted-foreground">The map view is currently under development.</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Logs View */}
+        {currentSection === 'logs' && (
+          <LogsView 
+            probesData={probesData?.data || []}
+            gatewaysData={gatewaysData?.data || []}
+            setLocation={setLocation}
+          />
+        )}
       </div>
     </Layout>
   );
 }
-

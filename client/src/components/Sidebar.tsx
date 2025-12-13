@@ -443,12 +443,6 @@ function MonitorSidebar() {
       current: location === "/monitor/overview" || location === "/monitor",
     },
     {
-      name: "Critical Alerts",
-      href: "/monitor/alerts",
-      icon: AlertTriangle,
-      current: location.startsWith("/monitor/alerts"),
-    },
-    {
       name: "Probes",
       href: "/monitor/probes",
       icon: Activity,
@@ -477,7 +471,6 @@ function MonitorSidebar() {
   return (
     <div className="space-y-6">
       <nav className="space-y-1">
-        <div className="text-sm font-medium text-foreground mb-3">Monitor</div>
         {monitorNavigation.map((item) => {
           const Icon = item.icon;
           return (

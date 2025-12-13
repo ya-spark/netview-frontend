@@ -98,7 +98,7 @@ export default function ProbeStatus() {
     );
   }
 
-  const statusInfo = ProbeUtils.formatProbeStatus(status?.status || 'unknown');
+  const statusInfo = ProbeUtils.formatProbeStatus(status?.status || 'Pending');
   const configDisplay = ProbeUtils.getConfigDisplay(probe);
 
   const getStatusIcon = () => {
@@ -109,6 +109,8 @@ export default function ProbeStatus() {
         return <XCircle className="w-8 h-8 text-red-600" />;
       case 'Warning':
         return <AlertTriangle className="w-8 h-8 text-yellow-600" />;
+      case 'Pending':
+        return <AlertCircle className="w-8 h-8 text-gray-600" />;
       default:
         return <AlertCircle className="w-8 h-8 text-gray-600" />;
     }

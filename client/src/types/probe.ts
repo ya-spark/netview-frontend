@@ -3,7 +3,7 @@
 export type ProbeCategory = 'Uptime' | 'API' | 'Security' | 'Browser';
 export type ProbeType = 'ICMP/Ping' | 'HTTP/HTTPS' | 'DNS Resolution' | 'SSL/TLS' | 'Authentication';
 export type GatewayType = 'Core' | 'TenantSpecific';
-export type ProbeStatus = 'Success' | 'Failure' | 'Warning' | 'unknown';
+export type ProbeStatus = 'Success' | 'Failure' | 'Warning' | 'Pending' | 'unknown';
 
 export interface ProbeCreate {
   name: string;
