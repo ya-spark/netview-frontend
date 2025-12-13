@@ -17,7 +17,7 @@ import { Loader2 } from 'lucide-react';
  */
 export default function OnboardingRouter() {
   const [, setLocation] = useLocation();
-  const { firebaseUser, loading: authLoading, selectedTenant } = useAuth();
+  const { firebaseUser, loading: authLoading, selectedTenant, setSelectedTenant, syncBackendUser } = useAuth();
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
@@ -65,11 +65,56 @@ export default function OnboardingRouter() {
         // THIRD: Check if user has tenants
         // If user already has a selected tenant, go directly to dashboard
         if (selectedTenant) {
-          logger.info('User has selected tenant, redirecting to dashboard', {
-            component: 'OnboardingRouter',
-            tenantName: selectedTenant.name,
-          });
-          setLocation('/dashboard');
+          // Check for saved redirect data from login
+          let redirectData: { path: string | null; tenantId: string | null } = { path: null, tenantId: null };
+          try {
+            const saved = sessionStorage.getItem('loginRedirect');
+            if (saved) {
+              const data = JSON.parse(saved);
+              redirectData = {
+                path: data.path || null,
+                tenantId: data.tenantId || null,
+              };
+            } else if (saved && !saved.startsWith('{')) {
+              // Legacy format (just a string path)
+              redirectData = { path: saved, tenantId: null };
+            }
+          } catch (error) {
+            // If parsing fails, try legacy format
+            const saved = sessionStorage.getItem('loginRedirect');
+            if (saved && !saved.startsWith('{')) {
+              redirectData = { path: saved, tenantId: null };
+            }
+          }
+          
+          const isValidProtectedRoute = (path: string | null): boolean => {
+            if (!path) return false;
+            const protectedRoutes = [
+              '/dashboard',
+              '/manage',
+              '/monitor',
+              '/reports',
+              '/settings',
+              '/billing',
+              '/collaborators',
+            ];
+            return protectedRoutes.some(route => path.startsWith(route));
+          };
+          
+          if (redirectData.path && isValidProtectedRoute(redirectData.path)) {
+            sessionStorage.removeItem('loginRedirect'); // Clear after use
+            logger.info('User has selected tenant, redirecting to saved path', {
+              component: 'OnboardingRouter',
+              tenantName: selectedTenant.name,
+            }, { redirectPath: redirectData.path });
+            setLocation(redirectData.path);
+          } else {
+            logger.info('User has selected tenant, redirecting to dashboard', {
+              component: 'OnboardingRouter',
+              tenantName: selectedTenant.name,
+            });
+            setLocation('/dashboard');
+          }
           return;
         }
 
@@ -86,6 +131,7 @@ export default function OnboardingRouter() {
 
           if (hasTenants) {
             // User has tenants - redirect to tenant selection
+            // SelectTenant component will handle auto-selection if single tenant
             logger.info('User has tenants, redirecting to select-tenant', {
               component: 'OnboardingRouter',
               tenantCount: tenants.length,
@@ -141,7 +187,7 @@ export default function OnboardingRouter() {
     };
 
     checkUserStatus();
-  }, [firebaseUser, authLoading, setLocation, selectedTenant]);
+  }, [firebaseUser, authLoading, setLocation, selectedTenant, setSelectedTenant, syncBackendUser]);
 
   if (checking || authLoading) {
     return (

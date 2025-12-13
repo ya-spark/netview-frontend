@@ -24,11 +24,32 @@ interface Tenant {
  */
 export default function SelectTenant() {
   const [, setLocation] = useLocation();
-  const { firebaseUser, setSelectedTenant, syncBackendUser } = useAuth();
+  const { firebaseUser, setSelectedTenant, syncBackendUser, selectedTenant } = useAuth();
   const [selecting, setSelecting] = useState<string | null>(null);
   const { toast } = useToast();
   
   const userEmail = firebaseUser?.email || '';
+
+  // Helper function to get redirect data from sessionStorage
+  const getRedirectData = () => {
+    try {
+      const saved = sessionStorage.getItem('loginRedirect');
+      if (saved) {
+        const data = JSON.parse(saved);
+        return {
+          path: data.path || null,
+          tenantId: data.tenantId || null,
+        };
+      }
+    } catch (error) {
+      // If parsing fails, try legacy format (just a string path)
+      const saved = sessionStorage.getItem('loginRedirect');
+      if (saved && !saved.startsWith('{')) {
+        return { path: saved, tenantId: null };
+      }
+    }
+    return { path: null, tenantId: null };
+  };
 
   const { data: tenantsData, isLoading: loadingTenants } = useQuery({
     queryKey: ['/api/auth/my-tenants', userEmail],
@@ -58,62 +79,129 @@ export default function SelectTenant() {
 
   const tenants = (tenantsData || []) as Tenant[];
 
-  // Auto-select if single tenant
+  // Simple approach: After 1 second, check if there's only one tenant and auto-select it
   useEffect(() => {
-    if (!loadingTenants && tenants.length === 1 && firebaseUser && !selecting) {
-      const tenant = tenants[0];
-      logger.info('Auto-selecting single tenant', {
+    // Skip if already selecting to prevent multiple runs
+    if (selecting) {
+      return;
+    }
+    
+    const timer = setTimeout(() => {
+      logger.info('SelectTenant 1 second check', {
         component: 'SelectTenant',
-        tenantId: typeof tenant.id === 'number' ? tenant.id : Number(tenant.id),
-        tenantName: tenant.name,
+        action: 'one_second_check',
+        loadingTenants,
+        tenantCount: tenants.length,
+        hasFirebaseUser: !!firebaseUser,
+        selecting,
       });
       
-      // Set selecting state to prevent multiple triggers
-      setSelecting(String(tenant.id));
+      // Skip if still loading, no tenants, no user, or already selecting
+      if (loadingTenants || tenants.length === 0 || !firebaseUser || selecting) {
+        logger.info('SelectTenant skipping - conditions not ready', {
+          component: 'SelectTenant',
+          action: 'skip_not_ready',
+          loadingTenants,
+          tenantCount: tenants.length,
+          hasFirebaseUser: !!firebaseUser,
+          selecting,
+        });
+        return;
+      }
       
-      // Set selected tenant
-      const tenantObj = {
-        id: String(tenant.id),
-        name: tenant.name,
-        email: userEmail,
-        createdAt: tenant.createdAt || new Date().toISOString(),
-      };
-      setSelectedTenant(tenantObj);
-      
-      // Set current user info for API headers
-      setCurrentUserInfo(userEmail, String(tenant.id));
-      
-      // Sync backend user to update context
-      const performSync = async () => {
-        try {
-          if (syncBackendUser) {
-            await syncBackendUser(firebaseUser);
+      // If only one tenant, auto-select it
+      if (tenants.length === 1) {
+        const tenantToSelect = tenants[0];
+        logger.info('SelectTenant found single tenant, auto-selecting', {
+          component: 'SelectTenant',
+          action: 'auto_select_single',
+          tenantId: typeof tenantToSelect.id === 'number' ? tenantToSelect.id : Number(tenantToSelect.id),
+          tenantName: tenantToSelect.name,
+        });
+        
+        setSelecting(String(tenantToSelect.id));
+        
+        const tenantObj = {
+          id: String(tenantToSelect.id),
+          name: tenantToSelect.name,
+          email: userEmail,
+          createdAt: tenantToSelect.createdAt || new Date().toISOString(),
+        };
+        
+        // Set selected tenant in context
+        setSelectedTenant(tenantObj);
+        logger.info('SelectTenant set selected tenant', {
+          component: 'SelectTenant',
+          action: 'set_tenant',
+          tenantId: typeof tenantToSelect.id === 'number' ? tenantToSelect.id : Number(tenantToSelect.id),
+        });
+        
+        // Persist to localStorage
+        localStorage.setItem('selectedTenant', JSON.stringify({
+          id: tenantObj.id,
+          name: tenantObj.name,
+          email: tenantObj.email,
+        }));
+        
+        // Set current user info for API headers
+        setCurrentUserInfo(userEmail, String(tenantToSelect.id));
+        
+        // Sync backend user, then redirect
+        const performSyncAndRedirect = async () => {
+          try {
+            logger.info('SelectTenant starting sync', {
+              component: 'SelectTenant',
+              action: 'sync_start',
+            });
+            if (syncBackendUser) {
+              await syncBackendUser(firebaseUser);
+              logger.info('SelectTenant sync completed', {
+                component: 'SelectTenant',
+                action: 'sync_complete',
+              });
+            }
+          } catch (error: any) {
+            logger.error('SelectTenant sync error', error instanceof Error ? error : new Error(String(error)), {
+              component: 'SelectTenant',
+            });
           }
-          logger.info('Redirecting to dashboard after auto-selection', { 
-            component: 'SelectTenant',
-            tenantId: typeof tenant.id === 'number' ? tenant.id : Number(tenant.id),
-          });
-          // Small delay to ensure state is updated
-          setTimeout(() => {
-            setLocation('/dashboard');
-          }, 300);
-        } catch (error: any) {
-          logger.error('Error during auto-selection sync', error instanceof Error ? error : new Error(String(error)), {
-            component: 'SelectTenant',
-            tenantId: typeof tenant.id === 'number' ? tenant.id : Number(tenant.id),
-          });
-          // Still redirect even if sync fails
-          setTimeout(() => {
-            setLocation('/dashboard');
-          }, 300);
-        } finally {
-          setSelecting(null);
-        }
-      };
-      
-      performSync();
-    }
-  }, [tenants, loadingTenants, firebaseUser, setSelectedTenant, setLocation, syncBackendUser, userEmail, selecting]);
+          
+          // Get redirect data and redirect
+          const redirectData = getRedirectData();
+          const isValidProtectedRoute = (path: string | null): boolean => {
+            if (!path) return false;
+            const protectedRoutes = ['/dashboard', '/manage', '/monitor', '/reports', '/settings', '/billing', '/collaborators'];
+            return protectedRoutes.some(route => path.startsWith(route));
+          };
+          
+          if (redirectData.path && isValidProtectedRoute(redirectData.path)) {
+            logger.info('SelectTenant redirecting to saved path', {
+              component: 'SelectTenant',
+              action: 'redirect_saved_path',
+            }, { redirectPath: redirectData.path });
+            sessionStorage.removeItem('loginRedirect');
+            window.location.href = redirectData.path;
+          } else {
+            logger.info('SelectTenant redirecting to dashboard', {
+              component: 'SelectTenant',
+              action: 'redirect_dashboard',
+            });
+            window.location.href = '/dashboard';
+          }
+        };
+        
+        performSyncAndRedirect();
+      } else {
+        logger.info('SelectTenant multiple tenants - showing selection UI', {
+          component: 'SelectTenant',
+          action: 'show_selection_ui',
+          tenantCount: tenants.length,
+        });
+      }
+    }, 1000); // Wait 1 second after component mounts
+    
+    return () => clearTimeout(timer);
+  }, [tenants, loadingTenants, firebaseUser, selecting, setSelectedTenant, syncBackendUser, userEmail]); // Re-run when these change
 
   const handleSelectTenant = async (tenant: Tenant) => {
     setSelecting(String(tenant.id));
@@ -147,9 +235,38 @@ export default function SelectTenant() {
         description: `Switched to "${tenant.name}".`,
       });
 
-      // Redirect to dashboard
+      // Check for saved redirect data
+      const redirectData = getRedirectData();
+      const isValidProtectedRoute = (path: string | null): boolean => {
+        if (!path) return false;
+        const protectedRoutes = [
+          '/dashboard',
+          '/manage',
+          '/monitor',
+          '/reports',
+          '/settings',
+          '/billing',
+          '/collaborators',
+        ];
+        return protectedRoutes.some(route => path.startsWith(route));
+      };
+
+      // Redirect to saved path or dashboard
       setTimeout(() => {
-        setLocation('/dashboard');
+        if (redirectData.path && isValidProtectedRoute(redirectData.path)) {
+          sessionStorage.removeItem('loginRedirect'); // Clear after use
+          logger.info('Redirecting to saved path after tenant selection', {
+            component: 'SelectTenant',
+            action: 'select_tenant',
+          }, { redirectPath: redirectData.path });
+          setLocation(redirectData.path);
+        } else {
+          logger.info('Redirecting to dashboard after tenant selection', {
+            component: 'SelectTenant',
+            action: 'select_tenant',
+          });
+          setLocation('/dashboard');
+        }
       }, 500);
     } catch (error: any) {
       const err = error instanceof Error ? error : new Error(String(error));
@@ -179,6 +296,40 @@ export default function SelectTenant() {
           <div className="text-center">
             <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
             <p className="text-muted-foreground">Loading your organizations...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // If only one tenant, show loading while auto-selecting (don't show selection UI)
+  if (tenants.length === 1 && !selecting) {
+    const redirectData = getRedirectData();
+    const shouldAutoSelect = !redirectData.tenantId || 
+      tenants.some(t => String(t.id) === String(redirectData.tenantId));
+    
+    if (shouldAutoSelect) {
+      return (
+        <Layout showSidebar={false}>
+          <div className="min-h-screen flex items-center justify-center bg-muted/20">
+            <div className="text-center">
+              <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+              <p className="text-muted-foreground">Setting up your organization...</p>
+            </div>
+          </div>
+        </Layout>
+      );
+    }
+  }
+
+  // If auto-selecting, show loading state
+  if (selecting) {
+    return (
+      <Layout showSidebar={false}>
+        <div className="min-h-screen flex items-center justify-center bg-muted/20">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+            <p className="text-muted-foreground">Setting up your organization...</p>
           </div>
         </div>
       </Layout>
@@ -222,19 +373,6 @@ export default function SelectTenant() {
     );
   }
 
-  // Single tenant - will auto-select (handled in useEffect)
-  if (tenants.length === 1) {
-    return (
-      <Layout showSidebar={false}>
-        <div className="min-h-screen flex items-center justify-center bg-muted/20">
-          <div className="text-center">
-            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-            <p className="text-muted-foreground">Setting up your organization...</p>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
 
   // Multiple tenants - show selection
   return (

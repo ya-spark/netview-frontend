@@ -36,6 +36,31 @@ export default function Login() {
     },
   });
 
+  // Get redirect path from URL query parameter
+  const getRedirectPath = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('redirect') || null;
+  };
+
+  // Validate if redirect path is a protected route
+  const isValidProtectedRoute = (path: string | null): boolean => {
+    if (!path) return false;
+    
+    // List of protected route patterns
+    const protectedRoutes = [
+      '/dashboard',
+      '/manage',
+      '/monitor',
+      '/reports',
+      '/settings',
+      '/billing',
+      '/collaborators',
+    ];
+    
+    // Check if path starts with any protected route
+    return protectedRoutes.some(route => path.startsWith(route));
+  };
+
   // Redirect based on auth state after successful login
   useEffect(() => {
     // Wait for auth state to settle
@@ -45,20 +70,48 @@ export default function Login() {
 
     // If Firebase user is authenticated
     if (firebaseUser) {
-      // If backend user exists with tenant, go to dashboard
+      const redirectPath = getRedirectPath();
+      
+      // If backend user exists with tenant
       if (user?.tenantId) {
-        logger.info('User has tenant, redirecting to dashboard', {
-          component: 'Login',
-          userId: user.id,
-          tenantId: user.tenantId,
-        });
-        setLocation('/dashboard');
+        // Use redirect path if valid, otherwise go to dashboard
+        if (redirectPath && isValidProtectedRoute(redirectPath)) {
+          logger.info('User has tenant, redirecting to saved path', {
+            component: 'Login',
+            action: 'redirect_after_login',
+            userId: user.id,
+          }, { redirectPath });
+          setLocation(redirectPath);
+        } else {
+          logger.info('User has tenant, redirecting to dashboard', {
+            component: 'Login',
+            action: 'redirect_after_login',
+            userId: user.id,
+          }, { redirectPath: redirectPath || 'none' });
+          setLocation('/dashboard');
+        }
       } else {
         // If Firebase user but no backend user or no tenant, go to onboarding router
-        logger.info('User authenticated, redirecting to onboarding', {
-          component: 'Login',
-          userId: firebaseUser.uid,
-        });
+        // Preserve redirect parameter if it exists by storing in sessionStorage
+        // Also store tenant ID if user has one (from user.tenantId)
+        if (redirectPath && isValidProtectedRoute(redirectPath)) {
+          const redirectData = {
+            path: redirectPath,
+            tenantId: user?.tenantId || null,
+          };
+          sessionStorage.setItem('loginRedirect', JSON.stringify(redirectData));
+          logger.info('User authenticated, redirecting to onboarding with saved redirect', {
+            component: 'Login',
+            action: 'redirect_to_onboarding',
+            userId: firebaseUser.uid,
+          }, { redirectPath, tenantId: user?.tenantId || null });
+        } else {
+          logger.info('User authenticated, redirecting to onboarding', {
+            component: 'Login',
+            action: 'redirect_to_onboarding',
+            userId: firebaseUser.uid,
+          });
+        }
         setLocation('/onboarding');
       }
     }

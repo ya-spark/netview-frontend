@@ -1,5 +1,5 @@
 import { Switch, Route, Redirect, useLocation } from "wouter";
-import { queryClient, setGlobalErrorHandler } from "./lib/queryClient";
+import { queryClient, setGlobalErrorHandler, ApiError } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -36,6 +36,7 @@ import { isBusinessEmail } from "@/utils/emailValidation";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, selectedTenant, loading, emailVerification } = useAuth();
+  const [location] = useLocation();
 
   if (loading) {
     return (
@@ -58,7 +59,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
-    return <Redirect to="/signup" />;
+    // Redirect to login with current path preserved
+    const loginUrl = `/login?redirect=${encodeURIComponent(location)}`;
+    return <Redirect to={loginUrl} />;
   }
 
   // If user doesn't have firstName set, redirect to settings to complete profile
@@ -67,7 +70,32 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   // If user doesn't have a tenant selected, redirect to tenant selection
+  // Preserve current location and tenant ID so we can redirect back after tenant selection
   if (!selectedTenant || !user.tenantId) {
+    // Save current location and tenant ID to sessionStorage for redirect after tenant selection
+    if (location && location !== '/tenant-selection') {
+      const isValidProtectedRoute = (path: string): boolean => {
+        const protectedRoutes = [
+          '/dashboard',
+          '/manage',
+          '/monitor',
+          '/reports',
+          '/settings',
+          '/billing',
+          '/collaborators',
+        ];
+        return protectedRoutes.some(route => path.startsWith(route));
+      };
+      
+      if (isValidProtectedRoute(location)) {
+        // Store redirect path and tenant ID (if available from user.tenantId)
+        const redirectData = {
+          path: location,
+          tenantId: user.tenantId || null,
+        };
+        sessionStorage.setItem('loginRedirect', JSON.stringify(redirectData));
+      }
+    }
     return <Redirect to="/tenant-selection" />;
   }
 
@@ -119,18 +147,13 @@ function LoginRoute({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  // If Firebase user is authenticated
+  // If Firebase user is authenticated, let Login component handle redirect
+  // (it will check for redirect parameter and sessionStorage)
   if (firebaseUser) {
-    // If backend user exists with tenant, go to dashboard
-    if (user?.tenantId) {
-      return <Redirect to="/dashboard" />;
-    }
-    // If backend user exists without tenant, go to onboarding
-    if (user) {
-      return <Redirect to="/onboarding" />;
-    }
-    // If Firebase user but no backend user, go to onboarding
-    return <Redirect to="/onboarding" />;
+    // If backend user exists with tenant, Login component will handle redirect
+    // If no tenant, Login component will save redirect to sessionStorage and go to onboarding
+    // So we just let Login component handle everything
+    return <>{children}</>;
   }
 
   return <>{children}</>;
@@ -492,16 +515,31 @@ function EmailVerificationRoute() {
 
 function AppContent() {
   const { error, clearError, setError } = useAuth();
+  const [location, setLocation] = useLocation();
 
   // Set up global error handler for API errors
   useEffect(() => {
     setGlobalErrorHandler((apiError: Error) => {
       logger.error('Global API error', apiError, { component: 'AppContent' });
+      
+      // For 401 errors, redirect to login with current path preserved
+      if (apiError instanceof ApiError && apiError.status === 401) {
+        logger.info('401 error detected, redirecting to login', {
+          component: 'AppContent',
+          action: 'handle_401_error',
+          currentPath: location,
+        });
+        const loginUrl = `/login?redirect=${encodeURIComponent(location)}`;
+        setLocation(loginUrl);
+        clearError(); // Clear error to prevent ErrorDisplay from showing
+        return;
+      }
+      
       setError(apiError);
     });
-  }, [setError]);
+  }, [setError, location, setLocation, clearError]);
 
-  // Show error display if there's an error
+  // Show error display if there's an error (but not for 401s which are handled above)
   if (error) {
     return <ErrorDisplay error={error} onDismiss={clearError} />;
   }

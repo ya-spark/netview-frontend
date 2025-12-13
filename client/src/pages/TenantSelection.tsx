@@ -117,6 +117,27 @@ export default function TenantSelection() {
     tenantForm.setValue('tenantId', value, { shouldValidate: true });
   }, [tenantForm]);
 
+  // Helper function to get redirect data from sessionStorage
+  const getRedirectData = () => {
+    try {
+      const saved = sessionStorage.getItem('loginRedirect');
+      if (saved) {
+        const data = JSON.parse(saved);
+        return {
+          path: data.path || null,
+          tenantId: data.tenantId || null,
+        };
+      }
+    } catch (error) {
+      // If parsing fails, try legacy format (just a string path)
+      const saved = sessionStorage.getItem('loginRedirect');
+      if (saved && !saved.startsWith('{')) {
+        return { path: saved, tenantId: null };
+      }
+    }
+    return { path: null, tenantId: null };
+  };
+
   useEffect(() => {
     // Load tenants when component mounts
     // Auth check is handled by TenantSelectionRoute
@@ -135,6 +156,131 @@ export default function TenantSelection() {
       });
     }
   }, [user?.email]); // Only depend on user.email
+
+  // Auto-select single tenant after 1 second or redirect if already selected
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      logger.info('TenantSelection 1 second check', {
+        component: 'TenantSelection',
+        action: 'one_second_check',
+        tenantCount: tenants.length,
+        hasSelectedTenant: !!selectedTenant,
+        selectedTenantId: selectedTenant?.id,
+        hasUser: !!user,
+      });
+      
+      if (!user || tenants.length !== 1) {
+        logger.info('TenantSelection skipping - conditions not met', {
+          component: 'TenantSelection',
+          action: 'skip_conditions',
+          hasUser: !!user,
+          tenantCount: tenants.length,
+        });
+        return;
+      }
+      
+      // Case 1: selectedTenant already exists and matches single tenant - redirect immediately
+      if (selectedTenant && selectedTenant.id === String(tenants[0].id)) {
+        const tenantIdNum = typeof tenants[0].id === 'number' ? tenants[0].id : Number(tenants[0].id);
+        logger.info('TenantSelection selectedTenant exists and matches single tenant', {
+          component: 'TenantSelection',
+          action: 'existing_tenant_matches',
+        }, { selectedTenantId: selectedTenant.id, tenantId: tenantIdNum });
+        
+        const redirectData = getRedirectData();
+        const isValidProtectedRoute = (path: string | null): boolean => {
+          if (!path) return false;
+          const protectedRoutes = ['/dashboard', '/manage', '/monitor', '/reports', '/settings', '/billing', '/collaborators'];
+          return protectedRoutes.some(route => path.startsWith(route));
+        };
+        
+        if (redirectData.path && isValidProtectedRoute(redirectData.path)) {
+          logger.info('TenantSelection redirecting to saved path (existing tenant)', {
+            component: 'TenantSelection',
+            action: 'redirect_saved_path_existing',
+          }, { redirectPath: redirectData.path });
+          sessionStorage.removeItem('loginRedirect');
+          window.location.href = redirectData.path;
+        } else {
+          logger.info('TenantSelection redirecting to dashboard (existing tenant)', {
+            component: 'TenantSelection',
+            action: 'redirect_dashboard_existing',
+          });
+          window.location.href = '/dashboard';
+        }
+        return;
+      }
+      
+      // Case 2: No selectedTenant, but we have a single tenant - auto-select it
+      if (!selectedTenant) {
+        const tenantToSelect = tenants[0];
+        logger.info('TenantSelection found single tenant, auto-selecting', {
+          component: 'TenantSelection',
+          action: 'auto_select_single',
+          tenantId: typeof tenantToSelect.id === 'number' ? tenantToSelect.id : Number(tenantToSelect.id),
+          tenantName: tenantToSelect.name,
+        });
+        
+        const tenantObj = {
+          id: String(tenantToSelect.id),
+          name: tenantToSelect.name,
+          email: user.email || '',
+          createdAt: tenantToSelect.createdAt || new Date().toISOString(),
+        };
+        
+        // Set selected tenant in context
+        setSelectedTenant(tenantObj);
+        logger.info('TenantSelection set selected tenant', {
+          component: 'TenantSelection',
+          action: 'set_tenant',
+          tenantId: typeof tenantToSelect.id === 'number' ? tenantToSelect.id : Number(tenantToSelect.id),
+        });
+        
+        // Persist to localStorage
+        localStorage.setItem('selectedTenant', JSON.stringify({
+          id: tenantObj.id,
+          name: tenantObj.name,
+          email: tenantObj.email,
+        }));
+        
+        // Set current user info for API headers
+        setCurrentUserInfo(user.email || '', String(tenantToSelect.id));
+        
+        // Get redirect data and redirect
+        const redirectData = getRedirectData();
+        const isValidProtectedRoute = (path: string | null): boolean => {
+          if (!path) return false;
+          const protectedRoutes = ['/dashboard', '/manage', '/monitor', '/reports', '/settings', '/billing', '/collaborators'];
+          return protectedRoutes.some(route => path.startsWith(route));
+        };
+        
+        if (redirectData.path && isValidProtectedRoute(redirectData.path)) {
+          logger.info('TenantSelection redirecting to saved path', {
+            component: 'TenantSelection',
+            action: 'redirect_saved_path',
+          }, { redirectPath: redirectData.path });
+          sessionStorage.removeItem('loginRedirect');
+          window.location.href = redirectData.path;
+        } else {
+          logger.info('TenantSelection redirecting to dashboard', {
+            component: 'TenantSelection',
+            action: 'redirect_dashboard',
+          });
+          window.location.href = '/dashboard';
+        }
+      } else {
+        logger.info('TenantSelection selectedTenant exists but does not match single tenant', {
+          component: 'TenantSelection',
+          action: 'tenant_mismatch',
+          selectedTenantId: selectedTenant.id,
+          tenantId: String(tenants[0].id),
+        });
+      }
+    }, 1000); // Wait 1 second after component mounts
+    
+    return () => clearTimeout(timer);
+  }, [tenants, user, selectedTenant, setSelectedTenant]);
+
 
   const handleCreateTenant = async (data: TenantFormData) => {
     if (!user) return;
@@ -203,9 +349,38 @@ export default function TenantSelection() {
         description: `Organization "${tenant.name}" has been created successfully.`,
       });
 
-      // Redirect to dashboard
+      // Check for saved redirect data
+      const redirectData = getRedirectData();
+      const isValidProtectedRoute = (path: string | null): boolean => {
+        if (!path) return false;
+        const protectedRoutes = [
+          '/dashboard',
+          '/manage',
+          '/monitor',
+          '/reports',
+          '/settings',
+          '/billing',
+          '/collaborators',
+        ];
+        return protectedRoutes.some(route => path.startsWith(route));
+      };
+
+      // Redirect to saved path or dashboard
       setTimeout(() => {
-        setLocation('/dashboard');
+        if (redirectData.path && isValidProtectedRoute(redirectData.path)) {
+          sessionStorage.removeItem('loginRedirect'); // Clear after use
+          logger.info('Redirecting to saved path after tenant creation', {
+            component: 'TenantSelection',
+            action: 'create_tenant',
+          }, { redirectPath: redirectData.path });
+          setLocation(redirectData.path);
+        } else {
+          logger.info('Redirecting to dashboard after tenant creation', {
+            component: 'TenantSelection',
+            action: 'create_tenant',
+          });
+          setLocation('/dashboard');
+        }
       }, 1000);
     } catch (error: any) {
       const err = error instanceof Error ? error : new Error(String(error));
@@ -272,13 +447,38 @@ export default function TenantSelection() {
         description: `Switched to "${tenant.name}".`,
       });
 
-      // Redirect to dashboard
+      // Check for saved redirect data from login
+      const redirectData = getRedirectData();
+      const isValidProtectedRoute = (path: string | null): boolean => {
+        if (!path) return false;
+        const protectedRoutes = [
+          '/dashboard',
+          '/manage',
+          '/monitor',
+          '/reports',
+          '/settings',
+          '/billing',
+          '/collaborators',
+        ];
+        return protectedRoutes.some(route => path.startsWith(route));
+      };
+
+      // Redirect to saved path or dashboard
       setTimeout(() => {
-        logger.debug('Redirecting to dashboard', {
-          component: 'TenantSelection',
-          action: 'select_tenant',
-        });
-        setLocation('/dashboard');
+        if (redirectData.path && isValidProtectedRoute(redirectData.path)) {
+          sessionStorage.removeItem('loginRedirect'); // Clear after use
+          logger.info('Redirecting to saved path after tenant selection', {
+            component: 'TenantSelection',
+            action: 'select_tenant',
+          }, { redirectPath: redirectData.path });
+          setLocation(redirectData.path);
+        } else {
+          logger.debug('Redirecting to dashboard', {
+            component: 'TenantSelection',
+            action: 'select_tenant',
+          });
+          setLocation('/dashboard');
+        }
       }, 500);
     } catch (error: any) {
       const err = error instanceof Error ? error : new Error(String(error));
