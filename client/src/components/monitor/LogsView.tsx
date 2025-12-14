@@ -169,7 +169,7 @@ export function LogsView({
     enabled: !!logType && !!selectedId,
   });
 
-  const totalPages = logsData?.total_count ? Math.ceil(logsData.total_count / limit) : 1;
+  const totalPages = logsData?.count ? Math.ceil(logsData.count / limit) : 1;
 
   return (
     <Card>
@@ -436,9 +436,9 @@ export function LogsView({
                           ))}
                         </SelectContent>
                       </Select>
-                      {logsData && logsData.total_count !== undefined && (
+                      {logsData && logsData.count !== undefined && (
                         <span className="text-sm text-muted-foreground ml-2">
-                          ({logsData.total_count} total)
+                          ({logsData.count} total)
                         </span>
                       )}
                     </div>
@@ -463,7 +463,7 @@ export function LogsView({
                         variant="outline"
                         size="sm"
                         onClick={() => setPage(Math.min(totalPages, page + 1))}
-                        disabled={page >= totalPages || !logsData || logsData.total_count === 0}
+                        disabled={page >= totalPages || !logsData || logsData.count === 0}
                       >
                         Next
                         <ChevronRight className="w-4 h-4 ml-1" />

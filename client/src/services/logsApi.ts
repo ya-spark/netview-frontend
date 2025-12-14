@@ -18,8 +18,7 @@ export interface LogsListResponse {
   success: boolean;
   timestamp: string;
   data: LogEntry[];
-  count: number;
-  total_count?: number;
+  count: number; // Total count of items (after filters, before pagination)
 }
 
 export interface LogsFilters {
