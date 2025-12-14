@@ -220,11 +220,6 @@ export function ProbeDetail({
                               {getProbeStatusLabel(log.status)}
                             </Badge>
                           )}
-                          {log.level && (
-                            <Badge variant="outline" className="text-xs">
-                              {log.level}
-                            </Badge>
-                          )}
                         </div>
                         <Button
                           variant="outline"
@@ -242,7 +237,6 @@ export function ProbeDetail({
                           Get Execution Log
                         </Button>
                       </div>
-                      <p className="text-sm text-foreground">{log.message || log.content || 'No message'}</p>
                     </div>
                   ))}
                 </div>

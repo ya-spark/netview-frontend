@@ -212,11 +212,6 @@ export function LogsView({
                               {getProbeStatusLabel(log.status)}
                             </Badge>
                           )}
-                          {log.level && (
-                            <Badge variant="outline" className="text-xs">
-                              {log.level}
-                            </Badge>
-                          )}
                         </div>
                         {logType === 'probe' && (
                           <Button
@@ -236,9 +231,6 @@ export function LogsView({
                           </Button>
                         )}
                       </div>
-                      <p className="text-sm text-foreground whitespace-pre-wrap">
-                        {log.message || log.content || 'No message'}
-                      </p>
                     </div>
                   ))}
                 </div>
