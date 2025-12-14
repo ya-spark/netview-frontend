@@ -22,6 +22,12 @@ export interface LogsListResponse {
   total_count?: number;
 }
 
+export interface LogsFilters {
+  dateStart?: string;
+  dateEnd?: string;
+  status?: string;
+}
+
 /**
  * Logs API service class for fetching gateway and probe logs
  */
@@ -32,7 +38,8 @@ export class LogsApiService {
   static async getGatewayLogs(
     gatewayId: string,
     limit: number = 10,
-    offset: number = 0
+    offset: number = 0,
+    filters?: LogsFilters
   ): Promise<LogsListResponse> {
     try {
       logger.debug('Fetching gateway logs', {
@@ -41,11 +48,22 @@ export class LogsApiService {
         gatewayId,
         limit,
         offset,
+        filters,
       });
       
       const queryParams = new URLSearchParams();
       queryParams.append('limit', limit.toString());
       queryParams.append('offset', offset.toString());
+      
+      if (filters?.dateStart) {
+        queryParams.append('date_start', filters.dateStart);
+      }
+      if (filters?.dateEnd) {
+        queryParams.append('date_end', filters.dateEnd);
+      }
+      if (filters?.status) {
+        queryParams.append('status', filters.status);
+      }
       
       const response = await apiRequest('GET', `/api/logs/gateway/${gatewayId}?${queryParams.toString()}`);
       const result = await response.json();
@@ -75,7 +93,8 @@ export class LogsApiService {
   static async getProbeLogs(
     probeId: string,
     limit: number = 10,
-    offset: number = 0
+    offset: number = 0,
+    filters?: LogsFilters
   ): Promise<LogsListResponse> {
     try {
       logger.debug('Fetching probe logs', {
@@ -84,11 +103,22 @@ export class LogsApiService {
         probeId,
         limit,
         offset,
+        filters,
       });
       
       const queryParams = new URLSearchParams();
       queryParams.append('limit', limit.toString());
       queryParams.append('offset', offset.toString());
+      
+      if (filters?.dateStart) {
+        queryParams.append('date_start', filters.dateStart);
+      }
+      if (filters?.dateEnd) {
+        queryParams.append('date_end', filters.dateEnd);
+      }
+      if (filters?.status) {
+        queryParams.append('status', filters.status);
+      }
       
       const response = await apiRequest('GET', `/api/logs/probe/${probeId}?${queryParams.toString()}`);
       const result = await response.json();
