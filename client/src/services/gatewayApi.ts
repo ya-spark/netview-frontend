@@ -14,6 +14,8 @@ import type {
   GatewayHeartbeat,
   RegistrationKeyResponse,
   AuditLogListResponse,
+  LogsBreakdown,
+  DbBreakdown,
 } from '../types/gateway';
 import type { SingleResponse } from '../types/probe';
 
@@ -233,6 +235,22 @@ export class GatewayUtils {
           description: 'Unknown gateway type' 
         };
     }
+  }
+
+  /**
+   * Get logs breakdown for a gateway
+   */
+  static async getGatewayLogsBreakdown(gatewayId: string): Promise<SingleResponse<LogsBreakdown>> {
+    const response = await apiRequest('GET', `/api/gateways/${gatewayId}/logs-breakdown`);
+    return response.json();
+  }
+
+  /**
+   * Get DB breakdown for a gateway
+   */
+  static async getGatewayDbBreakdown(gatewayId: string): Promise<SingleResponse<DbBreakdown>> {
+    const response = await apiRequest('GET', `/api/gateways/${gatewayId}/db-breakdown`);
+    return response.json();
   }
 
   /**

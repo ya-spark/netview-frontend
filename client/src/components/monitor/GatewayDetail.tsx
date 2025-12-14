@@ -2,11 +2,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Server, FileText, ArrowLeft, Wifi, WifiOff, Circle } from 'lucide-react';
-import type { GatewayResponse } from '@/types/gateway';
+import { Progress } from '@/components/ui/progress';
+import { Server, FileText, ArrowLeft, Wifi, WifiOff, Circle, HardDrive, Database, Cpu, MemoryStick } from 'lucide-react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import type { GatewayResponse, GatewaySystemInfo, LogsBreakdown, DbBreakdown } from '@/types/gateway';
 import type { Probe, ProbeResult } from '@/types/probe';
 import type { LogEntry } from '@/services/logsApi';
 import { getGatewayStatusColor, getProbeStatusColor, getProbeStatusLabel, getProbeStatusBgColor, formatRelativeTime, formatDate } from './utils';
+import { GatewayApiService } from '@/services/gatewayApi';
+import { StorageBreakdown } from './StorageBreakdown';
 
 interface GatewayDetailProps {
   gatewayId: string;
@@ -23,6 +28,16 @@ interface GatewayDetailProps {
   getLatestProbeResult: (probeId: string) => ProbeResult | null;
 }
 
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  
+  return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
+}
+
 export function GatewayDetail({
   gatewayId,
   gatewayDetailData,
@@ -37,7 +52,33 @@ export function GatewayDetail({
   onProbeClick,
   getLatestProbeResult,
 }: GatewayDetailProps) {
+  const [logsBreakdownOpen, setLogsBreakdownOpen] = useState(false);
+  const [dbBreakdownOpen, setDbBreakdownOpen] = useState(false);
+  
   const assignedProbes = probesData?.data?.filter((p) => p.gateway_id === gatewayId) || [];
+  const systemInfo = gatewayDetailData?.data?.system_info;
+
+  // Fetch logs breakdown on-demand
+  const { data: logsBreakdownData, isLoading: logsBreakdownLoading } = useQuery({
+    queryKey: ['/api/gateways', gatewayId, 'logs-breakdown'],
+    queryFn: () => GatewayApiService.getGatewayLogsBreakdown(gatewayId),
+    enabled: logsBreakdownOpen && !!gatewayId,
+  });
+
+  // Fetch DB breakdown on-demand
+  const { data: dbBreakdownData, isLoading: dbBreakdownLoading } = useQuery({
+    queryKey: ['/api/gateways', gatewayId, 'db-breakdown'],
+    queryFn: () => GatewayApiService.getGatewayDbBreakdown(gatewayId),
+    enabled: dbBreakdownOpen && !!gatewayId,
+  });
+
+  const handleLogsBreakdownClick = () => {
+    setLogsBreakdownOpen(true);
+  };
+
+  const handleDbBreakdownClick = () => {
+    setDbBreakdownOpen(true);
+  };
 
   return (
     <div className="space-y-6">
@@ -69,6 +110,7 @@ export function GatewayDetail({
         </Card>
       ) : (
         <>
+          {/* Basic Info Card */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -92,7 +134,19 @@ export function GatewayDetail({
                   </Badge>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Last Heartbeat</p>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">IP Address</p>
+                  <p className="text-foreground">{gatewayDetailData.data.ip_address || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Registration Date</p>
+                  <p className="text-foreground">
+                    {gatewayDetailData.data.created_at 
+                      ? formatDate(gatewayDetailData.data.created_at)
+                      : 'N/A'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Last Successful Heartbeat</p>
                   <p className="text-foreground">
                     {gatewayDetailData.data.last_heartbeat 
                       ? formatRelativeTime(gatewayDetailData.data.last_heartbeat)
@@ -114,21 +168,123 @@ export function GatewayDetail({
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-1">Probe Count</p>
-                  <p className="text-foreground">
-                    {assignedProbes.length}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Uptime</p>
-                  <p className="text-foreground">
-                    {gatewayUptimeData?.data?.uptime_percentage !== undefined
-                      ? `${gatewayUptimeData.data.uptime_percentage.toFixed(2)}%`
-                      : 'N/A'}
-                  </p>
+                  <p className="text-foreground">{assignedProbes.length}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
+
+          {/* System Information Card */}
+          {systemInfo && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Cpu className="w-5 h-5" />
+                  System Information
+                </CardTitle>
+                <CardDescription>
+                  Last updated: {formatRelativeTime(systemInfo.updated_at)}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* CPU Usage */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-medium text-muted-foreground">CPU Usage</p>
+                      <span className="text-sm font-semibold">{systemInfo.cpu_usage.toFixed(1)}%</span>
+                    </div>
+                    <Progress value={systemInfo.cpu_usage} className="h-2" />
+                  </div>
+
+                  {/* Memory */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                        <MemoryStick className="w-4 h-4" />
+                        Memory
+                      </p>
+                      <span className="text-sm font-semibold">
+                        {formatBytes(systemInfo.memory_used)} / {formatBytes(systemInfo.memory_total)}
+                      </span>
+                    </div>
+                    <Progress 
+                      value={(systemInfo.memory_used / systemInfo.memory_total) * 100} 
+                      className="h-2" 
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Free: {formatBytes(systemInfo.memory_free)}
+                    </p>
+                  </div>
+
+                  {/* Disk */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                        <HardDrive className="w-4 h-4" />
+                        Disk
+                      </p>
+                      <span className="text-sm font-semibold">
+                        {formatBytes(systemInfo.disk_used)} / {formatBytes(systemInfo.disk_total)}
+                      </span>
+                    </div>
+                    <Progress 
+                      value={(systemInfo.disk_used / systemInfo.disk_total) * 100} 
+                      className="h-2" 
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Free: {formatBytes(systemInfo.disk_free)}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Storage Information Card */}
+          {systemInfo && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Database className="w-5 h-5" />
+                  Storage Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Logs Folder Size */}
+                  <div 
+                    className="p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                    onClick={handleLogsBreakdownClick}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground mb-1">Logs Folder Size</p>
+                        <p className="text-lg font-semibold">{formatBytes(systemInfo.logs_size)}</p>
+                      </div>
+                      <FileText className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">Click to view breakdown</p>
+                  </div>
+
+                  {/* DB Folder Size */}
+                  <div 
+                    className="p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                    onClick={handleDbBreakdownClick}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground mb-1">Database Folder Size</p>
+                        <p className="text-lg font-semibold">{formatBytes(systemInfo.db_size)}</p>
+                      </div>
+                      <Database className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">Click to view breakdown</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Assigned Probes */}
           {assignedProbes.length > 0 && (
@@ -219,6 +375,20 @@ export function GatewayDetail({
           </Card>
         </>
       )}
+
+      {/* Storage Breakdown Modals */}
+      <StorageBreakdown
+        type="logs"
+        breakdown={logsBreakdownData?.data || {}}
+        isOpen={logsBreakdownOpen}
+        onClose={() => setLogsBreakdownOpen(false)}
+      />
+      <StorageBreakdown
+        type="db"
+        breakdown={dbBreakdownData?.data || {}}
+        isOpen={dbBreakdownOpen}
+        onClose={() => setDbBreakdownOpen(false)}
+      />
     </div>
   );
 }

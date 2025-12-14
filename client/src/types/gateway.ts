@@ -32,6 +32,7 @@ export interface GatewayResponse {
   auth_token_prefix?: string;
   created_at: string;
   updated_at: string;
+  system_info?: GatewaySystemInfo;  // Optional system information
 }
 
 export interface GatewayRegistrationRequest {
@@ -107,3 +108,28 @@ export interface AuditLogListResponse extends BaseResponse {
   data: AuditLog[];
   count: number;
 }
+
+// Gateway System Information
+export interface GatewaySystemInfo {
+  gateway_id: string;
+  cpu_usage: number;  // 0-100 percentage
+  memory_total: number;  // bytes
+  memory_used: number;  // bytes
+  memory_free: number;  // bytes
+  disk_total: number;  // bytes
+  disk_used: number;  // bytes
+  disk_free: number;  // bytes
+  logs_size: number;  // bytes
+  db_size: number;  // bytes
+  updated_at: string;  // ISO timestamp
+}
+
+// Storage Breakdowns
+export interface LogsBreakdown {
+  [key: string]: number;  // log type -> size in bytes
+}
+
+export interface DbBreakdown {
+  [key: string]: number;  // db file path -> size in bytes
+}
+
