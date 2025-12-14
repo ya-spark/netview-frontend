@@ -2,16 +2,19 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Activity, FileText, ArrowLeft } from 'lucide-react';
-import type { Probe, ProbeResult } from '@/types/probe';
+import { Activity, FileText, ArrowLeft, Settings } from 'lucide-react';
+import { useLocation } from 'wouter';
+import { useMemo } from 'react';
+import type { Probe, ProbeResult, ProbeResultsListResponse } from '@/types/probe';
 import type { LogEntry } from '@/services/logsApi';
-import { getProbeStatusBgColor, getProbeStatusLabel, getProbeStatus, formatRelativeTime, formatDate } from './utils';
+import { getProbeStatusBgColor, getProbeStatusLabel, getProbeStatus, formatRelativeTime, formatDate, formatResponseTime } from './utils';
 
 interface ProbeDetailProps {
   probeId: string;
   probeDetailData?: { data: Probe };
   probeLogsData?: { data: LogEntry[] };
   probeResultsData: Record<string, ProbeResult[]>;
+  probeResultsForStats?: ProbeResultsListResponse;
   isLoading: boolean;
   logsLoading: boolean;
   onBack: () => void;
@@ -25,6 +28,7 @@ export function ProbeDetail({
   probeDetailData,
   probeLogsData,
   probeResultsData,
+  probeResultsForStats,
   isLoading,
   logsLoading,
   onBack,
@@ -32,6 +36,42 @@ export function ProbeDetail({
   getLatestProbeResult,
   getGatewayName,
 }: ProbeDetailProps) {
+  const [, setLocation] = useLocation();
+
+  // Calculate up/down/misses from probe results (last 1 hour only)
+  const resultsStats = useMemo(() => {
+    if (!probeResultsForStats?.data || probeResultsForStats.data.length === 0) {
+      return { up: 0, down: 0, misses: 0 };
+    }
+
+    // Calculate the timestamp for 1 hour ago
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+    // Filter results to only include those from the last 1 hour
+    const recentResults = probeResultsForStats.data.filter((result) => {
+      if (!result.checked_at) return false;
+      const checkedAt = new Date(result.checked_at);
+      return checkedAt >= oneHourAgo;
+    });
+
+    let up = 0;
+    let down = 0;
+    let misses = 0;
+
+    recentResults.forEach((result) => {
+      if (result.status === 'Success') {
+        up++;
+      } else if (result.status === 'Failure') {
+        down++;
+      } else {
+        // Warning, Pending, or unknown are considered misses
+        misses++;
+      }
+    });
+
+    return { up, down, misses };
+  }, [probeResultsForStats]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -42,6 +82,14 @@ export function ProbeDetail({
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Probes
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setLocation(`/manage/probes/${probeId}`)}
+        >
+          <Settings className="w-4 h-4 mr-2" />
+          Configuration
         </Button>
       </div>
 
@@ -114,14 +162,14 @@ export function ProbeDetail({
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-1">Response Time</p>
                   <p className="text-foreground">
-                    {getLatestProbeResult(probeId)?.execution_time 
-                      ? `${getLatestProbeResult(probeId)!.execution_time}ms`
-                      : 'N/A'}
+                    {formatResponseTime(getLatestProbeResult(probeId)?.execution_time)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Uptime</p>
-                  <p className="text-foreground">Calculating...</p>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Results (Up / Down / Misses)</p>
+                  <p className="text-foreground">
+                    {resultsStats.up}/{resultsStats.down}/{resultsStats.misses}
+                  </p>
                 </div>
               </div>
             </CardContent>

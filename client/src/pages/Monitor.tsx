@@ -181,6 +181,13 @@ export default function Monitor() {
     enabled: !!probeId && !!user && !!selectedTenant,
   });
 
+  // Fetch all probe results for statistics (up/down/misses)
+  const { data: probeResultsForStats } = useQuery({
+    queryKey: ['/api/results/probe', probeId],
+    queryFn: () => probeId ? ProbeApiService.getProbeResults(probeId, { limit: 1000 }) : null,
+    enabled: !!probeId && !!user && !!selectedTenant,
+  });
+
   // Fetch gateway logs (last 10)
   const { data: gatewayLogsData, isLoading: gatewayLogsLoading } = useQuery({
     queryKey: ['/api/logs/gateway', gatewayId],
@@ -337,6 +344,7 @@ export default function Monitor() {
             probeDetailData={probeDetailData || undefined}
             probeLogsData={probeLogsData || undefined}
             probeResultsData={probeResultsData}
+            probeResultsForStats={probeResultsForStats || undefined}
             isLoading={probeDetailLoading}
             logsLoading={probeLogsLoading}
             onBack={() => setLocation('/monitor/probes')}

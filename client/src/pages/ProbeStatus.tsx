@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProbeApiService, ProbeUtils } from '@/services/probeApi';
+import { formatResponseTime } from '@/components/monitor/utils';
 import { CheckCircle2, AlertCircle, XCircle, AlertTriangle, ArrowLeft } from 'lucide-react';
 import type { Probe } from '@/types/probe';
 
@@ -200,7 +201,7 @@ export default function ProbeStatus() {
                 {status?.response_time !== null && status?.response_time !== undefined && (
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Response Time</p>
-                    <p className="text-foreground">{status.response_time}ms</p>
+                    <p className="text-foreground">{formatResponseTime(status.response_time)}</p>
                   </div>
                 )}
               </div>

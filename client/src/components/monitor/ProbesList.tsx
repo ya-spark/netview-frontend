@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/select';
 import type { Probe, ProbeResult } from '@/types/probe';
 import type { GatewayResponse } from '@/types/gateway';
-import { getProbeStatusColor, getProbeStatusBgColor, getProbeStatusLabel, getProbeStatus, formatRelativeTime } from './utils';
+import { getProbeStatusColor, getProbeStatusBgColor, getProbeStatusLabel, getProbeStatus, formatRelativeTime, formatResponseTime } from './utils';
 
 interface ProbesListProps {
   probesData?: { data: Probe[] };
@@ -246,7 +246,7 @@ export function ProbesList({
                         {latestResult && (
                           <>
                             <span>Last check: {formatRelativeTime(latestResult.checked_at)}</span>
-                            <span>Response: {latestResult.execution_time}ms</span>
+                            <span>Response: {formatResponseTime(latestResult.execution_time)}</span>
                           </>
                         )}
                       </div>

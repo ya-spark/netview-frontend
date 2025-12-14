@@ -103,3 +103,28 @@ export function getProbeStatus(latestResult: { status: string; checked_at: strin
     return 'Unknown';
   }
 }
+
+/**
+ * Format response time in milliseconds to a human-readable string
+ * If less than 1000ms: "112 ms"
+ * If 1000ms or more: "12 sec 234 ms"
+ */
+export function formatResponseTime(ms: number | null | undefined): string {
+  if (ms === null || ms === undefined || isNaN(ms)) {
+    return 'N/A';
+  }
+  
+  // Round to nearest integer
+  const milliseconds = Math.round(ms);
+  
+  // If less than 1000ms, show as milliseconds only
+  if (milliseconds < 1000) {
+    return `${milliseconds} ms`;
+  }
+  
+  // If 1000ms or more, show as seconds and milliseconds
+  const seconds = Math.floor(milliseconds / 1000);
+  const remainingMs = milliseconds % 1000;
+  
+  return `${seconds} sec ${remainingMs} ms`;
+}
