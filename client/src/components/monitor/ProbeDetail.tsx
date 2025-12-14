@@ -2,12 +2,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Activity, FileText, ArrowLeft, Settings } from 'lucide-react';
+import { Activity, FileText, ArrowLeft, Settings, Info } from 'lucide-react';
 import { useLocation } from 'wouter';
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import type { Probe, ProbeResult, ProbeResultsListResponse } from '@/types/probe';
 import type { LogEntry } from '@/services/logsApi';
 import { getProbeStatusBgColor, getProbeStatusLabel, getProbeStatus, formatRelativeTime, formatDate, formatResponseTime } from './utils';
+import { LogFileViewer } from './LogFileViewer';
 
 interface ProbeDetailProps {
   probeId: string;
@@ -37,6 +38,7 @@ export function ProbeDetail({
   getGatewayName,
 }: ProbeDetailProps) {
   const [, setLocation] = useLocation();
+  const [viewingExecutionId, setViewingExecutionId] = useState<string | null>(null);
 
   // Calculate success/failure/misses from probe results (last 1 hour only)
   const resultsStats = useMemo(() => {
@@ -208,20 +210,37 @@ export function ProbeDetail({
                 <div className="space-y-2">
                   {probeLogsData.data.map((log: LogEntry, index: number) => (
                     <div key={index} className="p-3 border rounded-lg">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs text-muted-foreground">
-                          {formatDate(log.timestamp)}
-                        </span>
-                        {log.status && (
-                          <Badge className={`text-xs ${getProbeStatusBgColor(log.status, true)}`}>
-                            {getProbeStatusLabel(log.status)}
-                          </Badge>
-                        )}
-                        {log.level && (
-                          <Badge variant="outline" className="text-xs">
-                            {log.level}
-                          </Badge>
-                        )}
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">
+                            {formatDate(log.timestamp)}
+                          </span>
+                          {log.status && (
+                            <Badge className={`text-xs ${getProbeStatusBgColor(log.status, true)}`}>
+                              {getProbeStatusLabel(log.status)}
+                            </Badge>
+                          )}
+                          {log.level && (
+                            <Badge variant="outline" className="text-xs">
+                              {log.level}
+                            </Badge>
+                          )}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs shrink-0 whitespace-nowrap"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            if (log.execution_id) {
+                              setViewingExecutionId(log.execution_id);
+                            }
+                          }}
+                          disabled={!log.execution_id}
+                        >
+                          Get Execution Log
+                        </Button>
                       </div>
                       <p className="text-sm text-foreground">{log.message || log.content || 'No message'}</p>
                     </div>
@@ -232,6 +251,13 @@ export function ProbeDetail({
           </Card>
         </>
       )}
+      
+      <LogFileViewer
+        executionId={viewingExecutionId}
+        probeId={probeId}
+        isOpen={!!viewingExecutionId}
+        onClose={() => setViewingExecutionId(null)}
+      />
     </div>
   );
 }

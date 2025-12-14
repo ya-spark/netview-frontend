@@ -23,6 +23,7 @@ import type { Probe } from '@/types/probe';
 import type { GatewayResponse } from '@/types/gateway';
 import type { LogEntry } from '@/services/logsApi';
 import { formatDate, getProbeStatusBgColor, getProbeStatusLabel } from './utils';
+import { LogFileViewer } from './LogFileViewer';
 
 interface LogsViewProps {
   probesData: Probe[];
@@ -38,6 +39,7 @@ export function LogsView({
   const [logType, setLogType] = useState<'gateway' | 'probe' | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [viewingExecutionId, setViewingExecutionId] = useState<string | null>(null);
   const limit = 10;
 
   // Read from URL on mount
@@ -200,19 +202,38 @@ export function LogsView({
                 <div className="space-y-2">
                   {logsData.data.map((log: LogEntry, index: number) => (
                     <div key={index} className="p-3 border rounded-lg">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs text-muted-foreground">
-                          {formatDate(log.timestamp)}
-                        </span>
-                        {log.status && (
-                          <Badge className={`text-xs ${getProbeStatusBgColor(log.status, true)}`}>
-                            {getProbeStatusLabel(log.status)}
-                          </Badge>
-                        )}
-                        {log.level && (
-                          <Badge variant="outline" className="text-xs">
-                            {log.level}
-                          </Badge>
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">
+                            {formatDate(log.timestamp)}
+                          </span>
+                          {log.status && (
+                            <Badge className={`text-xs ${getProbeStatusBgColor(log.status, true)}`}>
+                              {getProbeStatusLabel(log.status)}
+                            </Badge>
+                          )}
+                          {log.level && (
+                            <Badge variant="outline" className="text-xs">
+                              {log.level}
+                            </Badge>
+                          )}
+                        </div>
+                        {logType === 'probe' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs shrink-0 whitespace-nowrap"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              if (log.execution_id) {
+                                setViewingExecutionId(log.execution_id);
+                              }
+                            }}
+                            disabled={!log.execution_id}
+                          >
+                            Get Execution Log
+                          </Button>
                         )}
                       </div>
                       <p className="text-sm text-foreground whitespace-pre-wrap">
@@ -253,6 +274,15 @@ export function LogsView({
           </div>
         )}
       </CardContent>
+      
+      {logType === 'probe' && selectedId && (
+        <LogFileViewer
+          executionId={viewingExecutionId}
+          probeId={selectedId}
+          isOpen={!!viewingExecutionId}
+          onClose={() => setViewingExecutionId(null)}
+        />
+      )}
     </Card>
   );
 }

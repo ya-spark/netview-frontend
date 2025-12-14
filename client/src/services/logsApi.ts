@@ -10,6 +10,7 @@ export interface LogEntry {
   message: string;
   content?: string;
   status?: string;
+  execution_id?: string;
   [key: string]: any;
 }
 
@@ -105,6 +106,47 @@ export class LogsApiService {
       logger.error('Failed to fetch probe logs', err, {
         component: 'logsApi',
         action: 'get_probe_logs',
+        probeId,
+      });
+      throw err;
+    }
+  }
+
+  /**
+   * Get full probe execution log file
+   */
+  static async getProbeLogFile(
+    executionId: string,
+    probeId: string
+  ): Promise<{ execution_id: string; content: string; timestamp: string }> {
+    try {
+      logger.debug('Fetching probe log file', {
+        component: 'logsApi',
+        action: 'get_probe_log_file',
+        executionId,
+        probeId,
+      });
+      
+      const queryParams = new URLSearchParams();
+      queryParams.append('probe_id', probeId);
+      
+      const response = await apiRequest('GET', `/api/logs/probe/execution/${executionId}?${queryParams.toString()}`);
+      const result = await response.json();
+      
+      logger.debug('Probe log file fetched successfully', {
+        component: 'logsApi',
+        action: 'get_probe_log_file',
+        executionId,
+        contentLength: result.content?.length || 0,
+      });
+      
+      return result;
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to fetch probe log file', err, {
+        component: 'logsApi',
+        action: 'get_probe_log_file',
+        executionId,
         probeId,
       });
       throw err;
