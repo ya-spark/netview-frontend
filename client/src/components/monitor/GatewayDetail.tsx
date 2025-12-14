@@ -6,7 +6,7 @@ import { Server, FileText, ArrowLeft, Wifi, WifiOff, Circle } from 'lucide-react
 import type { GatewayResponse } from '@/types/gateway';
 import type { Probe, ProbeResult } from '@/types/probe';
 import type { LogEntry } from '@/services/logsApi';
-import { getGatewayStatusColor, getProbeStatusColor, getProbeStatusLabel, formatRelativeTime, formatDate } from './utils';
+import { getGatewayStatusColor, getProbeStatusColor, getProbeStatusLabel, getProbeStatusBgColor, formatRelativeTime, formatDate } from './utils';
 
 interface GatewayDetailProps {
   gatewayId: string;
@@ -199,6 +199,11 @@ export function GatewayDetail({
                         <span className="text-xs text-muted-foreground">
                           {formatDate(log.timestamp)}
                         </span>
+                        {log.status && (
+                          <Badge className={`text-xs ${getProbeStatusBgColor(log.status, true)}`}>
+                            {getProbeStatusLabel(log.status)}
+                          </Badge>
+                        )}
                         {log.level && (
                           <Badge variant="outline" className="text-xs">
                             {log.level}

@@ -69,8 +69,8 @@ export function getGatewayStatusColor(isOnline: boolean, status: string): string
  * Get probe status label
  */
 export function getProbeStatusLabel(status?: string): string {
-  if (status === 'Success') return 'Up';
-  if (status === 'Failure') return 'Down';
+  if (status === 'Success') return 'Success';
+  if (status === 'Failure') return 'Failure';
   if (status === 'Warning') return 'Warning';
   if (status === 'Pending') return 'Pending';
   if (status === 'Unknown') return 'Unknown';

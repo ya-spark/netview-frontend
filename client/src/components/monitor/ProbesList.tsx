@@ -174,8 +174,8 @@ export function ProbesList({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="Success">Up</SelectItem>
-                    <SelectItem value="Failure">Down</SelectItem>
+                    <SelectItem value="Success">Success</SelectItem>
+                    <SelectItem value="Failure">Failure</SelectItem>
                     <SelectItem value="Warning">Warning</SelectItem>
                     <SelectItem value="Pending">Pending</SelectItem>
                     <SelectItem value="Unknown">Unknown</SelectItem>

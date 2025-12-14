@@ -139,7 +139,7 @@ function DashboardSidebar() {
       timestamp: string;
     }> = [];
 
-    // Check for down probes
+    // Check for failed probes
     if (probesData?.data && probeResultsData) {
       probesData.data.forEach((probe) => {
         if (!probe.is_active) return;
@@ -150,7 +150,7 @@ function DashboardSidebar() {
         if (latestResult && latestResult.status === 'Failure') {
           notifications.push({
             id: `probe-${probe.id}`,
-            message: `Probe "${probe.name}" is down`,
+            message: `Probe "${probe.name}" has failed`,
             severity: "critical",
             time: formatTimeAgo(latestResult.checked_at),
             timestamp: latestResult.checked_at,

@@ -253,11 +253,11 @@ export default function Dashboard() {
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-green-600 dark:text-green-400">{probeStatuses.up}</div>
-                      <div className="text-xs text-muted-foreground mt-1">Up</div>
+                      <div className="text-xs text-muted-foreground mt-1">Success</div>
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-red-600 dark:text-red-400">{probeStatuses.down}</div>
-                      <div className="text-xs text-muted-foreground mt-1">Down</div>
+                      <div className="text-xs text-muted-foreground mt-1">Failure</div>
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-gray-600 dark:text-gray-400">{probeStatuses.pending}</div>

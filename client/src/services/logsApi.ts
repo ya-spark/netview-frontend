@@ -9,6 +9,7 @@ export interface LogEntry {
   type?: string;
   message: string;
   content?: string;
+  status?: string;
   [key: string]: any;
 }
 

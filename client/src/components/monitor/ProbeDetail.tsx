@@ -38,7 +38,7 @@ export function ProbeDetail({
 }: ProbeDetailProps) {
   const [, setLocation] = useLocation();
 
-  // Calculate up/down/misses from probe results (last 1 hour only)
+  // Calculate success/failure/misses from probe results (last 1 hour only)
   const resultsStats = useMemo(() => {
     if (!probeResultsForStats?.data || probeResultsForStats.data.length === 0) {
       return { up: 0, down: 0, misses: 0 };
@@ -166,7 +166,7 @@ export function ProbeDetail({
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Results (Up / Down / Misses)</p>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Results (Success/failures/Misses)</p>
                   <p className="text-foreground">
                     {resultsStats.up}/{resultsStats.down}/{resultsStats.misses}
                   </p>
@@ -212,6 +212,11 @@ export function ProbeDetail({
                         <span className="text-xs text-muted-foreground">
                           {formatDate(log.timestamp)}
                         </span>
+                        {log.status && (
+                          <Badge className={`text-xs ${getProbeStatusBgColor(log.status, true)}`}>
+                            {getProbeStatusLabel(log.status)}
+                          </Badge>
+                        )}
                         {log.level && (
                           <Badge variant="outline" className="text-xs">
                             {log.level}

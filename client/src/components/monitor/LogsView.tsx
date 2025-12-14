@@ -22,7 +22,7 @@ import { LogsApiService } from '@/services/logsApi';
 import type { Probe } from '@/types/probe';
 import type { GatewayResponse } from '@/types/gateway';
 import type { LogEntry } from '@/services/logsApi';
-import { formatDate } from './utils';
+import { formatDate, getProbeStatusBgColor, getProbeStatusLabel } from './utils';
 
 interface LogsViewProps {
   probesData: Probe[];
@@ -199,19 +199,19 @@ export function LogsView({
               <>
                 <div className="space-y-2">
                   {logsData.data.map((log: LogEntry, index: number) => (
-                    <div key={index} className="p-4 border rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
+                    <div key={index} className="p-3 border rounded-lg">
+                      <div className="flex items-center gap-2 mb-1">
                         <span className="text-xs text-muted-foreground">
                           {formatDate(log.timestamp)}
                         </span>
+                        {log.status && (
+                          <Badge className={`text-xs ${getProbeStatusBgColor(log.status, true)}`}>
+                            {getProbeStatusLabel(log.status)}
+                          </Badge>
+                        )}
                         {log.level && (
                           <Badge variant="outline" className="text-xs">
                             {log.level}
-                          </Badge>
-                        )}
-                        {log.type && (
-                          <Badge variant="outline" className="text-xs">
-                            {log.type}
                           </Badge>
                         )}
                       </div>

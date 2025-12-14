@@ -181,7 +181,7 @@ export default function Monitor() {
     enabled: !!probeId && !!user && !!selectedTenant,
   });
 
-  // Fetch all probe results for statistics (up/down/misses)
+  // Fetch all probe results for statistics (success/failure/misses)
   const { data: probeResultsForStats } = useQuery({
     queryKey: ['/api/results/probe', probeId],
     queryFn: () => probeId ? ProbeApiService.getProbeResults(probeId, { limit: 1000 }) : null,
