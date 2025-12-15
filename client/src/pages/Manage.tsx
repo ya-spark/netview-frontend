@@ -365,6 +365,9 @@ export default function Manage() {
         userId: user?.id,
       });
       toast({ title: 'Success', description: 'Probe deleted successfully' });
+      // Invalidate all probe-related queries to refresh everywhere
+      queryClient.invalidateQueries({ queryKey: ['/api/probes'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/results'] });
       refetchProbes();
       handleCloseProbe();
     },

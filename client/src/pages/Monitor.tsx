@@ -1,6 +1,7 @@
 import { useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRoute, useLocation } from 'wouter';
+import { queryClient } from '@/lib/queryClient';
 import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -119,7 +120,7 @@ export default function Monitor() {
     currentSection === 'alerts';
 
   // Fetch latest probe results for all probes from controller (batch endpoint) - only when a section that needs results is active
-  const { data: latestResultsData, error: latestResultsError } = useQuery({
+  const { data: latestResultsData, error: latestResultsError, refetch: refetchLatestResults } = useQuery({
     queryKey: ['/api/results/latest', selectedTenant?.id],
     queryFn: () => {
       console.log('[FRONTEND] Loading latest probe results from controller:', {
@@ -182,14 +183,14 @@ export default function Monitor() {
   }, [latestResultsData]);
 
   // Fetch selected probe details - only when probe detail page is shown
-  const { data: probeDetailData, isLoading: probeDetailLoading } = useQuery({
+  const { data: probeDetailData, isLoading: probeDetailLoading, refetch: refetchProbeDetail } = useQuery({
     queryKey: ['/api/probes', probeId],
     queryFn: () => probeId ? ProbeApiService.getProbe(probeId) : null,
     enabled: !!probeId && !!user && !!selectedTenant && currentSection === 'probes' && !!probeId,
   });
 
   // Fetch selected gateway details - only when gateway detail page is shown
-  const { data: gatewayDetailData, isLoading: gatewayDetailLoading } = useQuery({
+  const { data: gatewayDetailData, isLoading: gatewayDetailLoading, refetch: refetchGatewayDetail } = useQuery({
     queryKey: ['/api/gateways', gatewayId],
     queryFn: () => gatewayId ? GatewayApiService.getGateway(gatewayId) : null,
     enabled: !!gatewayId && !!user && !!selectedTenant && currentSection === 'gateways' && !!gatewayId,
@@ -203,7 +204,7 @@ export default function Monitor() {
   });
 
   // Fetch all probe results for statistics (success/failure/misses) - only when probe detail page is shown
-  const { data: probeResultsForStats } = useQuery({
+  const { data: probeResultsForStats, refetch: refetchProbeResultsForStats } = useQuery({
     queryKey: ['/api/results/probe', probeId],
     queryFn: () => probeId ? ProbeApiService.getProbeResults(probeId, { limit: 1000 }) : null,
     enabled: !!probeId && !!user && !!selectedTenant && currentSection === 'probes' && !!probeId,
@@ -217,7 +218,7 @@ export default function Monitor() {
   });
 
   // Fetch gateway uptime - only when gateway detail page is shown
-  const { data: gatewayUptimeData } = useQuery({
+  const { data: gatewayUptimeData, refetch: refetchGatewayUptime } = useQuery({
     queryKey: ['/api/gateways', gatewayId, 'uptime'],
     queryFn: () => gatewayId ? GatewayApiService.getGatewayUptime(gatewayId) : null,
     enabled: !!gatewayId && !!user && !!selectedTenant && currentSection === 'gateways' && !!gatewayId,
@@ -236,10 +237,43 @@ export default function Monitor() {
     return results[0] || null;
   };
 
-  const handleRefresh = () => {
-    refetchProbes();
-    refetchGateways();
-    refetchAlerts();
+  const handleRefresh = async () => {
+    console.log('[MONITOR REFRESH] Refresh button clicked - refreshing APIs for section:', currentSection);
+    
+    // Always refresh main data
+    await Promise.all([
+      refetchProbes(),
+      refetchGateways(),
+      refetchAlerts(),
+    ]);
+    
+    // Refresh latest probe results if needed
+    if (needsLatestResults) {
+      await refetchLatestResults();
+    }
+    
+    // Refresh probe detail data if on probe detail page
+    if (currentSection === 'probes' && probeId) {
+      await Promise.all([
+        refetchProbeDetail(),
+        refetchProbeLogs(),
+        refetchProbeResultsForStats(),
+      ]);
+    }
+    
+    // Refresh gateway detail data if on gateway detail page
+    if (currentSection === 'gateways' && gatewayId) {
+      await Promise.all([
+        refetchGatewayDetail(),
+        refetchGatewayLogs(),
+        refetchGatewayUptime(),
+      ]);
+    }
+    
+    // Refresh logs data if on logs section
+    if (currentSection === 'logs') {
+      queryClient.invalidateQueries({ queryKey: ['/api/logs'] });
+    }
   };
 
   // Get selected alert if alertId is in route

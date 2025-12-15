@@ -17,6 +17,7 @@ import { AuthenticationProbeForm } from '@/components/probes/AuthenticationProbe
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { logger } from '@/lib/logger';
+import { queryClient } from '@/lib/queryClient';
 import { GatewayApiService } from '@/services/gatewayApi';
 import { ProbeApiService } from '@/services/probeApi';
 import { NotificationGroupApiService } from '@/services/notificationApi';
@@ -197,6 +198,8 @@ export default function CreateProbe() {
         probeId: response?.data?.id,
         userId: user?.id,
       });
+      // Invalidate probes queries to refresh lists
+      queryClient.invalidateQueries({ queryKey: ['/api/probes'] });
       // Redirect to status page
       if (response?.data?.id) {
         setLocation(`/manage/probes/status/${response.data.id}`);
