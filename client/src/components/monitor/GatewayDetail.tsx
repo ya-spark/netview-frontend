@@ -3,14 +3,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
-import { Server, FileText, ArrowLeft, Wifi, WifiOff, Circle, HardDrive, Database, Cpu, MemoryStick } from 'lucide-react';
+import { Server, FileText, ArrowLeft, Wifi, WifiOff, Circle, HardDrive, Database, Cpu, MemoryStick, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { GatewayResponse, GatewaySystemInfo, LogsBreakdown, DbBreakdown } from '@/types/gateway';
 import type { Probe, ProbeResult } from '@/types/probe';
 import type { LogEntry } from '@/services/logsApi';
-import { getGatewayStatusColor, getProbeStatusColor, getProbeStatusLabel, getProbeStatusBgColor, formatRelativeTime, formatDate } from './utils';
-import { GatewayApiService } from '@/services/gatewayApi';
+import { getGatewayStatusBgColor, getGatewayRegistrationStatusBgColor, getProbeStatusColor, getProbeStatusLabel, getProbeStatusBgColor, formatRelativeTime, formatDate } from './utils';
+import { GatewayApiService, GatewayUtils } from '@/services/gatewayApi';
 import { StorageBreakdown } from './StorageBreakdown';
 
 interface GatewayDetailProps {
@@ -24,6 +24,7 @@ interface GatewayDetailProps {
   logsLoading: boolean;
   onBack: () => void;
   onViewAllLogs: (gatewayId: string) => void;
+  onRefreshLogs: () => void;
   onProbeClick: (probeId: string) => void;
   getLatestProbeResult: (probeId: string) => ProbeResult | null;
 }
@@ -49,6 +50,7 @@ export function GatewayDetail({
   logsLoading,
   onBack,
   onViewAllLogs,
+  onRefreshLogs,
   onProbeClick,
   getLatestProbeResult,
 }: GatewayDetailProps) {
@@ -128,8 +130,14 @@ export function GatewayDetail({
                   <p className="text-foreground">{gatewayDetailData.data.type}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Status</p>
-                  <Badge className={getGatewayStatusColor(gatewayDetailData.data.is_online, gatewayDetailData.data.status)}>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Registration Status</p>
+                  <Badge className={getGatewayRegistrationStatusBgColor(gatewayDetailData.data.status)}>
+                    {GatewayUtils.formatGatewayStatus(gatewayDetailData.data.status).label}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Connection Status</p>
+                  <Badge className={getGatewayStatusBgColor(gatewayDetailData.data.is_online, gatewayDetailData.data.status)}>
                     {gatewayDetailData.data.is_online ? 'Online' : 'Offline'}
                   </Badge>
                 </div>
@@ -326,13 +334,24 @@ export function GatewayDetail({
                   <FileText className="w-5 h-5" />
                   Last 10 Logs
                 </CardTitle>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onViewAllLogs(gatewayId)}
-                >
-                  View All Logs
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onRefreshLogs}
+                    disabled={logsLoading}
+                  >
+                    <RefreshCw className={`w-4 h-4 mr-2 ${logsLoading ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onViewAllLogs(gatewayId)}
+                  >
+                    View All Logs
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -349,26 +368,41 @@ export function GatewayDetail({
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {gatewayLogsData.data.map((log: LogEntry, index: number) => (
-                    <div key={index} className="p-3 border rounded-lg">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs text-muted-foreground">
-                          {formatDate(log.timestamp)}
-                        </span>
-                        {log.status && (
-                          <Badge className={`text-xs ${getProbeStatusBgColor(log.status, true)}`}>
-                            {getProbeStatusLabel(log.status)}
-                          </Badge>
-                        )}
-                        {log.level && (
-                          <Badge variant="outline" className="text-xs">
-                            {log.level}
-                          </Badge>
-                        )}
+                  {gatewayLogsData.data.map((log: LogEntry, index: number) => {
+                    // Get gateway name
+                    const gatewayName = gatewayDetailData?.data?.name;
+                    
+                    // Get probe name if probe_id is present in the log
+                    const probeName = (log as any).probe_id && probesData?.data
+                      ? probesData.data.find((p) => p.id === (log as any).probe_id)?.name
+                      : null;
+                    
+                    return (
+                      <div key={index} className="p-3 border rounded-lg">
+                        <div className="flex items-center gap-2">
+                          {gatewayName && (
+                            <span className="text-xs font-medium text-foreground">
+                              {gatewayName}
+                            </span>
+                          )}
+                          {probeName && (
+                            <span className="text-xs font-medium text-foreground">
+                              {probeName}
+                            </span>
+                          )}
+                          <span className="text-xs text-muted-foreground">
+                            {formatDate(log.timestamp)}
+                          </span>
+                          {log.status && (
+                            <Badge className={`text-xs ${getProbeStatusBgColor(log.status, true)}`}>
+                              {getProbeStatusLabel(log.status)}
+                            </Badge>
+                          )}
+                          <span className="text-sm text-foreground">{log.message || log.content || 'No message'}</span>
+                        </div>
                       </div>
-                      <p className="text-sm text-foreground">{log.message || log.content || 'No message'}</p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>

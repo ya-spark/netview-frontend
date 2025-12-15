@@ -57,12 +57,30 @@ export function getProbeStatusBgColor(status?: string, isActive?: boolean): stri
 }
 
 /**
- * Get gateway status color class
+ * Get gateway status color class (for text)
  */
 export function getGatewayStatusColor(isOnline: boolean, status: string): string {
   if (status === 'pending') return 'text-amber-600 dark:text-amber-400';
   if (isOnline) return 'text-green-600 dark:text-green-400';
   return 'text-red-600 dark:text-red-400';
+}
+
+/**
+ * Get gateway status background color class (for badges) - based on online/offline
+ */
+export function getGatewayStatusBgColor(isOnline: boolean, status: string): string {
+  if (isOnline) return 'bg-green-600 dark:bg-green-400 text-white';
+  return 'bg-red-600 dark:bg-red-400 text-white';
+}
+
+/**
+ * Get gateway registration status background color class (for badges)
+ */
+export function getGatewayRegistrationStatusBgColor(status: string): string {
+  if (status === 'revoked') return 'bg-gray-500 dark:bg-gray-400 text-white';
+  if (status === 'pending') return 'bg-amber-600 dark:bg-amber-400 text-white';
+  if (status === 'active' || status === 'registered') return 'bg-green-600 dark:bg-green-400 text-white';
+  return 'bg-gray-500 dark:bg-gray-400 text-white';
 }
 
 /**

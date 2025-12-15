@@ -374,20 +374,70 @@ export function LogsView({
             ) : (
               <>
                 <div className="space-y-2">
-                  {logsData.data.map((log: LogEntry, index: number) => (
-                    <div key={index} className="p-3 border rounded-lg">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">
-                            {formatDate(log.timestamp)}
-                          </span>
-                          {log.status && (
-                            <Badge className={`text-xs ${getProbeStatusBgColor(log.status, true)}`}>
-                              {getProbeStatusLabel(log.status)}
-                            </Badge>
-                          )}
+                  {logsData.data.map((log: LogEntry, index: number) => {
+                    // Get gateway name for gateway logs
+                    const gatewayName = logType === 'gateway' && selectedId
+                      ? gatewaysData.find((gw) => gw.id === selectedId)?.name
+                      : null;
+                    
+                    // Get probe name for probe logs
+                    const probeName = logType === 'probe' && selectedId
+                      ? probesData.find((p) => p.id === selectedId)?.name
+                      : null;
+                    
+                    // Get probe name for gateway logs if probe_id is present
+                    const gatewayLogProbeName = logType === 'gateway' && (log as any).probe_id
+                      ? probesData.find((p) => p.id === (log as any).probe_id)?.name
+                      : null;
+                    
+                    // Use gateway log format for gateway logs, probe log format for probe logs
+                    if (logType === 'gateway') {
+                      return (
+                        <div key={index} className="p-3 border rounded-lg">
+                          <div className="flex items-center gap-2">
+                            {gatewayName && (
+                              <span className="text-xs font-medium text-foreground">
+                                {gatewayName}
+                              </span>
+                            )}
+                            {gatewayLogProbeName && (
+                              <span className="text-xs font-medium text-foreground">
+                                {gatewayLogProbeName}
+                              </span>
+                            )}
+                            <span className="text-xs text-muted-foreground">
+                              {formatDate(log.timestamp)}
+                            </span>
+                            {log.status && (
+                              <Badge className={`text-xs ${getProbeStatusBgColor(log.status, true)}`}>
+                                {getProbeStatusLabel(log.status)}
+                              </Badge>
+                            )}
+                            <span className="text-sm text-foreground">{log.message || log.content || 'No message'}</span>
+                          </div>
                         </div>
-                        {logType === 'probe' && (
+                      );
+                    }
+                    
+                    // Probe log format
+                    return (
+                      <div key={index} className="p-3 border rounded-lg">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <div className="flex items-center gap-2">
+                            {probeName && (
+                              <span className="text-xs font-medium text-foreground">
+                                {probeName}
+                              </span>
+                            )}
+                            <span className="text-xs text-muted-foreground">
+                              {formatDate(log.timestamp)}
+                            </span>
+                            {log.status && (
+                              <Badge className={`text-xs ${getProbeStatusBgColor(log.status, true)}`}>
+                                {getProbeStatusLabel(log.status)}
+                              </Badge>
+                            )}
+                          </div>
                           <Button
                             variant="outline"
                             size="sm"
@@ -403,10 +453,10 @@ export function LogsView({
                           >
                             Get Execution Log
                           </Button>
-                        )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Pagination */}

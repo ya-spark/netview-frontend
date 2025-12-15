@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Activity, FileText, ArrowLeft, Settings, Info } from 'lucide-react';
+import { Activity, FileText, ArrowLeft, Settings, Info, RefreshCw } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { useState, useMemo } from 'react';
 import type { Probe, ProbeResult, ProbeResultsListResponse } from '@/types/probe';
@@ -20,6 +20,7 @@ interface ProbeDetailProps {
   logsLoading: boolean;
   onBack: () => void;
   onViewAllLogs: (probeId: string) => void;
+  onRefreshLogs: () => void;
   getLatestProbeResult: (probeId: string) => ProbeResult | null;
   getGatewayName: (gatewayId?: string | null) => string;
 }
@@ -34,6 +35,7 @@ export function ProbeDetail({
   logsLoading,
   onBack,
   onViewAllLogs,
+  onRefreshLogs,
   getLatestProbeResult,
   getGatewayName,
 }: ProbeDetailProps) {
@@ -185,13 +187,24 @@ export function ProbeDetail({
                   <FileText className="w-5 h-5" />
                   Last 10 Logs
                 </CardTitle>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onViewAllLogs(probeId)}
-                >
-                  View All Logs
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onRefreshLogs}
+                    disabled={logsLoading}
+                  >
+                    <RefreshCw className={`w-4 h-4 mr-2 ${logsLoading ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onViewAllLogs(probeId)}
+                  >
+                    View All Logs
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -208,37 +221,46 @@ export function ProbeDetail({
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {probeLogsData.data.map((log: LogEntry, index: number) => (
-                    <div key={index} className="p-3 border rounded-lg">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">
-                            {formatDate(log.timestamp)}
-                          </span>
-                          {log.status && (
-                            <Badge className={`text-xs ${getProbeStatusBgColor(log.status, true)}`}>
-                              {getProbeStatusLabel(log.status)}
-                            </Badge>
-                          )}
+                  {probeLogsData.data.map((log: LogEntry, index: number) => {
+                    const probeName = probeDetailData?.data?.name;
+                    
+                    return (
+                      <div key={index} className="p-3 border rounded-lg">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <div className="flex items-center gap-2">
+                            {probeName && (
+                              <span className="text-xs font-medium text-foreground">
+                                {probeName}
+                              </span>
+                            )}
+                            <span className="text-xs text-muted-foreground">
+                              {formatDate(log.timestamp)}
+                            </span>
+                            {log.status && (
+                              <Badge className={`text-xs ${getProbeStatusBgColor(log.status, true)}`}>
+                                {getProbeStatusLabel(log.status)}
+                              </Badge>
+                            )}
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs shrink-0 whitespace-nowrap"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              if (log.execution_id) {
+                                setViewingExecutionId(log.execution_id);
+                              }
+                            }}
+                            disabled={!log.execution_id}
+                          >
+                            Get Execution Log
+                          </Button>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-xs shrink-0 whitespace-nowrap"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            if (log.execution_id) {
-                              setViewingExecutionId(log.execution_id);
-                            }
-                          }}
-                          disabled={!log.execution_id}
-                        >
-                          Get Execution Log
-                        </Button>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>

@@ -49,7 +49,13 @@ export default function Monitor() {
   const probeId = probesParams?.probeId;
   const gatewayId = gatewaysParams?.gatewayId;
 
-  // Fetch all probes
+  // Determine if we need probes list (needed for overview, lists, logs, and gateway detail for assigned probes)
+  const needsProbesList = currentSection === 'overview' || 
+    (currentSection === 'probes' && !probeId) || 
+    currentSection === 'gateways' || // Gateway detail needs probes list for assigned probes
+    currentSection === 'logs';
+
+  // Fetch all probes - only when a section that needs probes list is active
   const { data: probesData, isLoading: probesLoading, refetch: refetchProbes, error: probesError } = useQuery({
     queryKey: ['/api/probes'],
     queryFn: () => {
@@ -59,8 +65,8 @@ export default function Monitor() {
       });
       return ProbeApiService.listProbes();
     },
-    enabled: !!user && !!selectedTenant,
-    refetchInterval: 30000,
+    enabled: !!user && !!selectedTenant && needsProbesList,
+    refetchInterval: needsProbesList ? 30000 : false,
   });
 
   // Log probe loading results
@@ -81,23 +87,38 @@ export default function Monitor() {
     }
   }, [probesData, probesError, selectedTenant?.id]);
 
-  // Fetch all gateways
+  // Determine if we need gateways list (not needed for probe detail or gateway detail pages)
+  const needsGatewaysList = currentSection === 'overview' || 
+    (currentSection === 'probes' && !probeId) || 
+    (currentSection === 'gateways' && !gatewayId) || 
+    currentSection === 'logs';
+
+  // Fetch all gateways - only when a section that needs gateways list is active
   const { data: gatewaysData, isLoading: gatewaysLoading, refetch: refetchGateways } = useQuery({
     queryKey: ['/api/gateways'],
     queryFn: () => GatewayApiService.listGateways(),
-    enabled: !!user && !!selectedTenant,
-    refetchInterval: 30000,
+    enabled: !!user && !!selectedTenant && needsGatewaysList,
+    refetchInterval: needsGatewaysList ? 30000 : false,
   });
 
-  // Fetch all alerts
+  // Determine if we need alerts (only for overview and alerts sections)
+  const needsAlerts = currentSection === 'overview' || currentSection === 'alerts';
+
+  // Fetch all alerts - only when overview or alerts section is active
   const { data: alertsData, isLoading: alertsLoading, refetch: refetchAlerts } = useQuery({
     queryKey: ['/api/alerts'],
     queryFn: () => AlertApiService.listAlerts(),
-    enabled: !!user && !!selectedTenant,
-    refetchInterval: 30000,
+    enabled: !!user && !!selectedTenant && needsAlerts,
+    refetchInterval: needsAlerts ? 30000 : false,
   });
 
-  // Fetch latest probe results for all probes from controller (batch endpoint)
+  // Determine if we need latest probe results (needed for overview, lists, alerts, and detail pages)
+  const needsLatestResults = currentSection === 'overview' || 
+    currentSection === 'probes' || // Probe detail needs latest result for the probe
+    currentSection === 'gateways' || // Gateway detail needs latest results for assigned probes
+    currentSection === 'alerts';
+
+  // Fetch latest probe results for all probes from controller (batch endpoint) - only when a section that needs results is active
   const { data: latestResultsData, error: latestResultsError } = useQuery({
     queryKey: ['/api/results/latest', selectedTenant?.id],
     queryFn: () => {
@@ -107,8 +128,8 @@ export default function Monitor() {
       });
       return ProbeApiService.getLatestResults(1000);
     },
-    enabled: !!user && !!selectedTenant,
-    refetchInterval: 30000,
+    enabled: !!user && !!selectedTenant && needsLatestResults,
+    refetchInterval: needsLatestResults ? 30000 : false,
   });
 
   // Log latest results loading
@@ -160,46 +181,46 @@ export default function Monitor() {
     return resultsMap;
   }, [latestResultsData]);
 
-  // Fetch selected probe details
+  // Fetch selected probe details - only when probe detail page is shown
   const { data: probeDetailData, isLoading: probeDetailLoading } = useQuery({
     queryKey: ['/api/probes', probeId],
     queryFn: () => probeId ? ProbeApiService.getProbe(probeId) : null,
-    enabled: !!probeId && !!user && !!selectedTenant,
+    enabled: !!probeId && !!user && !!selectedTenant && currentSection === 'probes' && !!probeId,
   });
 
-  // Fetch selected gateway details
+  // Fetch selected gateway details - only when gateway detail page is shown
   const { data: gatewayDetailData, isLoading: gatewayDetailLoading } = useQuery({
     queryKey: ['/api/gateways', gatewayId],
     queryFn: () => gatewayId ? GatewayApiService.getGateway(gatewayId) : null,
-    enabled: !!gatewayId && !!user && !!selectedTenant,
+    enabled: !!gatewayId && !!user && !!selectedTenant && currentSection === 'gateways' && !!gatewayId,
   });
 
-  // Fetch probe logs (last 10)
-  const { data: probeLogsData, isLoading: probeLogsLoading } = useQuery({
+  // Fetch probe logs (last 10) - only when probe detail page is shown
+  const { data: probeLogsData, isLoading: probeLogsLoading, refetch: refetchProbeLogs } = useQuery({
     queryKey: ['/api/logs/probe', probeId],
     queryFn: () => probeId ? LogsApiService.getProbeLogs(probeId, 10, 0) : null,
-    enabled: !!probeId && !!user && !!selectedTenant,
+    enabled: !!probeId && !!user && !!selectedTenant && currentSection === 'probes' && !!probeId,
   });
 
-  // Fetch all probe results for statistics (success/failure/misses)
+  // Fetch all probe results for statistics (success/failure/misses) - only when probe detail page is shown
   const { data: probeResultsForStats } = useQuery({
     queryKey: ['/api/results/probe', probeId],
     queryFn: () => probeId ? ProbeApiService.getProbeResults(probeId, { limit: 1000 }) : null,
-    enabled: !!probeId && !!user && !!selectedTenant,
+    enabled: !!probeId && !!user && !!selectedTenant && currentSection === 'probes' && !!probeId,
   });
 
-  // Fetch gateway logs (last 10)
-  const { data: gatewayLogsData, isLoading: gatewayLogsLoading } = useQuery({
+  // Fetch gateway logs (last 10) - only when gateway detail page is shown
+  const { data: gatewayLogsData, isLoading: gatewayLogsLoading, refetch: refetchGatewayLogs } = useQuery({
     queryKey: ['/api/logs/gateway', gatewayId],
     queryFn: () => gatewayId ? LogsApiService.getGatewayLogs(gatewayId, 10, 0) : null,
-    enabled: !!gatewayId && !!user && !!selectedTenant,
+    enabled: !!gatewayId && !!user && !!selectedTenant && currentSection === 'gateways' && !!gatewayId,
   });
 
-  // Fetch gateway uptime
+  // Fetch gateway uptime - only when gateway detail page is shown
   const { data: gatewayUptimeData } = useQuery({
     queryKey: ['/api/gateways', gatewayId, 'uptime'],
     queryFn: () => gatewayId ? GatewayApiService.getGatewayUptime(gatewayId) : null,
-    enabled: !!gatewayId && !!user && !!selectedTenant,
+    enabled: !!gatewayId && !!user && !!selectedTenant && currentSection === 'gateways' && !!gatewayId,
   });
 
   // Get gateway name for probe
@@ -349,6 +370,7 @@ export default function Monitor() {
             logsLoading={probeLogsLoading}
             onBack={() => setLocation('/monitor/probes')}
             onViewAllLogs={(probeId) => setLocation(`/monitor/logs?type=probe&id=${probeId}`)}
+            onRefreshLogs={() => refetchProbeLogs()}
             getLatestProbeResult={getLatestProbeResult}
             getGatewayName={getGatewayName}
           />
@@ -377,6 +399,7 @@ export default function Monitor() {
             logsLoading={gatewayLogsLoading}
             onBack={() => setLocation('/monitor/gateways')}
             onViewAllLogs={(gatewayId) => setLocation(`/monitor/logs?type=gateway&id=${gatewayId}`)}
+            onRefreshLogs={() => refetchGatewayLogs()}
             onProbeClick={(probeId) => setLocation(`/monitor/probes/${probeId}`)}
             getLatestProbeResult={getLatestProbeResult}
           />

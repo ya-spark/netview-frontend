@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/select';
 import type { GatewayResponse } from '@/types/gateway';
 import type { Probe } from '@/types/probe';
-import { getGatewayStatusColor, formatRelativeTime } from './utils';
+import { getGatewayStatusColor, getGatewayStatusBgColor, formatRelativeTime } from './utils';
 
 interface GatewaysListProps {
   gatewaysData?: { data: GatewayResponse[] };
@@ -155,6 +155,7 @@ export function GatewaysList({
           <div className="space-y-2">
             {filteredGateways.map((gateway) => {
               const statusColor = getGatewayStatusColor(gateway.is_online, gateway.status);
+              const statusBgColor = getGatewayStatusBgColor(gateway.is_online, gateway.status);
               const probeCount = probesData?.data?.filter((p) => p.gateway_id === gateway.id).length || 0;
               
               return (
@@ -176,11 +177,11 @@ export function GatewaysList({
                       <Badge variant="outline" className="text-xs">
                         {gateway.type}
                       </Badge>
-                      <Badge className={statusColor.replace('text-', 'bg-').replace('dark:', 'dark:bg-')}>
+                      <Badge className={statusBgColor}>
                         {gateway.is_online ? 'Online' : 'Offline'}
                       </Badge>
                       {gateway.status === 'pending' && (
-                        <Badge variant="secondary">Pending</Badge>
+                        <Badge className="bg-amber-600 dark:bg-amber-400 text-white">Pending</Badge>
                       )}
                     </div>
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
