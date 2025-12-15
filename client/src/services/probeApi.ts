@@ -221,19 +221,28 @@ export class ProbeApiService {
   }
 
   /**
-   * Test a probe by running a check
+   * Run a probe immediately and return the result
    */
-  static async testProbe(probeId: string): Promise<{ success: boolean; message: string; result: string }> {
-    logger.info('Testing probe', {
+  static async runProbe(probeId: string): Promise<{ 
+    success: boolean; 
+    message: string; 
+    result: string;
+    status?: string;
+    execution_time?: number;
+    error_message?: string;
+    execution_id?: string;
+    timestamp?: string;
+  }> {
+    logger.info('Running probe', {
       component: 'probeApi',
-      action: 'test_probe',
+      action: 'run_probe',
       probeId,
     });
-    const response = await apiRequest('POST', `/api/probes/${probeId}/test`);
+    const response = await apiRequest('POST', `/api/probes/${probeId}/run`);
     const result = await response.json();
-    logger.info('Probe test completed', {
+    logger.info('Probe run completed', {
       component: 'probeApi',
-      action: 'test_probe',
+      action: 'run_probe',
       probeId,
       result: result.result,
     });

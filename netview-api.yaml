@@ -1304,7 +1304,7 @@ components:
           example: "gateway_123"
         check_interval:
           type: integer
-          minimum: 60
+          minimum: 10
           maximum: 86400
           default: 300
           example: 300
@@ -1367,7 +1367,7 @@ components:
           example: "gateway_456"
         check_interval:
           type: integer
-          minimum: 60
+          minimum: 10
           maximum: 86400
           example: 600
         timeout:

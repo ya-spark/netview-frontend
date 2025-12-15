@@ -37,10 +37,10 @@ interface ProbeEditFormProps {
   }) => void;
   onCancel: () => void;
   onDelete?: () => void;
-  onTestProbe?: () => void;
+  onRunProbe?: () => void;
   isPending?: boolean;
   isDeleting?: boolean;
-  isTesting?: boolean;
+  isRunning?: boolean;
   viewMode?: boolean;
   onToggleViewMode?: () => void;
 }
@@ -53,10 +53,10 @@ export function ProbeEditForm({
   onSubmit,
   onCancel,
   onDelete,
-  onTestProbe,
+  onRunProbe,
   isPending = false,
   isDeleting = false,
-  isTesting = false,
+  isRunning = false,
   viewMode = false,
   onToggleViewMode,
 }: ProbeEditFormProps) {
@@ -178,7 +178,7 @@ export function ProbeEditForm({
     }
 
     // Validate check_interval before submission
-    if (checkInterval < 60 || checkInterval > 86400) {
+    if (checkInterval < 10 || checkInterval > 86400) {
       logger.warn('Invalid check_interval value', {
         component: 'ProbeEditForm',
         action: 'validate_check_interval',
@@ -325,14 +325,14 @@ export function ProbeEditForm({
             </p>
           </div>
           <div className="flex gap-2">
-            {onTestProbe && (
+            {onRunProbe && (
               <Button
                 variant="outline"
-                onClick={onTestProbe}
-                disabled={isTesting}
+                onClick={onRunProbe}
+                disabled={isRunning}
               >
                 <Play className="w-4 h-4 mr-2" />
-                {isTesting ? 'Testing...' : 'Test Probe'}
+                {isRunning ? 'Running...' : 'Run Probe'}
               </Button>
             )}
             {viewMode && onToggleViewMode && (
@@ -749,21 +749,21 @@ export function ProbeEditForm({
                     onChange={(e) => {
                       const value = parseInt(e.target.value);
                       if (!isNaN(value)) {
-                        // Enforce minimum of 60
-                        setCheckInterval(Math.max(60, Math.min(86400, value)));
+                        // Enforce minimum of 10
+                        setCheckInterval(Math.max(10, Math.min(86400, value)));
                       } else if (e.target.value === '') {
                         setCheckInterval(300); // Default to 300 if empty
                       }
                     }}
                     placeholder="300"
-                    min="60"
+                    min="10"
                     max="86400"
                   />
-                  {checkInterval < 60 && (
-                    <p className="text-sm text-destructive">Check interval must be at least 60 seconds</p>
+                  {checkInterval < 10 && (
+                    <p className="text-sm text-destructive">Check interval must be at least 10 seconds</p>
                   )}
                 </div>,
-                'How often the probe should run checks (minimum 60 seconds, maximum 86400 seconds)'
+                'How often the probe should run checks (minimum 10 seconds, maximum 86400 seconds)'
               )}
               
               {renderField('Timeout (seconds)', 'edit-probe-timeout',
@@ -825,7 +825,7 @@ export function ProbeEditForm({
               {renderReadOnlyField('Notification Group', notificationGroupId ? notificationGroups.find(g => g.id === notificationGroupId)?.name || 'N/A' : 'None', 'Select a notification group to receive alerts when this probe fails')}
 
               {/* General advanced settings */}
-              {renderReadOnlyField('Check Interval (seconds)', checkInterval, 'How often the probe should run checks (minimum 60 seconds, maximum 86400 seconds)')}
+              {renderReadOnlyField('Check Interval (seconds)', checkInterval, 'How often the probe should run checks (minimum 10 seconds, maximum 86400 seconds)')}
               {renderReadOnlyField('Timeout (seconds)', probeTimeout, 'Maximum time to wait for probe execution before timing out (minimum 5 seconds, maximum 300 seconds)')}
               {renderReadOnlyField('Retries', retries, 'Number of retry attempts if the probe check fails (0-10)')}
             </div>

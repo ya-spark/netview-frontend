@@ -265,10 +265,10 @@ export default function CreateProbe() {
     }
 
     // Validate check_interval
-    if (checkInterval < 60 || checkInterval > 86400) {
+    if (checkInterval < 10 || checkInterval > 86400) {
       toast({ 
         title: 'Validation Error', 
-        description: 'Check interval must be between 60 and 86400 seconds', 
+        description: 'Check interval must be between 10 and 86400 seconds', 
         variant: 'destructive' 
       });
       return;
@@ -792,7 +792,7 @@ export default function CreateProbe() {
                                   <HelpCircle className="w-4 h-4 text-muted-foreground cursor-help" />
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  <p>How often the probe should run checks (minimum 60 seconds, maximum 86400 seconds)</p>
+                                  <p>How often the probe should run checks (minimum 10 seconds, maximum 86400 seconds)</p>
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
@@ -805,19 +805,19 @@ export default function CreateProbe() {
                           onChange={(e) => {
                             const value = parseInt(e.target.value);
                             if (!isNaN(value)) {
-                              // Enforce minimum of 60
-                              setCheckInterval(Math.max(60, Math.min(86400, value)));
+                              // Enforce minimum of 10
+                              setCheckInterval(Math.max(10, Math.min(86400, value)));
                             } else if (e.target.value === '') {
                               setCheckInterval(300); // Default to 300 if empty
                             }
                           }}
                           className="w-full"
                           placeholder="300"
-                          min="60"
+                          min="10"
                           max="86400"
                         />
-                        {checkInterval < 60 && (
-                          <p className="text-sm text-destructive">Check interval must be at least 60 seconds</p>
+                        {checkInterval < 10 && (
+                          <p className="text-sm text-destructive">Check interval must be at least 10 seconds</p>
                         )}
                       </div>
                     </div>

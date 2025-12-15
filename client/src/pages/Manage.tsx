@@ -24,6 +24,7 @@ import { GatewayApiService, GatewayUtils } from '@/services/gatewayApi';
 import { ProbeApiService, ProbeUtils } from '@/services/probeApi';
 import { NotificationGroupApiService } from '@/services/notificationApi';
 import { ProbeEditForm } from '@/components/probes/ProbeEditForm';
+import { RunProbeResultModal } from '@/components/probes/RunProbeResultModal';
 import type { GatewayResponse } from '@/types/gateway';
 import type { Probe, ProbeCreate } from '@/types/probe';
 import type { NotificationGroup, NotificationGroupCreate } from '@/types/notification';
@@ -80,6 +81,18 @@ export default function Manage() {
   // Edit Probe State
   const [editingProbe, setEditingProbe] = useState<Probe | null>(null);
   const [probeViewMode, setProbeViewMode] = useState(false);
+  
+  // Run Probe Modal State
+  const [runProbeModalOpen, setRunProbeModalOpen] = useState(false);
+  const [runProbeResult, setRunProbeResult] = useState<{
+    result: string;
+    status?: string;
+    execution_time?: number;
+    error_message?: string;
+    execution_id?: string;
+    timestamp?: string;
+  } | null>(null);
+  const [runningProbeId, setRunningProbeId] = useState<string | null>(null);
   
   // Edit Notification Group Dialog State
   const [editNotificationDialogOpen, setEditNotificationDialogOpen] = useState(false);
@@ -382,40 +395,50 @@ export default function Manage() {
     },
   });
 
-  const testProbeMutation = useMutation({
+  const runProbeMutation = useMutation({
     mutationFn: async (probeId: string) => {
-      logger.info('Testing probe', {
+      logger.info('Running probe', {
         component: 'Manage',
-        action: 'test_probe',
+        action: 'run_probe',
         probeId,
         userId: user?.id,
       });
-      return await ProbeApiService.testProbe(probeId);
+      setRunningProbeId(probeId);
+      return await ProbeApiService.runProbe(probeId);
     },
     onSuccess: (response) => {
-      logger.info('Probe test completed', {
+      logger.info('Probe run completed', {
         component: 'Manage',
-        action: 'test_probe',
+        action: 'run_probe',
         result: response.result,
         userId: user?.id,
       });
-      const result = response.result === 'okay' ? 'okay' : 'not okay';
-      toast({ 
-        title: 'Probe Test Result', 
-        description: `Probe test completed: ${result}`,
-        variant: result === 'okay' ? 'default' : 'destructive'
-      });
+      setRunProbeResult(response);
+      setRunProbeModalOpen(true);
     },
     onError: (error: any) => {
       const err = error instanceof Error ? error : new Error(String(error));
-      logger.error('Failed to test probe', err, {
+      logger.error('Failed to run probe', err, {
         component: 'Manage',
-        action: 'test_probe',
+        action: 'run_probe',
         userId: user?.id,
       });
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      setRunningProbeId(null);
     },
   });
+
+  const handleRunProbeAgain = () => {
+    if (runningProbeId) {
+      runProbeMutation.mutate(runningProbeId);
+    }
+  };
+
+  const handleCloseRunProbeModal = () => {
+    setRunProbeModalOpen(false);
+    setRunProbeResult(null);
+    setRunningProbeId(null);
+  };
 
 
   const createNotificationGroupMutation = useMutation({
@@ -916,14 +939,14 @@ export default function Manage() {
                 deleteProbeMutation.mutate(editingProbe.id);
               }
             }}
-            onTestProbe={() => {
+            onRunProbe={() => {
               if (editingProbe) {
-                testProbeMutation.mutate(editingProbe.id);
+                runProbeMutation.mutate(editingProbe.id);
               }
             }}
             isPending={updateProbeMutation.isPending}
             isDeleting={deleteProbeMutation.isPending}
-            isTesting={testProbeMutation.isPending}
+            isRunning={runProbeMutation.isPending}
             viewMode={probeViewMode}
             onToggleViewMode={() => setProbeViewMode(!probeViewMode)}
           />
@@ -1582,7 +1605,17 @@ export default function Manage() {
         </DialogContent>
       </Dialog>
 
-
+      {/* Run Probe Result Modal */}
+      {runningProbeId && (
+        <RunProbeResultModal
+          isOpen={runProbeModalOpen}
+          onClose={handleCloseRunProbeModal}
+          onRunAgain={handleRunProbeAgain}
+          probeId={runningProbeId}
+          result={runProbeResult}
+          isLoading={runProbeMutation.isPending}
+        />
+      )}
     </Layout>
   );
 }

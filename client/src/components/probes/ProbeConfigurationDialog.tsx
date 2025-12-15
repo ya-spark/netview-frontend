@@ -401,7 +401,7 @@ export function ProbeConfigurationDialog({
               onChange={(e) => setCheckInterval(parseInt(e.target.value) || 300)}
               className="col-span-3"
               placeholder="300"
-              min="60"
+              min="10"
               max="86400"
             />
           </div>

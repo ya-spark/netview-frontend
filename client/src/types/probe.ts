@@ -13,7 +13,7 @@ export interface ProbeCreate {
   gateway_type: GatewayType;
   gateway_id?: string | null;
   notification_group_id?: string | null;
-  check_interval?: number; // minimum: 60, maximum: 86400, default: 300
+  check_interval?: number; // minimum: 10, maximum: 86400, default: 300
   timeout?: number; // minimum: 5, maximum: 300, default: 30
   retries?: number; // minimum: 0, maximum: 10, default: 3
   configuration?: Record<string, any>; // Probe-specific configuration
