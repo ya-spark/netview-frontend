@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { logger } from "@/lib/logger";
 import Landing from "@/pages/Landing";
 import SignUp from "@/pages/SignUp";
@@ -28,7 +28,7 @@ import ProbeStatus from "@/pages/ProbeStatus";
 import Monitor from "@/pages/Monitor";
 import Reports from "@/pages/Reports";
 import Settings from "@/pages/Settings";
-import Billing from "@/pages/Billing";
+const Billing = lazy(() => import("@/pages/Billing"));
 import Collaborators from "@/pages/Collaborators";
 import AcceptInvitation from "@/pages/AcceptInvitation";
 import NotFound from "@/pages/not-found";
@@ -353,7 +353,13 @@ function Router() {
 
       <Route path="/manage/billing">
         <ProtectedRoute>
-          <Billing />
+          <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center">
+              <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+            </div>
+          }>
+            <Billing />
+          </Suspense>
         </ProtectedRoute>
       </Route>
 

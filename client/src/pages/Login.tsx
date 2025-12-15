@@ -32,6 +32,27 @@ export default function Login() {
   const checkingTenantsRef = useRef(false);
   const hasRedirectedRef = useRef(false);
   const lastProcessedEmailRef = useRef<string | null>(null);
+  const hasSetPrimaryTenantRef = useRef(false); // Track if we've already set primary tenant for this Firebase user
+  
+  // Use sessionStorage as a persistent flag to prevent duplicate tenant checks
+  // This survives component remounts and race conditions
+  const getTenantCheckKey = (email: string) => `login_tenant_check_${email}`;
+  const markTenantCheckComplete = (email: string) => {
+    sessionStorage.setItem(getTenantCheckKey(email), 'true');
+    hasSetPrimaryTenantRef.current = true;
+    hasRedirectedRef.current = true;
+  };
+  const isTenantCheckComplete = (email: string | null): boolean => {
+    if (!email) return false;
+    return sessionStorage.getItem(getTenantCheckKey(email)) === 'true' || hasSetPrimaryTenantRef.current || hasRedirectedRef.current;
+  };
+  const clearTenantCheckFlag = (email: string | null) => {
+    if (email) {
+      sessionStorage.removeItem(getTenantCheckKey(email));
+    }
+    hasSetPrimaryTenantRef.current = false;
+    hasRedirectedRef.current = false;
+  };
 
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -76,12 +97,62 @@ export default function Login() {
     // Reset redirect flag if Firebase user changes
     const currentEmail = firebaseUser?.email || null;
     if (currentEmail !== lastProcessedEmailRef.current) {
-      hasRedirectedRef.current = false;
+      clearTenantCheckFlag(lastProcessedEmailRef.current);
+      checkingTenantsRef.current = false;
       lastProcessedEmailRef.current = currentEmail;
     }
 
+    // Check if we're on the login page
+    const currentPath = window.location.pathname;
+    const isOnLoginPage = currentPath === '/login' || currentPath.startsWith('/login?');
+    
+    // Check sessionStorage only if we're NOT on login page (already redirected)
+    // OR if refs indicate we've already processed (to prevent duplicate checks during redirect)
+    const sessionStorageKey = currentEmail ? getTenantCheckKey(currentEmail) : null;
+    const hasSessionStorageFlag = sessionStorageKey ? sessionStorage.getItem(sessionStorageKey) === 'true' : false;
+    
+    // If we're on login page, only check refs (not sessionStorage) to allow fresh attempts
+    // If we're not on login page, check both sessionStorage and refs
+    if (!isOnLoginPage && hasSessionStorageFlag) {
+      logger.debug('Skipping tenant check - already processed (sessionStorage, not on login page)', {
+        component: 'Login',
+        action: 'skip_tenant_check_sessionstorage',
+        firebaseEmail: currentEmail,
+        currentPath,
+        hasSessionStorageFlag,
+      });
+      return;
+    }
+    
+    // Always check refs regardless of page
+    if (hasSetPrimaryTenantRef.current || hasRedirectedRef.current) {
+      logger.debug('Skipping tenant check - already processed (refs check)', {
+        component: 'Login',
+        action: 'skip_tenant_check_refs',
+        firebaseEmail: currentEmail,
+        hasSetPrimaryTenant: hasSetPrimaryTenantRef.current,
+        hasRedirected: hasRedirectedRef.current,
+        checkingTenants: checkingTenantsRef.current,
+        isOnLoginPage,
+      });
+      return;
+    }
+    
+    // If we're on login page and sessionStorage has a flag, clear it (stale from previous attempt)
+    if (isOnLoginPage && hasSessionStorageFlag) {
+      logger.debug('Clearing stale sessionStorage flag - on login page, allowing fresh attempt', {
+        component: 'Login',
+        action: 'clear_stale_flag_on_login_page',
+        firebaseEmail: currentEmail,
+      });
+      if (sessionStorageKey) {
+        sessionStorage.removeItem(sessionStorageKey);
+      }
+    }
+
+
     // If Firebase user is authenticated
-    if (firebaseUser && !hasRedirectedRef.current) {
+    if (firebaseUser) {
       const redirectPath = getRedirectPath();
       
       // If backend user exists and has tenantId, redirect immediately
@@ -105,17 +176,77 @@ export default function Login() {
         return;
       }
       
+      // Wait for backend user sync to complete before checking tenants
+      // This prevents 401 errors when trying to check tenants before backend user exists
+      if (!user && authLoading) {
+        logger.debug('Waiting for backend user sync before checking tenants', {
+          component: 'Login',
+          action: 'wait_for_backend_sync',
+          firebaseEmail: firebaseUser.email,
+        });
+        return;
+      }
+      
       // If we're already checking tenants, don't proceed
       if (checkingTenantsRef.current) {
+        logger.debug('Skipping tenant check - already in progress', {
+          component: 'Login',
+          action: 'skip_tenant_check_in_progress',
+          firebaseEmail: firebaseUser.email,
+        });
+        return;
+      }
+      
+      // Final safety check before starting async operation
+      // This prevents race conditions where state changes between the useEffect check and async start
+      if (hasRedirectedRef.current || hasSetPrimaryTenantRef.current) {
+        logger.debug('Skipping tenant check - already redirected or primary tenant set (pre-async check)', {
+          component: 'Login',
+          action: 'skip_tenant_check_pre_async',
+          firebaseEmail: firebaseUser.email,
+          hasRedirected: hasRedirectedRef.current,
+          hasSetPrimaryTenant: hasSetPrimaryTenantRef.current,
+        });
         return;
       }
       
       // Check tenants if user doesn't exist or user exists but has no tenantId
       // This handles both new users and existing users without a primary tenant
+      // Set checking flag IMMEDIATELY to prevent concurrent checks
       checkingTenantsRef.current = true;
       
       const checkAndHandleTenants = async () => {
         try {
+          // CRITICAL: Check refs IMMEDIATELY at the start of async function
+          // This prevents race conditions where useEffect runs again while this function is executing
+          if (hasSetPrimaryTenantRef.current || hasRedirectedRef.current) {
+            logger.debug('Skipping tenant check - primary tenant already set or redirected (async guard)', {
+              component: 'Login',
+              action: 'skip_tenant_check_async',
+              firebaseEmail: firebaseUser.email,
+              hasSetPrimaryTenant: hasSetPrimaryTenantRef.current,
+              hasRedirected: hasRedirectedRef.current,
+            });
+            checkingTenantsRef.current = false;
+            return;
+          }
+          
+          // Set checking flag again here as a double-check (in case it was reset somehow)
+          checkingTenantsRef.current = true;
+          
+          // Final check before proceeding - if refs changed while we were waiting, abort
+          if (hasSetPrimaryTenantRef.current || hasRedirectedRef.current) {
+            logger.debug('Aborting tenant check - state changed before fetch', {
+              component: 'Login',
+              action: 'abort_tenant_check',
+              firebaseEmail: firebaseUser.email,
+              hasSetPrimaryTenant: hasSetPrimaryTenantRef.current,
+              hasRedirected: hasRedirectedRef.current,
+            });
+            checkingTenantsRef.current = false;
+            return;
+          }
+          
           const hasBackendUser = !!user;
           logger.info(hasBackendUser ? 'User has no tenantId, checking for tenants' : 'Firebase user authenticated but no backend user yet, checking for tenants', {
             component: 'Login',
@@ -126,6 +257,19 @@ export default function Login() {
           });
           
           const tenants = await getUserTenants();
+          
+          // Check again after async call (in case primary tenant was set while we were fetching)
+          if (hasSetPrimaryTenantRef.current || hasRedirectedRef.current) {
+            logger.debug('Skipping tenant processing - primary tenant was set or redirected during fetch', {
+              component: 'Login',
+              action: 'skip_tenant_processing',
+              firebaseEmail: firebaseUser.email,
+              hasSetPrimaryTenant: hasSetPrimaryTenantRef.current,
+              hasRedirected: hasRedirectedRef.current,
+            });
+            checkingTenantsRef.current = false;
+            return;
+          }
           
           if (tenants.length === 1) {
             // User has exactly one tenant - set it as primary and redirect
@@ -138,6 +282,11 @@ export default function Login() {
               tenantId,
               tenantName: tenant.name,
             });
+            
+            // Mark that we're setting primary tenant IMMEDIATELY to prevent re-checking
+            // Use sessionStorage for persistence across remounts and race conditions
+            // This must be set before calling setPrimaryTenant, which triggers auth state changes
+            markTenantCheckComplete(firebaseUser.email);
             
             // Set selected tenant in context
             const tenantObj = {
@@ -154,9 +303,6 @@ export default function Login() {
             // Set as primary tenant in backend
             // AuthContext will automatically sync when Firebase auth state changes
             await setPrimaryTenant(tenantId);
-            
-            // Mark as redirected to prevent duplicate redirects
-            hasRedirectedRef.current = true;
             
             // Redirect to dashboard or saved path
             // Note: AuthContext will sync backend user automatically after setPrimaryTenant
@@ -210,11 +356,27 @@ export default function Login() {
           }
         } catch (error: any) {
           const err = error instanceof Error ? error : new Error(String(error));
+          
+          // Handle 401 errors gracefully - backend user might not be synced yet
+          // Don't redirect on 401 - let the backend sync complete and try again
+          const isUnauthorized = err instanceof Error && (err.message?.includes('Unauthorized') || err.message?.includes('401'));
+          if (isUnauthorized) {
+            logger.debug('Unauthorized error checking tenants - backend user may not be synced yet, will retry after sync', {
+              component: 'Login',
+              action: 'check_tenants_unauthorized',
+              firebaseEmail: firebaseUser.email,
+              hasBackendUser: !!user,
+            });
+            // Reset checking flag so useEffect can retry after backend sync completes
+            checkingTenantsRef.current = false;
+            return;
+          }
+          
           logger.error('Error checking tenants', err, {
             component: 'Login',
             action: 'check_tenants',
           });
-          // On error, fall back to onboarding
+          // On other errors, fall back to onboarding
           hasRedirectedRef.current = true;
           const redirectPath = getRedirectPath();
           if (redirectPath && isValidProtectedRoute(redirectPath)) {
@@ -226,13 +388,17 @@ export default function Login() {
           }
           setLocation('/onboarding');
         } finally {
-          checkingTenantsRef.current = false;
+          // Don't reset checkingTenantsRef if we've set primary tenant
+          // This prevents the useEffect from running again after setPrimaryTenant triggers auth state changes
+          if (!hasSetPrimaryTenantRef.current) {
+            checkingTenantsRef.current = false;
+          }
         }
       };
       
       checkAndHandleTenants();
     }
-  }, [firebaseUser, user, authLoading, setLocation, setSelectedTenant]);
+  }, [firebaseUser, user, authLoading, setLocation]);
 
   const handleGoogleLogin = async () => {
     setGoogleLoading(true);

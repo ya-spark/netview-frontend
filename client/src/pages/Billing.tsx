@@ -27,17 +27,22 @@ interface Tenant {
   updatedAt: string;
 }
 
+// Lazy initialization of Stripe - only load when component is actually rendered
 let stripePromise: Promise<any> | null = null;
 const hasStripeConfig = !!import.meta.env.VITE_STRIPE_PUBLIC_KEY;
 
-if (hasStripeConfig) {
-  stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
-} else {
-  logger.info('Stripe not configured - billing features disabled in development mode', {
-    component: 'Billing',
-    action: 'stripe_config_check',
-  });
-}
+const getStripePromise = (): Promise<any> | null => {
+  if (!hasStripeConfig) {
+    return null;
+  }
+  
+  // Lazy initialize Stripe only when needed
+  if (!stripePromise) {
+    stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+  }
+  
+  return stripePromise;
+};
 
 interface PricingPlan {
   name: string;
@@ -494,7 +499,7 @@ export default function Billing() {
                   </p>
                 </div>
                 
-                <Elements stripe={stripePromise} options={{ clientSecret }}>
+                <Elements stripe={getStripePromise()} options={{ clientSecret }}>
                   <SubscriptionForm 
                     plan={selectedPlan} 
                     onSuccess={handleSubscriptionSuccess}
