@@ -347,10 +347,11 @@ function ManageSidebar() {
 
   const adminNavigation = [
     {
-      name: "Billing",
-      href: "/manage/billing",
-      icon: CreditCard,
-      current: location === "/manage/billing" || location === "/billing",
+      name: "Collaborators",
+      href: "/manage/collaborators",
+      icon: Users,
+      current: location === "/manage/collaborators" || location === "/collaborators",
+      requiresAdminRole: true,
     },
     {
       name: "Settings",
@@ -359,11 +360,10 @@ function ManageSidebar() {
       current: location === "/manage/settings" || location === "/settings",
     },
     {
-      name: "Collaborators",
-      href: "/manage/collaborators",
-      icon: Users,
-      current: location === "/manage/collaborators" || location === "/collaborators",
-      requiresAdminRole: true,
+      name: "Billing",
+      href: "/manage/billing",
+      icon: CreditCard,
+      current: location === "/manage/billing" || location === "/billing",
     },
   ];
 

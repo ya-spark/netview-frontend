@@ -77,13 +77,19 @@ The frontend communicates with:
 
 **Prerequisites**:
 1. Ensure backend API server is running on `http://localhost:8080`
-2. Set up Firebase credentials in `.env` file:
+2. Set up environment variables in `.env` file:
    ```
    VITE_FIREBASE_API_KEY=your_api_key
    VITE_FIREBASE_PROJECT_ID=your_project_id
    VITE_FIREBASE_APP_ID=your_app_id
+   VITE_NETVIEW_API_URL=http://localhost:8080
    PORT=5173
    ```
+   
+   **Required Environment Variables:**
+   - `VITE_NETVIEW_API_URL`: Backend API URL (default: `http://localhost:8080`)
+   - `PORT`: Development server port (default: 5173)
+   - `VITE_FIREBASE_*`: Firebase authentication credentials
 
 **Run the frontend**:
 ```bash

@@ -1,6 +1,6 @@
 # NetView Frontend Documentation Index
 
-**Repository Note**: This is a frontend-only repository. Backend code is in a separate repository.
+**Repository Note**: This is a frontend-only repository. Backend code is in a separate repository (netview-controller). This module communicates with the backend via HTTP REST API only.
 
 This index helps developers quickly locate the right documentation when working on the NetView frontend application.
 
@@ -157,7 +157,11 @@ All documentation should include:
 - **Error Handling**: Check response status, handle errors gracefully
 
 ### Development
-- **Environment Variables**: Must be prefixed with `VITE_`
+- **Environment Variables**: Must be prefixed with `VITE_` (except `PORT` which is used by Vite config)
+- **Required Environment Variables**:
+  - `PORT`: Development server port
+  - `VITE_NETVIEW_API_URL`: Backend API URL (e.g., `http://localhost:8080`)
 - **Build Tool**: Vite for development and production builds
 - **TypeScript**: Strict type checking enabled
-- **Proxy**: API requests proxied to `http://localhost:8080` in development
+- **Proxy**: API requests (`/api`, `/gateways`, `/health`) proxied to `VITE_NETVIEW_API_URL` in development
+- **Build Output**: `dist/public/` directory
