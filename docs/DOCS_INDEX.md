@@ -160,7 +160,7 @@ All documentation should include:
 - **Environment Variables**: Must be prefixed with `VITE_` (except `PORT` which is used by Vite config)
 - **Required Environment Variables**:
   - `PORT`: Development server port
-  - `VITE_NETVIEW_API_URL`: Backend API URL (e.g., `http://localhost:8080`)
+  - `VITE_NETVIEW_API_URL`: Backend API URL (must match controller's host and `CONTROLLER_PORT`, e.g., `http://localhost:11001`)
 - **Build Tool**: Vite for development and production builds
 - **TypeScript**: Strict type checking enabled
 - **Proxy**: API requests (`/api`, `/gateways`, `/health`) proxied to `VITE_NETVIEW_API_URL` in development

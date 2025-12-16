@@ -26,7 +26,7 @@
 
 ### External Service Dependencies
 The frontend communicates with:
-- **Backend API**: Runs on `http://localhost:8080` (configurable via proxy)
+- **Backend API**: Port configured via `CONTROLLER_PORT` in controller's `.env` file (typically `http://localhost:11001`)
 - **Firebase**: Authentication and user management
   - Requires `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID`
 
@@ -76,18 +76,18 @@ The frontend communicates with:
 ### 1. Starting Development
 
 **Prerequisites**:
-1. Ensure backend API server is running on `http://localhost:8080`
+1. Ensure backend API server is running on `http://localhost:11001`
 2. Set up environment variables in `.env` file:
    ```
    VITE_FIREBASE_API_KEY=your_api_key
    VITE_FIREBASE_PROJECT_ID=your_project_id
    VITE_FIREBASE_APP_ID=your_app_id
-   VITE_NETVIEW_API_URL=http://localhost:8080
+   VITE_NETVIEW_API_URL=http://localhost:11001  # Must match controller's CONTROLLER_PORT
    PORT=5173
    ```
    
    **Required Environment Variables:**
-   - `VITE_NETVIEW_API_URL`: Backend API URL (default: `http://localhost:8080`)
+   - `VITE_NETVIEW_API_URL`: Backend API URL (must match controller's host and `CONTROLLER_PORT`, typically `http://localhost:11001`)
    - `PORT`: Development server port (default: 5173)
    - `VITE_FIREBASE_*`: Firebase authentication credentials
 
@@ -99,7 +99,7 @@ npm run dev
 This starts:
 - Vite dev server on the configured port (default: 5173)
 - Hot module replacement (HMR) for instant updates
-- API proxy to backend at `http://localhost:8080`
+- API proxy to backend at `http://localhost:11001`
 
 ### 2. Adding New Features
 
@@ -440,7 +440,7 @@ npm run preview
    - Import from `@/hooks/use-toast`, not `@/components/ui/use-toast`
 
 6. **API proxy errors**:
-   - Ensure backend API server is running on `http://localhost:8080`
+   - Ensure backend API server is running on the port specified by `CONTROLLER_PORT` in controller's `.env` file
    - Check `vite.config.ts` proxy configuration
 
 7. **Firebase auth errors**:
