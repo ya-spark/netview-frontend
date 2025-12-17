@@ -438,7 +438,7 @@ Reject a collaborator invite.
 ### Tenants
 
 #### POST /api/tenants
-Create a new tenant/organization.
+Create a new tenant.
 
 **Auth**: User session
 **Request Body**:

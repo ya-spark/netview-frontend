@@ -146,7 +146,7 @@ export default function Invites() {
       
       toast({
         title: "Invitation Accepted",
-        description: `You've been added to ${inv.tenantName || 'the organization'} as ${inv.role}.`,
+        description: `You've been added to ${inv.tenantName || 'the tenant'} as ${inv.role}.`,
       });
       
       // Redirect directly to dashboard of the accepted tenant
@@ -175,7 +175,7 @@ export default function Invites() {
     if (!isBusiness) {
       toast({
         title: "Business Email Required",
-        description: "Only business email addresses can create organizations.",
+        description: "Only business email addresses can create tenants.",
         variant: "destructive",
       });
       return;
@@ -185,7 +185,7 @@ export default function Invites() {
     try {
       // Extract domain from email for tenant name
       const domain = userEmail.split('@')[1];
-      const tenantName = domain ? domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1) : 'Organization';
+      const tenantName = domain ? domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1) : 'Tenant';
       
       logger.info('Creating tenant', { component: 'Invites', action: 'create_tenant', tenantName, email: userEmail });
       await createTenant(tenantName);
@@ -195,8 +195,8 @@ export default function Invites() {
       }
       
       toast({
-        title: "Organization Created",
-        description: `Your organization "${tenantName}" has been created successfully.`,
+        title: "Tenant Created",
+        description: `Your tenant "${tenantName}" has been created successfully.`,
       });
       
       // Redirect to tenant selection
@@ -207,7 +207,7 @@ export default function Invites() {
       const err = error instanceof Error ? error : new Error(String(error));
       logger.error('Failed to create tenant', err, { component: 'Invites', action: 'create_tenant' });
       
-      let errorMessage = error.message || "Failed to create organization. Please try again.";
+      let errorMessage = error.message || "Failed to create tenant. Please try again.";
       let errorTitle = "Creation Failed";
       
       if (error.code === 'PUBLIC_EMAIL_NOT_ALLOWED' || error.details?.code === 'PUBLIC_EMAIL_NOT_ALLOWED') {
@@ -256,7 +256,7 @@ export default function Invites() {
                 <span className="text-xl font-bold text-foreground">NetView</span>
               </div>
               <CardTitle className="text-2xl">Waiting for Invitation</CardTitle>
-              <CardDescription>You need to be invited to join an organization</CardDescription>
+              <CardDescription>You need to be invited to join a tenant</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <Alert>
@@ -264,7 +264,7 @@ export default function Invites() {
                 <AlertDescription>
                   <p className="font-medium mb-2">No pending invitations found</p>
                   <p className="text-sm text-muted-foreground">
-                    Please check your email for an invitation, or ask an organization owner to invite you.
+                    Please check your email for an invitation, or ask a tenant owner to invite you.
                   </p>
                 </AlertDescription>
               </Alert>
@@ -310,7 +310,7 @@ export default function Invites() {
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
-                            <p className="font-medium">{inv.tenantName || 'An organization'}</p>
+                            <p className="font-medium">{inv.tenantName || 'A tenant'}</p>
                             <p className="text-sm text-muted-foreground">
                               Invited you as: <span className="font-medium">{inv.role}</span>
                             </p>
@@ -337,7 +337,7 @@ export default function Invites() {
               </div>
             )}
 
-            {/* Create Organization Section (Business emails only) */}
+            {/* Create Tenant Section (Business emails only) */}
             {isBusiness && (
               <>
                 {hasPendingInvitations && (
@@ -353,17 +353,17 @@ export default function Invites() {
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2">
                     <Building2 className="w-5 h-5 text-primary" />
-                    <h3 className="text-lg font-semibold">Create Your Own Organization</h3>
+                    <h3 className="text-lg font-semibold">Create Your Own Tenant</h3>
                   </div>
                   <Card className="border-primary/20">
                     <CardContent className="p-4 space-y-4">
                       <p className="text-sm text-muted-foreground">
-                        Start fresh with your own organization. Based on your email domain, we'll create an organization for you.
+                        Start fresh with your own tenant. Based on your email domain, we'll create a tenant for you.
                       </p>
                       <div className="flex items-center space-x-2 text-sm">
-                        <span className="text-muted-foreground">Organization name:</span>
+                        <span className="text-muted-foreground">Tenant name:</span>
                         <span className="font-medium">
-                          {userEmail.split('@')[1]?.split('.')[0]?.charAt(0).toUpperCase() + userEmail.split('@')[1]?.split('.')[0]?.slice(1) || 'Organization'}
+                          {userEmail.split('@')[1]?.split('.')[0]?.charAt(0).toUpperCase() + userEmail.split('@')[1]?.split('.')[0]?.slice(1) || 'Tenant'}
                         </span>
                       </div>
                       <Button
@@ -379,7 +379,7 @@ export default function Invites() {
                         ) : (
                           <>
                             <Building2 className="w-4 h-4 mr-2" />
-                            Create Organization
+                            Create Tenant
                           </>
                         )}
                       </Button>

@@ -263,7 +263,7 @@ export default function Onboarding() {
       
       toast({
         title: "Invitation Accepted",
-        description: `You've been added to ${inv.tenantName || 'the organization'} as ${inv.role}. Please verify your email to continue.`,
+        description: `You've been added to ${inv.tenantName || 'the tenant'} as ${inv.role}. Please verify your email to continue.`,
       });
       
       setHasAcceptedInvitation(true);
@@ -369,7 +369,7 @@ export default function Onboarding() {
       
       toast({
         title: "Tenant Created",
-        description: "Your organization has been created successfully.",
+        description: "Your tenant has been created successfully.",
       });
       setTenantCreated(true);
       
@@ -541,7 +541,7 @@ export default function Onboarding() {
                           {pendingInvitations.map((inv) => (
                             <div key={inv.id} className="text-sm space-y-1 p-2 bg-background rounded border">
                               <p>
-                                <strong>{inv.tenantName || 'An organization'}</strong> has invited you to join as <strong>{inv.role}</strong>
+                                <strong>{inv.tenantName || 'A tenant'}</strong> has invited you to join as <strong>{inv.role}</strong>
                               </p>
                             </div>
                           ))}
@@ -559,7 +559,7 @@ export default function Onboarding() {
                                     Accepting...
                                   </>
                                 ) : (
-                                  `Accept Invitation from ${inv.tenantName || 'Organization'}`
+                                  `Accept Invitation from ${inv.tenantName || 'Tenant'}`
                                 )}
                               </Button>
                             ))}
@@ -686,8 +686,8 @@ export default function Onboarding() {
                       <Building2 className="w-8 h-8 text-primary" />
                     </div>
                   </div>
-                  <p className="text-sm font-medium">Step 3: Create Your Organization</p>
-                  <p className="text-sm text-muted-foreground">Enter a name for your organization</p>
+                  <p className="text-sm font-medium">Step 3: Create Your Tenant</p>
+                  <p className="text-sm text-muted-foreground">Enter a name for your tenant</p>
                 </div>
 
                 <Form {...tenantNameForm}>
@@ -697,7 +697,7 @@ export default function Onboarding() {
                       name="tenantName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Organization Name</FormLabel>
+                          <FormLabel>Tenant Name</FormLabel>
                           <FormControl>
                             <Input placeholder="Acme Inc." {...field} />
                           </FormControl>
@@ -718,7 +718,7 @@ export default function Onboarding() {
                           Created
                         </>
                       ) : (
-                        'Create Organization'
+                        'Create Tenant'
                       )}
                     </Button>
                   </form>

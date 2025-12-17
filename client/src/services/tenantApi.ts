@@ -1,12 +1,12 @@
-// Tenant API service functions for organization/tenant management
+// Tenant API service functions for tenant management
 
 import { apiRequest } from '../lib/queryClient';
 import { logger } from '../lib/logger';
 
 /**
- * Generate a tenant ID from organization name
+ * Generate a tenant ID from tenant name
  * Converts to lowercase, removes special characters, replaces spaces with hyphens
- * @param orgName - Organization name
+ * @param orgName - Tenant name
  * @returns Generated tenant ID
  */
 export function generateTenantId(orgName: string): string {
@@ -89,21 +89,21 @@ export async function validateTenantIdAvailability(tenantId: string): Promise<{ 
 }
 
 /**
- * Create a new tenant/organization
- * @param name - Organization name
+ * Create a new tenant
+ * @param name - Tenant name
  * @param tenantId - Tenant ID (optional, will be generated from name if not provided)
  * @returns Promise that resolves with created Tenant object
  */
 export async function createTenant(name: string, tenantId?: string): Promise<any> {
   if (!name || name.trim().length === 0) {
-    throw new Error('Organization name is required');
+    throw new Error('Tenant name is required');
   }
 
   // Generate tenant ID if not provided
   const finalTenantId = tenantId || generateTenantId(name);
   
   if (!finalTenantId || finalTenantId.trim().length === 0) {
-    throw new Error('Unable to generate tenant ID from organization name');
+    throw new Error('Unable to generate tenant ID from tenant name');
   }
 
   logger.info('Creating tenant', {

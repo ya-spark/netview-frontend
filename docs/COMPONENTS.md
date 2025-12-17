@@ -13,7 +13,7 @@ Top-level route components representing full pages.
 - `Features.tsx` - Feature showcase
 - `Pricing.tsx` - Pricing plans
 - `Onboarding.tsx` - User onboarding flow
-- `TenantSelection.tsx` - Tenant/organization selection (protected)
+- `TenantSelection.tsx` - Tenant selection (protected)
 - `Dashboard.tsx` - Main dashboard with stats and billing info (protected)
 - `Manage.tsx` - Probe management (protected)
 - `CreateProbe.tsx` - Create new probe (protected)
@@ -98,13 +98,13 @@ Team management page for managing tenant collaborators.
 - Owner role required for most operations
 
 #### Tenant Selection (`TenantSelection.tsx`)
-Page for selecting or creating a tenant/organization.
+Page for selecting or creating a tenant.
 
 **Features**:
 - Select from existing tenants (if user has access to multiple)
-- Create new tenant/organization
+- Create new tenant
 - Tenant ID validation and generation
-- Auto-generation of tenant ID from organization name
+- Auto-generation of tenant ID from tenant name
 
 **API Integration**:
 - Uses tenant API functions from `@/services/tenantApi`
