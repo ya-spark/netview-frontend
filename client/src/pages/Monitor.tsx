@@ -12,6 +12,7 @@ import { ProbeApiService } from '@/services/probeApi';
 import { GatewayApiService } from '@/services/gatewayApi';
 import { AlertApiService } from '@/services/alertApi';
 import { LogsApiService } from '@/services/logsApi';
+import { logger } from '@/lib/logger';
 import type { Probe, ProbeResult } from '@/types/probe';
 import type { GatewayResponse } from '@/types/gateway';
 import type { AlertResponse } from '@/types/alert';
@@ -60,9 +61,10 @@ export default function Monitor() {
   const { data: probesData, isLoading: probesLoading, refetch: refetchProbes, error: probesError } = useQuery({
     queryKey: ['/api/probes'],
     queryFn: () => {
-      console.log('[FRONTEND] Loading probes list from controller:', {
-        tenantId: selectedTenant?.id,
-        timestamp: new Date().toISOString()
+      logger.debug('Loading probes list from controller', {
+        component: 'Monitor',
+        action: 'load_probes',
+        tenantId: selectedTenant?.id ? parseInt(selectedTenant.id, 10) : undefined,
       });
       return ProbeApiService.listProbes();
     },
@@ -73,17 +75,19 @@ export default function Monitor() {
   // Log probe loading results
   useEffect(() => {
     if (probesData) {
-      console.log('[FRONTEND] Successfully loaded probes list from controller:', {
-        tenantId: selectedTenant?.id,
+      logger.info('Successfully loaded probes list from controller', {
+        component: 'Monitor',
+        action: 'load_probes_success',
+        tenantId: selectedTenant?.id ? parseInt(selectedTenant.id, 10) : undefined,
         probeCount: probesData?.data?.length || 0,
-        timestamp: new Date().toISOString()
       });
     }
     if (probesError) {
-      console.error('[FRONTEND] Failed to load probes list from controller:', {
-        tenantId: selectedTenant?.id,
-        error: probesError,
-        timestamp: new Date().toISOString()
+      const err = probesError instanceof Error ? probesError : new Error(String(probesError));
+      logger.error('Failed to load probes list from controller', err, {
+        component: 'Monitor',
+        action: 'load_probes_error',
+        tenantId: selectedTenant?.id ? parseInt(selectedTenant.id, 10) : undefined,
       });
     }
   }, [probesData, probesError, selectedTenant?.id]);
@@ -123,9 +127,10 @@ export default function Monitor() {
   const { data: latestResultsData, error: latestResultsError, refetch: refetchLatestResults } = useQuery({
     queryKey: ['/api/results/latest', selectedTenant?.id],
     queryFn: () => {
-      console.log('[FRONTEND] Loading latest probe results from controller:', {
-        tenantId: selectedTenant?.id,
-        timestamp: new Date().toISOString()
+      logger.debug('Loading latest probe results from controller', {
+        component: 'Monitor',
+        action: 'load_latest_results',
+        tenantId: selectedTenant?.id ? parseInt(selectedTenant.id, 10) : undefined,
       });
       return ProbeApiService.getLatestResults(1000);
     },
@@ -136,17 +141,19 @@ export default function Monitor() {
   // Log latest results loading
   useEffect(() => {
     if (latestResultsData) {
-      console.log('[FRONTEND] Successfully loaded latest probe results from controller:', {
-        tenantId: selectedTenant?.id,
+      logger.info('Successfully loaded latest probe results from controller', {
+        component: 'Monitor',
+        action: 'load_latest_results_success',
+        tenantId: selectedTenant?.id ? parseInt(selectedTenant.id, 10) : undefined,
         resultCount: latestResultsData?.data?.length || 0,
-        timestamp: new Date().toISOString()
       });
     }
     if (latestResultsError) {
-      console.error('[FRONTEND] Failed to load latest probe results from controller:', {
-        tenantId: selectedTenant?.id,
-        error: latestResultsError,
-        timestamp: new Date().toISOString()
+      const err = latestResultsError instanceof Error ? latestResultsError : new Error(String(latestResultsError));
+      logger.error('Failed to load latest probe results from controller', err, {
+        component: 'Monitor',
+        action: 'load_latest_results_error',
+        tenantId: selectedTenant?.id ? parseInt(selectedTenant.id, 10) : undefined,
       });
     }
   }, [latestResultsData, latestResultsError, selectedTenant?.id]);
@@ -154,13 +161,17 @@ export default function Monitor() {
   // Convert latest results array to a map by probe_id for easy lookup
   const probeResultsData = useMemo(() => {
     if (!latestResultsData?.data) {
-      console.log('[FRONTEND] No latest results data available for processing');
+      logger.debug('No latest results data available for processing', {
+        component: 'Monitor',
+        action: 'process_results',
+      });
       return {};
     }
     
-    console.log('[FRONTEND] Processing latest probe results into map:', {
+    logger.debug('Processing latest probe results into map', {
+      component: 'Monitor',
+      action: 'process_results',
       totalResults: latestResultsData.data.length,
-      timestamp: new Date().toISOString()
     });
     
     const resultsMap: Record<string, ProbeResult[]> = {};
@@ -173,10 +184,11 @@ export default function Monitor() {
       }
     });
     
-    console.log('[FRONTEND] Successfully processed probe results into map:', {
+    logger.debug('Successfully processed probe results into map', {
+      component: 'Monitor',
+      action: 'process_results',
       uniqueProbes: Object.keys(resultsMap).length,
       totalResults: latestResultsData.data.length,
-      timestamp: new Date().toISOString()
     });
     
     return resultsMap;
@@ -238,41 +250,62 @@ export default function Monitor() {
   };
 
   const handleRefresh = async () => {
-    console.log('[MONITOR REFRESH] Refresh button clicked - refreshing APIs for section:', currentSection);
+    logger.info('Refresh button clicked - refreshing APIs for section', {
+      component: 'Monitor',
+      action: 'refresh_data',
+      section: currentSection,
+      tenantId: selectedTenant?.id ? parseInt(selectedTenant.id, 10) : undefined,
+    });
     
-    // Always refresh main data
-    await Promise.all([
-      refetchProbes(),
-      refetchGateways(),
-      refetchAlerts(),
-    ]);
-    
-    // Refresh latest probe results if needed
-    if (needsLatestResults) {
-      await refetchLatestResults();
-    }
-    
-    // Refresh probe detail data if on probe detail page
-    if (currentSection === 'probes' && probeId) {
+    try {
+      // Always refresh main data
       await Promise.all([
-        refetchProbeDetail(),
-        refetchProbeLogs(),
-        refetchProbeResultsForStats(),
+        refetchProbes(),
+        refetchGateways(),
+        refetchAlerts(),
       ]);
-    }
-    
-    // Refresh gateway detail data if on gateway detail page
-    if (currentSection === 'gateways' && gatewayId) {
-      await Promise.all([
-        refetchGatewayDetail(),
-        refetchGatewayLogs(),
-        refetchGatewayUptime(),
-      ]);
-    }
-    
-    // Refresh logs data if on logs section
-    if (currentSection === 'logs') {
-      queryClient.invalidateQueries({ queryKey: ['/api/logs'] });
+      
+      // Refresh latest probe results if needed
+      if (needsLatestResults) {
+        await refetchLatestResults();
+      }
+      
+      // Refresh probe detail data if on probe detail page
+      if (currentSection === 'probes' && probeId) {
+        await Promise.all([
+          refetchProbeDetail(),
+          refetchProbeLogs(),
+          refetchProbeResultsForStats(),
+        ]);
+      }
+      
+      // Refresh gateway detail data if on gateway detail page
+      if (currentSection === 'gateways' && gatewayId) {
+        await Promise.all([
+          refetchGatewayDetail(),
+          refetchGatewayLogs(),
+          refetchGatewayUptime(),
+        ]);
+      }
+      
+      // Refresh logs data if on logs section
+      if (currentSection === 'logs') {
+        queryClient.invalidateQueries({ queryKey: ['/api/logs'] });
+      }
+      
+      logger.info('Successfully refreshed data for section', {
+        component: 'Monitor',
+        action: 'refresh_data_success',
+        section: currentSection,
+        tenantId: selectedTenant?.id ? parseInt(selectedTenant.id, 10) : undefined,
+      });
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to refresh data for section', err, {
+        component: 'Monitor',
+        action: 'refresh_data_error',
+        section: currentSection,
+      });
     }
   };
 

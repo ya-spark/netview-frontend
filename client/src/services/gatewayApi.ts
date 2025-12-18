@@ -27,32 +27,86 @@ export class GatewayApiService {
    * List all gateways for the authenticated tenant
    */
   static async listGateways(): Promise<GatewayListResponse> {
+    logger.debug('Listing gateways', {
+      component: 'gatewayApi',
+      action: 'list_gateways',
+    });
+    
     const response = await apiRequest('GET', '/api/gateways');
-    return response.json();
+    const result = await response.json();
+    
+    logger.info('Gateways listed successfully', {
+      component: 'gatewayApi',
+      action: 'list_gateways',
+      count: result?.data?.length || 0,
+    });
+    
+    return result;
   }
 
   /**
    * Get shared gateways available to all tenants
    */
   static async getSharedGateways(): Promise<GatewayListResponse> {
+    logger.debug('Getting shared gateways', {
+      component: 'gatewayApi',
+      action: 'get_shared_gateways',
+    });
+    
     const response = await apiRequest('GET', '/api/gateways/shared');
-    return response.json();
+    const result = await response.json();
+    
+    logger.debug('Shared gateways retrieved successfully', {
+      component: 'gatewayApi',
+      action: 'get_shared_gateways',
+      count: result?.data?.length || 0,
+    });
+    
+    return result;
   }
 
   /**
    * Get a specific gateway by ID
    */
   static async getGateway(gatewayId: string): Promise<GatewaySingleResponse> {
+    logger.debug('Getting gateway', {
+      component: 'gatewayApi',
+      action: 'get_gateway',
+      gatewayId,
+    });
+    
     const response = await apiRequest('GET', `/api/gateways/${gatewayId}`);
-    return response.json();
+    const result = await response.json();
+    
+    logger.debug('Gateway retrieved successfully', {
+      component: 'gatewayApi',
+      action: 'get_gateway',
+      gatewayId,
+    });
+    
+    return result;
   }
 
   /**
    * Get gateway uptime
    */
   static async getGatewayUptime(gatewayId: string): Promise<SingleResponse> {
+    logger.debug('Getting gateway uptime', {
+      component: 'gatewayApi',
+      action: 'get_gateway_uptime',
+      gatewayId,
+    });
+    
     const response = await apiRequest('GET', `/api/gateways/${gatewayId}/uptime`);
-    return response.json();
+    const result = await response.json();
+    
+    logger.debug('Gateway uptime retrieved successfully', {
+      component: 'gatewayApi',
+      action: 'get_gateway_uptime',
+      gatewayId,
+    });
+    
+    return result;
   }
 
   /**
@@ -117,16 +171,44 @@ export class GatewayApiService {
    * Regenerate registration key for a gateway
    */
   static async regenerateRegistrationKey(gatewayId: string): Promise<RegistrationKeyResponse> {
+    logger.info('Regenerating registration key for gateway', {
+      component: 'gatewayApi',
+      action: 'regenerate_key',
+      gatewayId,
+    });
+    
     const response = await apiRequest('POST', `/api/gateways/${gatewayId}/regenerate-key`);
-    return response.json();
+    const result = await response.json();
+    
+    logger.info('Registration key regenerated successfully', {
+      component: 'gatewayApi',
+      action: 'regenerate_key',
+      gatewayId,
+    });
+    
+    return result;
   }
 
   /**
    * Download registration key for a gateway as a text file
    */
   static async downloadRegistrationKey(gatewayId: string): Promise<string> {
+    logger.info('Downloading registration key for gateway', {
+      component: 'gatewayApi',
+      action: 'download_key',
+      gatewayId,
+    });
+    
     const response = await apiRequest('GET', `/api/gateways/${gatewayId}/download-key`);
-    return response.text();
+    const result = await response.text();
+    
+    logger.info('Registration key downloaded successfully', {
+      component: 'gatewayApi',
+      action: 'download_key',
+      gatewayId,
+    });
+    
+    return result;
   }
 
   /**
@@ -136,6 +218,13 @@ export class GatewayApiService {
     gatewayId: string,
     options?: { limit?: number; offset?: number }
   ): Promise<AuditLogListResponse> {
+    logger.debug('Getting gateway audit logs', {
+      component: 'gatewayApi',
+      action: 'get_audit_logs',
+      gatewayId,
+      options,
+    });
+    
     const params = new URLSearchParams();
     if (options?.limit) params.append('limit', options.limit.toString());
     if (options?.offset) params.append('offset', options.offset.toString());
@@ -144,7 +233,16 @@ export class GatewayApiService {
     const url = queryString ? `/api/gateways/${gatewayId}/audit-logs?${queryString}` : `/api/gateways/${gatewayId}/audit-logs`;
     
     const response = await apiRequest('GET', url);
-    return response.json();
+    const result = await response.json();
+    
+    logger.debug('Gateway audit logs retrieved successfully', {
+      component: 'gatewayApi',
+      action: 'get_audit_logs',
+      gatewayId,
+      count: result?.data?.length || 0,
+    });
+    
+    return result;
   }
 
   /**

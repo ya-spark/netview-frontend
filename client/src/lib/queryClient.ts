@@ -211,15 +211,51 @@ export async function apiRequest(
   // Build full API URL
   const fullUrl = buildApiUrl(url);
   
-  const res = await fetch(fullUrl, {
+  logger.debug('Making API request', {
+    component: 'queryClient',
+    action: 'api_request',
     method,
-    headers,
-    body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
+    url: fullUrl,
+    hasData: !!data,
   });
+  
+  const startTime = Date.now();
+  
+  try {
+    const res = await fetch(fullUrl, {
+      method,
+      headers,
+      body: data ? JSON.stringify(data) : undefined,
+      credentials: "include",
+    });
 
-  await throwIfResNotOk(res, fullUrl);
-  return res;
+    const duration = Date.now() - startTime;
+    
+    logger.debug('API request completed', {
+      component: 'queryClient',
+      action: 'api_request',
+      method,
+      url: fullUrl,
+      status: res.status,
+      duration: `${duration}ms`,
+    });
+
+    await throwIfResNotOk(res, fullUrl);
+    return res;
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const err = error instanceof Error ? error : new Error(String(error));
+    
+    logger.error('API request failed', err, {
+      component: 'queryClient',
+      action: 'api_request',
+      method,
+      url: fullUrl,
+      duration: `${duration}ms`,
+    });
+    
+    throw error;
+  }
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";

@@ -24,6 +24,12 @@ export class ProbeApiService {
    * List all probes for the authenticated tenant with optional filtering
    */
   static async listProbes(params?: ProbeListParams): Promise<ProbeListResponse> {
+    logger.debug('Listing probes', {
+      component: 'probeApi',
+      action: 'list_probes',
+      params,
+    });
+    
     const queryParams = new URLSearchParams();
     
     if (params?.category) queryParams.append('category', params.category);
@@ -37,15 +43,37 @@ export class ProbeApiService {
     const url = queryString ? `/api/probes?${queryString}` : '/api/probes';
     
     const response = await apiRequest('GET', url);
-    return response.json();
+    const result = await response.json();
+    
+    logger.info('Probes listed successfully', {
+      component: 'probeApi',
+      action: 'list_probes',
+      count: result?.data?.length || 0,
+    });
+    
+    return result;
   }
 
   /**
    * Get a specific probe by ID
    */
   static async getProbe(probeId: string): Promise<ProbeSingleResponse> {
+    logger.debug('Getting probe', {
+      component: 'probeApi',
+      action: 'get_probe',
+      probeId,
+    });
+    
     const response = await apiRequest('GET', `/api/probes/${probeId}`);
-    return response.json();
+    const result = await response.json();
+    
+    logger.debug('Probe retrieved successfully', {
+      component: 'probeApi',
+      action: 'get_probe',
+      probeId,
+    });
+    
+    return result;
   }
 
   /**
@@ -110,16 +138,44 @@ export class ProbeApiService {
    * Start a probe
    */
   static async startProbe(probeId: string): Promise<{ message: string }> {
+    logger.info('Starting probe', {
+      component: 'probeApi',
+      action: 'start_probe',
+      probeId,
+    });
+    
     const response = await apiRequest('POST', `/api/probes/${probeId}/start`);
-    return response.json();
+    const result = await response.json();
+    
+    logger.info('Probe started successfully', {
+      component: 'probeApi',
+      action: 'start_probe',
+      probeId,
+    });
+    
+    return result;
   }
 
   /**
    * Stop a probe
    */
   static async stopProbe(probeId: string): Promise<{ message: string }> {
+    logger.info('Stopping probe', {
+      component: 'probeApi',
+      action: 'stop_probe',
+      probeId,
+    });
+    
     const response = await apiRequest('POST', `/api/probes/${probeId}/stop`);
-    return response.json();
+    const result = await response.json();
+    
+    logger.info('Probe stopped successfully', {
+      component: 'probeApi',
+      action: 'stop_probe',
+      probeId,
+    });
+    
+    return result;
   }
 
   /**
@@ -129,6 +185,13 @@ export class ProbeApiService {
     probeId: string,
     params?: ProbeResultsParams
   ): Promise<ProbeResultsListResponse> {
+    logger.debug('Getting probe results', {
+      component: 'probeApi',
+      action: 'get_probe_results',
+      probeId,
+      params,
+    });
+    
     const queryParams = new URLSearchParams();
     
     if (params?.limit) queryParams.append('limit', params.limit.toString());
@@ -140,7 +203,16 @@ export class ProbeApiService {
       : `/api/results/probe/${probeId}`;
     
     const response = await apiRequest('GET', url);
-    return response.json();
+    const result = await response.json();
+    
+    logger.debug('Probe results retrieved successfully', {
+      component: 'probeApi',
+      action: 'get_probe_results',
+      probeId,
+      count: result?.data?.length || 0,
+    });
+    
+    return result;
   }
 
   /**
@@ -150,6 +222,13 @@ export class ProbeApiService {
     probeId: string,
     params?: ProbeHistoryParams
   ): Promise<ProbeResultsListResponse> {
+    logger.debug('Getting probe history', {
+      component: 'probeApi',
+      action: 'get_probe_history',
+      probeId,
+      params,
+    });
+    
     const queryParams = new URLSearchParams();
     
     if (params?.days) queryParams.append('days', params.days.toString());
@@ -160,15 +239,38 @@ export class ProbeApiService {
       : `/api/probes/${probeId}/history`;
     
     const response = await apiRequest('GET', url);
-    return response.json();
+    const result = await response.json();
+    
+    logger.debug('Probe history retrieved successfully', {
+      component: 'probeApi',
+      action: 'get_probe_history',
+      probeId,
+      count: result?.data?.length || 0,
+    });
+    
+    return result;
   }
 
   /**
    * Get probe status
    */
   static async getProbeStatus(probeId: string): Promise<ProbeStatusResponse> {
+    logger.debug('Getting probe status', {
+      component: 'probeApi',
+      action: 'get_probe_status',
+      probeId,
+    });
+    
     const response = await apiRequest('GET', `/api/probes/${probeId}/status`);
-    return response.json();
+    const result = await response.json();
+    
+    logger.debug('Probe status retrieved successfully', {
+      component: 'probeApi',
+      action: 'get_probe_status',
+      probeId,
+    });
+    
+    return result;
   }
 
   /**
@@ -201,14 +303,34 @@ export class ProbeApiService {
    * Get probe uptime
    */
   static async getProbeUptime(probeId: string): Promise<ProbeSingleResponse> {
+    logger.debug('Getting probe uptime', {
+      component: 'probeApi',
+      action: 'get_probe_uptime',
+      probeId,
+    });
+    
     const response = await apiRequest('GET', `/api/probes/${probeId}/uptime`);
-    return response.json();
+    const result = await response.json();
+    
+    logger.debug('Probe uptime retrieved successfully', {
+      component: 'probeApi',
+      action: 'get_probe_uptime',
+      probeId,
+    });
+    
+    return result;
   }
 
   /**
    * Get probe types, optionally filtered by category
    */
   static async getProbeTypes(params?: ProbeTypesParams): Promise<ProbeTypesResponse> {
+    logger.debug('Getting probe types', {
+      component: 'probeApi',
+      action: 'get_probe_types',
+      params,
+    });
+    
     const queryParams = new URLSearchParams();
     
     if (params?.category) queryParams.append('category', params.category);
@@ -217,7 +339,14 @@ export class ProbeApiService {
     const url = queryString ? `/api/probes/types?${queryString}` : '/api/probes/types';
     
     const response = await apiRequest('GET', url);
-    return response.json();
+    const result = await response.json();
+    
+    logger.debug('Probe types retrieved successfully', {
+      component: 'probeApi',
+      action: 'get_probe_types',
+    });
+    
+    return result;
   }
 
   /**
