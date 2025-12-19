@@ -18,6 +18,7 @@ export interface ProbeCreate {
   retries?: number; // minimum: 0, maximum: 10, default: 3
   configuration?: Record<string, any>; // Probe-specific configuration
   is_active?: boolean; // default: true
+  template_id?: string | null;
 }
 
 export interface ProbeUpdate {
@@ -33,6 +34,7 @@ export interface ProbeUpdate {
   retries?: number;
   configuration?: Record<string, any>;
   is_active?: boolean;
+  template_id?: string | null;
 }
 
 export interface Probe {
@@ -51,6 +53,7 @@ export interface Probe {
   configuration: Record<string, any>;
   is_active: boolean;
   created_by?: string | null;
+  template_id?: string | null;
   created_at: string;
   updated_at: string;
   deleted_at?: string | null;

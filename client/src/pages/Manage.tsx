@@ -25,6 +25,7 @@ import { ProbeApiService, ProbeUtils } from '@/services/probeApi';
 import { NotificationGroupApiService } from '@/services/notificationApi';
 import { ProbeEditForm } from '@/components/probes/ProbeEditForm';
 import { RunProbeResultModal } from '@/components/probes/RunProbeResultModal';
+import { ProbeTemplateHelp } from '@/components/probes/ProbeTemplateHelp';
 import type { GatewayResponse } from '@/types/gateway';
 import type { Probe, ProbeCreate } from '@/types/probe';
 import type { NotificationGroup, NotificationGroupCreate } from '@/types/notification';
@@ -867,9 +868,16 @@ export default function Manage() {
                         </div>
                       </div>
                       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
-                        <div className="flex flex-wrap gap-1 min-w-0">
+                        <div className="flex flex-wrap gap-1 min-w-0 items-center">
                           <Badge variant="outline" className="capitalize">{probe.category}</Badge>
-                          {getTypeBadge(probe.type)}
+                          <div className="flex items-center gap-1">
+                            {getTypeBadge(probe.type)}
+                            <ProbeTemplateHelp 
+                              templateId={probe.template_id} 
+                              category={probe.category} 
+                              type={probe.type}
+                            />
+                          </div>
                           <Badge variant="outline">{probe.check_interval}s</Badge>
                           <Badge 
                             variant="outline"

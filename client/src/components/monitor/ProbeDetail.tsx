@@ -9,6 +9,7 @@ import type { Probe, ProbeResult, ProbeResultsListResponse } from '@/types/probe
 import type { LogEntry } from '@/services/logsApi';
 import { getProbeStatusBgColor, getProbeStatusLabel, getProbeStatus, formatRelativeTime, formatDate, formatResponseTime } from './utils';
 import { LogFileViewer } from './LogFileViewer';
+import { ProbeTemplateHelp } from '@/components/probes/ProbeTemplateHelp';
 
 interface ProbeDetailProps {
   probeId: string;
@@ -126,7 +127,14 @@ export function ProbeDetail({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-1">Type</p>
-                  <p className="text-foreground">{probeDetailData.data.type}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-foreground">{probeDetailData.data.type}</p>
+                    <ProbeTemplateHelp 
+                      templateId={probeDetailData.data.template_id} 
+                      category={probeDetailData.data.category} 
+                      type={probeDetailData.data.type}
+                    />
+                  </div>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-1">Category</p>

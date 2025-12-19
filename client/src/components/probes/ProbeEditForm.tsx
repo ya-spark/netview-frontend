@@ -13,6 +13,7 @@ import { SslTlsProbeForm } from './SslTlsProbeForm';
 import { AuthenticationProbeForm } from './AuthenticationProbeForm';
 import { ArrowLeft, HelpCircle, Play, Trash2, Edit } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ProbeTemplateHelp } from './ProbeTemplateHelp';
 import { logger } from '@/lib/logger';
 import type { Probe } from '@/types/probe';
 import type { GatewayResponse } from '@/types/gateway';
@@ -405,8 +406,13 @@ export function ProbeEditForm({
             </div>
             <div className="space-y-2">
               <Label>Type</Label>
-              <div className="text-sm text-muted-foreground py-2">
+              <div className="text-sm text-muted-foreground py-2 flex items-center gap-2">
                 {probe.type}
+                <ProbeTemplateHelp 
+                  templateId={probe.template_id} 
+                  category={probe.category} 
+                  type={probe.type}
+                />
               </div>
             </div>
           </div>

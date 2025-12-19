@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ProbeApiService, ProbeUtils } from '@/services/probeApi';
 import { formatResponseTime } from '@/components/monitor/utils';
 import { CheckCircle2, AlertCircle, XCircle, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { ProbeTemplateHelp } from '@/components/probes/ProbeTemplateHelp';
 import type { Probe } from '@/types/probe';
 
 export default function ProbeStatus() {
@@ -180,7 +181,14 @@ export default function ProbeStatus() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Type</p>
-                  <p className="text-foreground">{probe.type}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-foreground">{probe.type}</p>
+                    <ProbeTemplateHelp 
+                      templateId={probe.template_id} 
+                      category={probe.category} 
+                      type={probe.type}
+                    />
+                  </div>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Configuration</p>
