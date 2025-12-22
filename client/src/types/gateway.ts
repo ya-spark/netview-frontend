@@ -7,6 +7,7 @@ export interface GatewayCreate {
   ip_address?: string;
   platform?: string;
   version?: string;
+  resource_group?: string; // Defaults to "default" or "core" for core tenant
 }
 
 export interface GatewayUpdate {
@@ -15,6 +16,7 @@ export interface GatewayUpdate {
   ip_address?: string;
   platform?: string;
   version?: string;
+  resource_group?: string;
 }
 
 export interface GatewayResponse {
@@ -30,6 +32,7 @@ export interface GatewayResponse {
   is_online: boolean;
   last_heartbeat?: string;
   auth_token_prefix?: string;
+  resource_group: string;
   created_at: string;
   updated_at: string;
   system_info?: GatewaySystemInfo;  // Optional system information

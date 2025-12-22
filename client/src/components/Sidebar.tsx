@@ -332,6 +332,18 @@ function ManageSidebar() {
       current: location.startsWith("/manage/probes") || location === "/manage",
     },
     {
+      name: "Probe Groups",
+      href: "/manage/probe-groups",
+      icon: Activity,
+      current: location.startsWith("/manage/probe-groups"),
+    },
+    {
+      name: "Resource Groups",
+      href: "/manage/resource-groups",
+      icon: Server,
+      current: location.startsWith("/manage/resource-groups"),
+    },
+    {
       name: "Gateways",
       href: "/manage/gateways",
       icon: Server,

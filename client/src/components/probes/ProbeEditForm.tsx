@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,9 +16,14 @@ import { ArrowLeft, HelpCircle, Play, Trash2, Edit } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ProbeTemplateHelp } from './ProbeTemplateHelp';
 import { logger } from '@/lib/logger';
+import { ResourceGroupApiService } from '@/services/resourceGroupApi';
+import { ProbeGroupApiService } from '@/services/probeGroupApi';
+import { useAuth } from '@/contexts/AuthContext';
 import type { Probe } from '@/types/probe';
 import type { GatewayResponse } from '@/types/gateway';
 import type { NotificationGroup } from '@/types/notification';
+import type { ResourceGroup } from '@/types/resourceGroup';
+import type { ProbeGroup } from '@/types/probeGroup';
 
 interface ProbeEditFormProps {
   probe: Probe | null;
@@ -35,6 +41,8 @@ interface ProbeEditFormProps {
     retries?: number;
     configuration?: Record<string, any>;
     is_active?: boolean;
+    resource_group?: string;
+    probe_group?: string;
   }) => void;
   onCancel: () => void;
   onDelete?: () => void;
@@ -74,6 +82,8 @@ export function ProbeEditForm({
   const [probeTimeout, setProbeTimeout] = useState<number>(30);
   const [retries, setRetries] = useState<number>(3);
   const [isActive, setIsActive] = useState<boolean>(true);
+  const [resourceGroup, setResourceGroup] = useState<string>('default');
+  const [probeGroup, setProbeGroup] = useState<string>('default');
 
   // ICMP/Ping fields
   const [target, setTarget] = useState('');
@@ -111,9 +121,31 @@ export function ProbeEditForm({
   const [apiKey, setApiKey] = useState('');
   const [token, setToken] = useState('');
 
+  const { user } = useAuth();
+  
   // Get Core gateways from shared gateways endpoint, fallback to filtering regular gateways
   const coreGateways = sharedGateways?.data || gateways?.data?.filter((g: GatewayResponse) => g.type === 'Core') || [];
   const tenantSpecificGateways = gateways?.data?.filter((g: GatewayResponse) => g.type === 'TenantSpecific') || [];
+
+  // Fetch resource groups and probe groups
+  const { data: resourceGroupsResponse } = useQuery({
+    queryKey: ['/api/resource-groups'],
+    enabled: !!user,
+    queryFn: async () => {
+      return await ResourceGroupApiService.listResourceGroups();
+    },
+  });
+
+  const { data: probeGroupsResponse } = useQuery({
+    queryKey: ['/api/probe-groups'],
+    enabled: !!user,
+    queryFn: async () => {
+      return await ProbeGroupApiService.listProbeGroups();
+    },
+  });
+
+  const resourceGroups = resourceGroupsResponse?.data || [];
+  const probeGroups = probeGroupsResponse?.data || [];
 
   // Load probe data when probe changes
   useEffect(() => {
@@ -127,6 +159,8 @@ export function ProbeEditForm({
       setProbeTimeout(probe.timeout || 30);
       setRetries(probe.retries || 3);
       setIsActive(probe.is_active ?? true);
+      setResourceGroup(probe.resource_group || 'default');
+      setProbeGroup(probe.probe_group || 'default');
 
       const config = probe.configuration || {};
 
@@ -252,6 +286,8 @@ export function ProbeEditForm({
       retries: retries,
       configuration: config,
       is_active: isActive,
+      resource_group: resourceGroup || 'default',
+      probe_group: probeGroup || 'default',
     });
   };
 
@@ -724,6 +760,40 @@ export function ProbeEditForm({
                 )
               )}
 
+              {/* Probe Group */}
+              {renderField('Probe Group', 'edit-probe-group',
+                <Select value={probeGroup} onValueChange={setProbeGroup}>
+                  <SelectTrigger id="edit-probe-group">
+                    <SelectValue placeholder="Select probe group" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {probeGroups.map((group: ProbeGroup) => (
+                      <SelectItem key={group.id} value={group.name}>
+                        {group.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>,
+                'Probe group for organization and categorization'
+              )}
+              
+              {/* Resource Group */}
+              {renderField('Resource Group', 'edit-resource-group',
+                <Select value={resourceGroup} onValueChange={setResourceGroup}>
+                  <SelectTrigger id="edit-resource-group">
+                    <SelectValue placeholder="Select resource group" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {resourceGroups.map((group: ResourceGroup) => (
+                      <SelectItem key={group.id} value={group.name}>
+                        {group.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>,
+                'Resource group for cost segregation and billing purposes'
+              )}
+
               {/* Notification Group */}
               {renderField('Notification Group', 'edit-notification-group',
                 <Select
@@ -826,6 +896,12 @@ export function ProbeEditForm({
                   renderReadOnlyField('Gateway', 'None', 'No Tenant specific gateway selected')
                 )
               )}
+
+              {/* Probe Group */}
+              {renderReadOnlyField('Probe Group', probeGroup || 'default', 'Probe group for organization and categorization')}
+              
+              {/* Resource Group */}
+              {renderReadOnlyField('Resource Group', resourceGroup || 'default', 'Resource group for cost segregation and billing purposes')}
 
               {/* Notification Group */}
               {renderReadOnlyField('Notification Group', notificationGroupId ? notificationGroups.find(g => g.id === notificationGroupId)?.name || 'N/A' : 'None', 'Select a notification group to receive alerts when this probe fails')}

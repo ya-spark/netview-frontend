@@ -23,10 +23,14 @@ import { queryClient } from '@/lib/queryClient';
 import { GatewayApiService } from '@/services/gatewayApi';
 import { ProbeApiService } from '@/services/probeApi';
 import { NotificationGroupApiService } from '@/services/notificationApi';
+import { ResourceGroupApiService } from '@/services/resourceGroupApi';
+import { ProbeGroupApiService } from '@/services/probeGroupApi';
 import { getAllTemplates, type ProbeTemplate } from '@/data/probeTemplates';
 import type { ProbeCategory, ProbeType } from '@/types/probe';
 import type { GatewayResponse } from '@/types/gateway';
 import type { NotificationGroup } from '@/types/notification';
+import type { ResourceGroup } from '@/types/resourceGroup';
+import type { ProbeGroup } from '@/types/probeGroup';
 import { ArrowLeft, HelpCircle, Search, Filter, X, Activity, Globe2, Globe, Shield, Lock } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -60,6 +64,8 @@ export default function CreateProbe() {
   const [probeTimeout, setProbeTimeout] = useState<number>(30);
   const [retries, setRetries] = useState<number>(3);
   const [isActive, setIsActive] = useState<boolean>(true);
+  const [resourceGroup, setResourceGroup] = useState<string>('default');
+  const [probeGroup, setProbeGroup] = useState<string>('default');
 
   // ICMP/Ping fields
   const [target, setTarget] = useState('');
@@ -431,6 +437,8 @@ export default function CreateProbe() {
       configuration: config,
       is_active: isActive,
       template_id: templateId || undefined,
+      resource_group: resourceGroup || 'default',
+      probe_group: probeGroup || 'default',
     });
   };
 
@@ -910,6 +918,66 @@ export default function CreateProbe() {
                         )}
                       </div>
                     )}
+
+                    {/* Probe Group */}
+                    <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+                      <div className="sm:text-right flex items-center justify-end gap-1">
+                        <Label htmlFor="probe-group-select">
+                          Probe Group
+                        </Label>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <HelpCircle className="w-4 h-4 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Probe group for organization and categorization</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                      <Select value={probeGroup} onValueChange={setProbeGroup}>
+                        <SelectTrigger id="probe-group-select" className="sm:col-span-3">
+                          <SelectValue placeholder="Select probe group" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {probeGroups.map((group: ProbeGroup) => (
+                            <SelectItem key={group.id} value={group.name}>
+                              {group.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+                      <div className="sm:text-right flex items-center justify-end gap-1">
+                        <Label htmlFor="resource-group-select">
+                          Resource Group
+                        </Label>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <HelpCircle className="w-4 h-4 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Resource group for cost segregation and billing purposes</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                      <Select value={resourceGroup} onValueChange={setResourceGroup}>
+                        <SelectTrigger id="resource-group-select" className="sm:col-span-3">
+                          <SelectValue placeholder="Select resource group" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {resourceGroups.map((group: ResourceGroup) => (
+                            <SelectItem key={group.id} value={group.name}>
+                              {group.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
                     {/* Notification Group */}
                     <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">

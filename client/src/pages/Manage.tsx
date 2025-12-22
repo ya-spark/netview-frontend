@@ -12,10 +12,11 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Search, Filter, Settings, Globe, Trash2, Edit, Key, Download, RefreshCw, Mail, Activity, Globe2, Shield, Lock, Wifi, Server } from 'lucide-react';
+import { Plus, Search, Filter, Settings, Globe, Trash2, Edit, Key, Download, RefreshCw, Mail, Activity, Globe2, Shield, Lock, Wifi, Server, HelpCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/contexts/AuthContext';
@@ -47,6 +48,7 @@ const gatewaySchema = z.object({
   name: z.string().min(1, 'Name is required'),
   type: z.enum(['Core', 'TenantSpecific']).default('TenantSpecific'),
   location: z.string().optional(),
+  resource_group: z.string().optional(),
 });
 
 export default function Manage() {
@@ -59,14 +61,26 @@ export default function Manage() {
   
   // Get route parameters using wouter's useRoute
   const [isProbesRoute, probesParams] = useRoute('/manage/probes/:probeId?');
+  const [isProbeGroupsRoute, probeGroupsParams] = useRoute('/manage/probe-groups/:groupId?');
+  const [isResourceGroupsRoute, resourceGroupsParams] = useRoute('/manage/resource-groups/:groupId?');
   const [isGatewaysRoute, gatewaysParams] = useRoute('/manage/gateways/:gatewayId?');
   const [isNotificationsRoute, notificationsParams] = useRoute('/manage/notifications/:notificationId?');
   const [isManageRoot] = useRoute('/manage');
   
   // Determine current section and item ID from route
   // If at /manage root, default to probes
-  const currentSection = isProbesRoute || isManageRoot ? 'probes' : isGatewaysRoute ? 'gateways' : isNotificationsRoute ? 'notifications' : 'probes';
-  const currentItemId = isProbesRoute ? probesParams?.probeId : isGatewaysRoute ? gatewaysParams?.gatewayId : isNotificationsRoute ? notificationsParams?.notificationId : undefined;
+  const currentSection = isProbesRoute || isManageRoot ? 'probes' 
+    : isProbeGroupsRoute ? 'probe-groups'
+    : isResourceGroupsRoute ? 'resource-groups'
+    : isGatewaysRoute ? 'gateways' 
+    : isNotificationsRoute ? 'notifications' 
+    : 'probes';
+  const currentItemId = isProbesRoute ? probesParams?.probeId 
+    : isProbeGroupsRoute ? probeGroupsParams?.groupId
+    : isResourceGroupsRoute ? resourceGroupsParams?.groupId
+    : isGatewaysRoute ? gatewaysParams?.gatewayId 
+    : isNotificationsRoute ? notificationsParams?.notificationId 
+    : undefined;
 
   
   // Gateway Registration Key State
@@ -855,7 +869,7 @@ export default function Manage() {
                         setLocation(`/manage/probes/${probe.id}`);
                       }}
                     >
-                      <div className="flex items-center space-x-4 min-w-0 flex-1">
+                      <div className="flex items-center space-x-4 min-w-0 w-64 sm:w-80 flex-shrink-0">
                         <div className="flex-shrink-0">
                           {getProbeTypeIcon(probe.type)}
                         </div>
@@ -863,12 +877,12 @@ export default function Manage() {
                           <div className="font-medium text-foreground truncate">{probe.name}</div>
                           <div className="text-sm text-muted-foreground truncate">{configDisplay}</div>
                           {probe.description && (
-                            <div className="text-xs text-muted-foreground mt-1">{probe.description}</div>
+                            <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{probe.description}</div>
                           )}
                         </div>
                       </div>
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
-                        <div className="flex flex-wrap gap-1 min-w-0 items-center">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                        <div className="flex flex-wrap gap-1 items-center flex-1 min-w-0">
                           <Badge variant="outline" className="capitalize">{probe.category}</Badge>
                           <div className="flex items-center gap-1">
                             {getTypeBadge(probe.type)}
@@ -889,8 +903,18 @@ export default function Manage() {
                           >
                             {probe.gateway_type === 'Core' ? 'Core' : 'Custom'}
                           </Badge>
+                          {probe.resource_group && (
+                            <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-200">
+                              RG: {probe.resource_group}
+                            </Badge>
+                          )}
+                          {probe.probe_group && (
+                            <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200">
+                              PG: {probe.probe_group}
+                            </Badge>
+                          )}
                         </div>
-                        <div className="flex items-center gap-1 flex-shrink-0">
+                        <div className="flex items-center gap-1 flex-shrink-0 self-start sm:self-center">
                           <Button 
                             variant="ghost" 
                             size="sm" 
@@ -1281,6 +1305,31 @@ export default function Manage() {
                               </FormItem>
                             )}
                           />
+                          <FormField
+                            control={gatewayForm.control}
+                            name="resource_group"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="flex items-center gap-1">
+                                  Resource Group (Advanced)
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <HelpCircle className="w-4 h-4 text-muted-foreground cursor-help" />
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Resource group for cost segregation and billing. Defaults to "default" or "core" for core tenant gateways.</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </FormLabel>
+                                <FormControl>
+                                  <Input placeholder="default" {...field} data-testid="input-gateway-resource-group" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
                           <Button type="submit" disabled={createGatewayMutation.isPending} className="w-full" data-testid="button-save-gateway">
                             {createGatewayMutation.isPending ? 'Creating...' : 'Add Gateway'}
                           </Button>
@@ -1348,7 +1397,7 @@ export default function Manage() {
                     return (
                       <div 
                         key={gateway.id} 
-                        className={`flex flex-col sm:flex-row sm:items-center p-4 border rounded-lg gap-4 cursor-pointer transition-colors ${
+                        className={`flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border rounded-lg gap-4 cursor-pointer transition-colors ${
                           currentItemId === gateway.id 
                             ? 'border-primary bg-primary/5' 
                             : 'border-border hover:border-primary/50'
@@ -1356,22 +1405,29 @@ export default function Manage() {
                         data-testid={`gateway-item-${gateway.id}`}
                         onClick={() => setLocation(`/manage/gateways/${gateway.id}`)}
                       >
-                        {/* Container 1: Name and Details (33%) */}
-                        <div className="flex items-center space-x-4 w-full sm:w-1/3 min-w-0">
+                        {/* Container 1: Name and Details - Fixed Width */}
+                        <div className="flex items-center space-x-4 w-64 sm:w-80 min-w-0 flex-shrink-0">
                           <Server className="w-5 h-5 text-muted-foreground flex-shrink-0" />
                           <div className="flex-1 min-w-0">
-                            <div className="font-medium text-foreground text-lg">{gateway.name}</div>
-                            <div className="text-sm text-muted-foreground">
+                            <div className="font-medium text-foreground text-lg truncate">{gateway.name}</div>
+                            <div className="text-sm text-muted-foreground truncate">
                               {gateway.location || 'No location specified'}
                             </div>
                             {gateway.ip_address && (
-                              <div className="text-xs text-muted-foreground">{gateway.ip_address}</div>
+                              <div className="text-xs text-muted-foreground truncate">{gateway.ip_address}</div>
+                            )}
+                            {gateway.resource_group && (
+                              <div className="text-xs text-muted-foreground mt-1">
+                                <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-200 text-xs">
+                                  RG: {gateway.resource_group}
+                                </Badge>
+                              </div>
                             )}
                           </div>
                         </div>
                         
-                        {/* Container 2: Status Chips (33%) */}
-                        <div className="flex flex-wrap gap-1 w-full sm:w-1/3 items-start sm:items-center">
+                        {/* Container 2: Status Chips - Flexible with wrapping */}
+                        <div className="flex flex-wrap gap-1 items-center flex-1 min-w-0">
                           <Badge 
                             variant="outline" 
                             title={typeInfo.description}
@@ -1406,10 +1462,20 @@ export default function Manage() {
                           >
                             {statusInfo.label}
                           </Badge>
+                          {gateway.platform && (
+                            <Badge variant="outline" className="text-xs">
+                              {gateway.platform}
+                            </Badge>
+                          )}
+                          {gateway.version && (
+                            <Badge variant="outline" className="text-xs">
+                              v{gateway.version}
+                            </Badge>
+                          )}
                         </div>
                         
-                        {/* Container 3: CRUD Actions and Last Seen (33%) */}
-                        <div className="flex flex-wrap items-center gap-2 w-full sm:w-1/3 justify-start sm:justify-end">
+                        {/* Container 3: CRUD Actions and Last Seen */}
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-shrink-0">
                           <div className="flex items-center gap-1">
                             <Button 
                               variant="ghost" 
@@ -1450,7 +1516,7 @@ export default function Manage() {
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
                             Last seen: {lastSeen}
                           </span>
                         </div>

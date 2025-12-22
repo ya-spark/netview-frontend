@@ -19,6 +19,8 @@ export interface ProbeCreate {
   configuration?: Record<string, any>; // Probe-specific configuration
   is_active?: boolean; // default: true
   template_id?: string | null;
+  resource_group?: string; // Defaults to "default"
+  probe_group?: string; // Defaults to "default"
 }
 
 export interface ProbeUpdate {
@@ -35,6 +37,8 @@ export interface ProbeUpdate {
   configuration?: Record<string, any>;
   is_active?: boolean;
   template_id?: string | null;
+  resource_group?: string;
+  probe_group?: string;
 }
 
 export interface Probe {
@@ -54,6 +58,8 @@ export interface Probe {
   is_active: boolean;
   created_by?: string | null;
   template_id?: string | null;
+  resource_group: string;
+  probe_group: string;
   created_at: string;
   updated_at: string;
   deleted_at?: string | null;

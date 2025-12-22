@@ -183,6 +183,14 @@ export function ProbeDetail({
                     {resultsStats.up}/{resultsStats.down}/{resultsStats.misses}
                   </p>
                 </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Resource Group</p>
+                  <Badge variant="outline">{probeDetailData.data.resource_group || 'default'}</Badge>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Probe Group</p>
+                  <Badge variant="outline">{probeDetailData.data.probe_group || 'default'}</Badge>
+                </div>
               </div>
             </CardContent>
           </Card>

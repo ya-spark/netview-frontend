@@ -25,6 +25,8 @@ import Dashboard from "@/pages/Dashboard";
 import Manage from "@/pages/Manage";
 import CreateProbe from "@/pages/CreateProbe";
 import ProbeStatus from "@/pages/ProbeStatus";
+import ResourceGroups from "@/pages/ResourceGroups";
+import ProbeGroups from "@/pages/ProbeGroups";
 import Monitor from "@/pages/Monitor";
 import Reports from "@/pages/Reports";
 import Settings from "@/pages/Settings";
@@ -342,6 +344,18 @@ function Router() {
       <Route path="/manage/notifications/:notificationId?">
         <ProtectedRoute>
           <Manage />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/manage/resource-groups/:groupId?">
+        <ProtectedRoute>
+          <ResourceGroups />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/manage/probe-groups/:groupId?">
+        <ProtectedRoute>
+          <ProbeGroups />
         </ProtectedRoute>
       </Route>
 
