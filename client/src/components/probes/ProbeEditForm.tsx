@@ -458,7 +458,17 @@ export function ProbeEditForm({
       {/* Configuration Panel */}
       <Card>
         <CardHeader>
-          <CardTitle>Configure {probe.type} Probe</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Configure {probe.type} Probe</CardTitle>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+            >
+              {showAdvanced ? 'Hide' : 'Show'} Advanced Config
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Basic Configuration */}
@@ -648,22 +658,9 @@ export function ProbeEditForm({
             </div>
           )}
 
-          {/* Advanced Settings Button */}
-          <div className="flex justify-center pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowAdvanced(!showAdvanced)}
-            >
-              {showAdvanced ? 'Hide' : 'Show'} Advanced Configuration
-            </Button>
-          </div>
-
           {/* Advanced Settings Panel */}
           {showAdvanced && !viewMode && (
-            <div className="space-y-4 pt-4 border-t">
-              <h3 className="text-lg font-semibold">Advanced Configuration</h3>
-              
+            <div className="space-y-4 pt-4">
               {/* Description */}
               {renderField('Description', 'edit-probe-description',
                 <Input
@@ -872,9 +869,7 @@ export function ProbeEditForm({
 
           {/* View mode advanced settings */}
           {showAdvanced && viewMode && (
-            <div className="space-y-4 pt-4 border-t">
-              <h3 className="text-lg font-semibold">Advanced Configuration</h3>
-              
+            <div className="space-y-4 pt-4">
               {/* Description */}
               {renderReadOnlyField('Description', probeDescription || 'N/A', 'Optional description to help identify this probe')}
 

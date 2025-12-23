@@ -25,6 +25,7 @@ import { ProbeApiService } from '@/services/probeApi';
 import { NotificationGroupApiService } from '@/services/notificationApi';
 import { ResourceGroupApiService } from '@/services/resourceGroupApi';
 import { ProbeGroupApiService } from '@/services/probeGroupApi';
+import { createSecretFromCredentials } from '@/services/secretApi';
 import { getAllTemplates, type ProbeTemplate } from '@/data/probeTemplates';
 import type { ProbeCategory, ProbeType } from '@/types/probe';
 import type { GatewayResponse } from '@/types/gateway';
@@ -209,6 +210,26 @@ export default function CreateProbe() {
 
   const notificationGroups = notificationGroupsResponse?.data || [];
 
+  const { data: probeGroupsResponse } = useQuery({
+    queryKey: ['/api/probe-groups'],
+    enabled: !!user,
+    queryFn: async () => {
+      return await ProbeGroupApiService.listProbeGroups();
+    },
+  });
+
+  const probeGroups = probeGroupsResponse?.data || [];
+
+  const { data: resourceGroupsResponse } = useQuery({
+    queryKey: ['/api/resource-groups'],
+    enabled: !!user,
+    queryFn: async () => {
+      return await ResourceGroupApiService.listResourceGroups();
+    },
+  });
+
+  const resourceGroups = resourceGroupsResponse?.data || [];
+
   // Get Core gateways from shared gateways endpoint, fallback to filtering regular gateways
   const coreGateways = sharedGateways?.data || gateways?.data?.filter((g: GatewayResponse) => g.type === 'Core') || [];
   const tenantSpecificGateways = gateways?.data?.filter((g: GatewayResponse) => g.type === 'TenantSpecific') || [];
@@ -333,7 +354,7 @@ export default function CreateProbe() {
     },
   });
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!probeName || !selectedCategory || !selectedType) {
       toast({ 
         title: 'Validation Error', 
@@ -404,16 +425,47 @@ export default function CreateProbe() {
       config.method = authMethod || 'POST';
       if (authExpectedStatus) config.expected_status = authExpectedStatus;
       
-      // Build credentials object based on type
-      config.credentials = {};
-      if (credentialType === 'username_password') {
-        if (username) config.credentials.username = username;
-        if (password) config.credentials.password = password;
-      } else if (credentialType === 'api_key') {
-        if (apiKey) config.credentials.api_key = apiKey;
-      } else if (credentialType === 'token') {
-        if (token) config.credentials.token = token;
+      // Create secret for credentials instead of storing them directly
+      const hasCredentials = (credentialType === 'username_password' && username && password) ||
+                             (credentialType === 'api_key' && apiKey) ||
+                             (credentialType === 'token' && token);
+      
+      if (hasCredentials) {
+        try {
+          const secret = await createSecretFromCredentials(
+            `${probeName} credentials`,
+            credentialType,
+            {
+              username,
+              password,
+              apiKey,
+              token
+            }
+          );
+          
+          // Store secret_id reference instead of actual credentials
+          config.credential_secret_id = secret.id;
+          
+          logger.info('Created secret for probe credentials', {
+            component: 'CreateProbe',
+            action: 'create_secret',
+            secretId: secret.id,
+          });
+        } catch (error) {
+          const err = error instanceof Error ? error : new Error(String(error));
+          logger.error('Failed to create secret for credentials', err, {
+            component: 'CreateProbe',
+            action: 'create_secret',
+          });
+          toast({ 
+            title: 'Error', 
+            description: 'Failed to securely store credentials', 
+            variant: 'destructive' 
+          });
+          return;
+        }
       }
+      
       // Add timeout to configuration (required by backend)
       if (probeTimeout) config.timeout = probeTimeout;
     }
@@ -631,7 +683,17 @@ export default function CreateProbe() {
                 )}
               <Card>
                 <CardHeader>
-                  <CardTitle>Configure {selectedType} Probe</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>Configure {selectedType} Probe</CardTitle>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAdvanced(!showAdvanced)}
+                    >
+                      {showAdvanced ? 'Hide' : 'Show'} Advanced Config
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
                 {/* Basic Configuration */}
@@ -773,22 +835,9 @@ export default function CreateProbe() {
                   />
                 )}
 
-                {/* Advanced Settings Button */}
-                <div className="flex justify-center pt-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setShowAdvanced(!showAdvanced)}
-                  >
-                    {showAdvanced ? 'Hide' : 'Show'} Advanced Configuration
-                  </Button>
-                </div>
-
                 {/* Advanced Settings Panel */}
                 {showAdvanced && (
-                  <div className="space-y-4 pt-4 border-t">
-                    <h3 className="text-lg font-semibold">Advanced Configuration</h3>
-                    
+                  <div className="space-y-4 pt-4">
                     {/* Description */}
                     <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
                       <div className="sm:text-right flex items-center justify-end gap-1">
