@@ -24,6 +24,8 @@ import { logger } from '@/lib/logger';
 import { GatewayApiService, GatewayUtils } from '@/services/gatewayApi';
 import { ProbeApiService, ProbeUtils } from '@/services/probeApi';
 import { NotificationGroupApiService } from '@/services/notificationApi';
+import { ResourceGroupApiService } from '@/services/resourceGroupApi';
+import type { ResourceGroup } from '@/types/resourceGroup';
 import { ProbeEditForm } from '@/components/probes/ProbeEditForm';
 import { RunProbeResultModal } from '@/components/probes/RunProbeResultModal';
 import { ProbeTemplateHelp } from '@/components/probes/ProbeTemplateHelp';
@@ -276,8 +278,31 @@ export default function Manage() {
       name: '',
       type: 'TenantSpecific',
       location: '',
+      resource_group: 'default',
     },
   });
+
+  // Fetch resource groups for dropdown
+  const { data: resourceGroupsResponse } = useQuery({
+    queryKey: ['/api/resource-groups'],
+    enabled: currentSection === 'gateways',
+    queryFn: async () => {
+      return await ResourceGroupApiService.listResourceGroups();
+    },
+  });
+
+  const resourceGroups = resourceGroupsResponse?.data || [];
+
+  // Watch gateway type to set default resource group
+  const gatewayType = gatewayForm.watch('type');
+  
+  useEffect(() => {
+    if (gatewayType === 'Core') {
+      gatewayForm.setValue('resource_group', 'core');
+    } else {
+      gatewayForm.setValue('resource_group', 'default');
+    }
+  }, [gatewayType, gatewayForm]);
 
   // Handle deep linking - open edit view when itemId is in route
   // This must be after all form declarations
@@ -297,6 +322,7 @@ export default function Manage() {
             name: gateway.name,
             type: gateway.type,
             location: gateway.location || '',
+            resource_group: gateway.resource_group || (gateway.type === 'Core' ? 'core' : 'default'),
           });
           setEditGatewayDialogOpen(true);
         }
@@ -1311,21 +1337,38 @@ export default function Manage() {
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel className="flex items-center gap-1">
-                                  Resource Group (Advanced)
+                                  Resource Group
                                   <TooltipProvider>
                                     <Tooltip>
                                       <TooltipTrigger asChild>
                                         <HelpCircle className="w-4 h-4 text-muted-foreground cursor-help" />
                                       </TooltipTrigger>
                                       <TooltipContent>
-                                        <p>Resource group for cost segregation and billing. Defaults to "default" or "core" for core tenant gateways.</p>
+                                        <p>Resource group for cost segregation and billing. Core gateways default to "Core", tenant gateways default to "default".</p>
                                       </TooltipContent>
                                     </Tooltip>
                                   </TooltipProvider>
                                 </FormLabel>
-                                <FormControl>
-                                  <Input placeholder="default" {...field} data-testid="input-gateway-resource-group" />
-                                </FormControl>
+                                <Select onValueChange={field.onChange} value={field.value || (gatewayType === 'Core' ? 'core' : 'default')}>
+                                  <FormControl>
+                                    <SelectTrigger data-testid="select-gateway-resource-group">
+                                      <SelectValue placeholder="Select resource group" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {gatewayType === 'Core' && (
+                                      <SelectItem value="core">Core</SelectItem>
+                                    )}
+                                    {gatewayType === 'TenantSpecific' && (
+                                      <SelectItem value="default">default</SelectItem>
+                                    )}
+                                    {resourceGroups.map((group: ResourceGroup) => (
+                                      <SelectItem key={group.id} value={group.name}>
+                                        {group.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                                 <FormMessage />
                               </FormItem>
                             )}
@@ -1658,6 +1701,48 @@ export default function Manage() {
                     <FormControl>
                       <Input placeholder="New York, USA" {...field} data-testid="input-edit-gateway-location" />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={gatewayForm.control}
+                name="resource_group"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-1">
+                      Resource Group
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="w-4 h-4 text-muted-foreground cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Resource group for cost segregation and billing. Core gateways default to "Core", tenant gateways default to "default".</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || (gatewayForm.watch('type') === 'Core' ? 'core' : 'default')}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-edit-gateway-resource-group">
+                          <SelectValue placeholder="Select resource group" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {gatewayForm.watch('type') === 'Core' && (
+                          <SelectItem value="core">Core</SelectItem>
+                        )}
+                        {gatewayForm.watch('type') === 'TenantSpecific' && (
+                          <SelectItem value="default">default</SelectItem>
+                        )}
+                        {resourceGroups.map((group: ResourceGroup) => (
+                          <SelectItem key={group.id} value={group.name}>
+                            {group.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

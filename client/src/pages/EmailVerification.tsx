@@ -80,8 +80,9 @@ export default function EmailVerification({ email, onVerificationSuccess }: Emai
         title: "Code Verified",
         description: "Your email has been verified successfully.",
       });
-      // Call the success callback to retry registration
+      // Call the success callback to retry registration, then redirect to entry
       onVerificationSuccess();
+      // Entry page will handle the next steps
     } catch (error: any) {
       const err = error instanceof Error ? error : new Error(String(error));
       logger.error('Failed to verify code', err, {

@@ -13,6 +13,7 @@ import {
   signInWithPopup, 
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword as firebaseCreateUserWithEmailAndPassword,
+  sendPasswordResetEmail as firebaseSendPasswordResetEmail,
   signOut as firebaseSignOut,
   User,
   onAuthStateChanged,
@@ -247,6 +248,45 @@ export async function getIdToken(forceRefresh: boolean = false): Promise<string 
       userId: user.uid,
     });
     return null;
+  }
+}
+
+/**
+ * Send password reset email
+ * @param email - Email address to send reset link to
+ * @returns Promise that resolves when email is sent
+ */
+export async function sendPasswordResetEmail(email: string): Promise<void> {
+  try {
+    logger.info('Sending password reset email', {
+      component: 'firebase',
+      action: 'send_password_reset',
+      email,
+    });
+    await firebaseSendPasswordResetEmail(auth, email);
+    logger.info('Password reset email sent successfully', {
+      component: 'firebase',
+      action: 'send_password_reset',
+      email,
+    });
+  } catch (error: any) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error('Password reset email error', err, {
+      component: 'firebase',
+      action: 'send_password_reset',
+      email,
+    });
+    
+    // Handle specific Firebase errors
+    if (error.code === 'auth/user-not-found') {
+      throw new Error('No account found with this email address.');
+    } else if (error.code === 'auth/invalid-email') {
+      throw new Error('Invalid email address.');
+    } else if (error.code === 'auth/network-request-failed') {
+      throw new Error('Network error. Please check your connection and try again.');
+    }
+    
+    throw new Error(error.message || 'Failed to send password reset email');
   }
 }
 

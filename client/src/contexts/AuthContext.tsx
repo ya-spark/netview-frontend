@@ -58,6 +58,7 @@ interface AuthContextType {
   setError: (error: Error | null) => void;
   retryRegistration: () => Promise<User>;
   clearEmailVerification: () => void;
+  setEmailVerification: (state: EmailVerificationState | null) => void;
   syncBackendUser: (firebaseUser: FirebaseUser | null) => Promise<void>;
 }
 
@@ -764,6 +765,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError,
       retryRegistration,
       clearEmailVerification,
+      setEmailVerification,
       syncBackendUser,
     }}>
       {children}

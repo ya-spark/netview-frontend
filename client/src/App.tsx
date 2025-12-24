@@ -10,6 +10,8 @@ import { logger } from "@/lib/logger";
 import Landing from "@/pages/Landing";
 import SignUp from "@/pages/SignUp";
 import Login from "@/pages/Login";
+import Entry from "@/pages/Entry";
+import ForgotPassword from "@/pages/ForgotPassword";
 import OnboardingRouter from "@/pages/onboarding/OnboardingRouter";
 import VerifyEmail from "@/pages/onboarding/VerifyEmail";
 import Invites from "@/pages/onboarding/Invites";
@@ -161,6 +163,26 @@ function LoginRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Entry route: requires Firebase auth only (not backend user)
+function EntryRoute({ children }: { children: React.ReactNode }) {
+  const { firebaseUser, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  // Redirect to login if not authenticated
+  if (!firebaseUser) {
+    return <Redirect to="/login" />;
+  }
+
+  return <>{children}</>;
+}
+
 // Onboarding route: requires Firebase auth, redirects if tenant exists
 function OnboardingRoute({ children }: { children: React.ReactNode }) {
   const { firebaseUser, user, loading } = useAuth();
@@ -237,6 +259,18 @@ function Router() {
         <LoginRoute>
           <Login />
         </LoginRoute>
+      </Route>
+
+      <Route path="/forgot-password">
+        <PublicRoute>
+          <ForgotPassword />
+        </PublicRoute>
+      </Route>
+
+      <Route path="/entry">
+        <EntryRoute>
+          <Entry />
+        </EntryRoute>
       </Route>
 
       <Route path="/logged-out">
@@ -511,15 +545,14 @@ function EmailVerificationRoute() {
             userId: newUser?.id,
           });
           
-          // Always go to tenant selection after verification
-          // User may not have tenant info if they're new, or tenant may not have been created
-          // Tenant selection page allows user to create a tenant if needed
-          logger.info('Navigating to tenant selection after successful email verification', {
+          // Redirect to entry page after verification
+          // Entry page will handle user details, tenant creation, etc.
+          logger.info('Navigating to entry page after successful email verification', {
             component: 'App',
             action: 'navigate_after_verification',
             userId: newUser?.id,
           });
-          setLocation('/tenant-selection');
+          setLocation('/entry');
         } catch (error: any) {
           const err = error instanceof Error ? error : new Error(String(error));
           logger.error('Failed to retry registration', err, {
