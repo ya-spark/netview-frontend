@@ -23,6 +23,17 @@ export default function AcceptInvitation() {
   const urlParams = new URL(window.location.href).searchParams;
   const token = urlParams.get('token');
 
+  // Log component mount
+  useEffect(() => {
+    logger.info('AcceptInvitation page loaded', {
+      component: 'AcceptInvitation',
+      action: 'page_load',
+      hasToken: !!token,
+      hasUser: !!user,
+      hasFirebaseUser: !!firebaseUser,
+    });
+  }, [token, user, firebaseUser]);
+
   // Fetch invitation details
   const {
     data: invitationData,
@@ -32,7 +43,20 @@ export default function AcceptInvitation() {
     queryKey: ['/api/collaborators/invitation-by-token', token],
     queryFn: async () => {
       if (!token) throw new Error('No token provided');
-      return CollaboratorApiService.getInvitationByToken(token);
+      logger.info('Fetching invitation by token', {
+        component: 'AcceptInvitation',
+        action: 'fetch_invitation',
+        hasToken: !!token,
+      });
+      const result = await CollaboratorApiService.getInvitationByToken(token);
+      logger.info('Invitation fetched successfully', {
+        component: 'AcceptInvitation',
+        action: 'fetch_invitation',
+        invitationId: result?.data?.id,
+        tenantName: result?.data?.tenantName,
+        email: result?.data?.email,
+      });
+      return result;
     },
     enabled: !!token,
     retry: false,
@@ -44,6 +68,13 @@ export default function AcceptInvitation() {
       if (!token || !user || !user.email || !user.tenantId) {
         throw new Error('Missing required information');
       }
+      logger.info('Accepting invitation by token', {
+        component: 'AcceptInvitation',
+        action: 'accept_invitation',
+        invitationToken: token,
+        userEmail: user.email,
+        tenantId: user.tenantId,
+      });
       return CollaboratorApiService.acceptInvitationByToken(
         token,
         user.email,
@@ -51,6 +82,11 @@ export default function AcceptInvitation() {
       );
     },
     onSuccess: () => {
+      logger.info('Invitation accepted successfully', {
+        component: 'AcceptInvitation',
+        action: 'accept_invitation_success',
+        userEmail: user?.email,
+      });
       toast({
         title: 'Invitation accepted',
         description: 'You have successfully joined the organization.',
@@ -60,6 +96,10 @@ export default function AcceptInvitation() {
       queryClient.invalidateQueries({ queryKey: ['/api/notifications/user'] });
       // Redirect to dashboard
       setTimeout(() => {
+        logger.info('Redirecting to dashboard after invitation acceptance', {
+          component: 'AcceptInvitation',
+          action: 'redirect_after_acceptance',
+        });
         setLocation('/dashboard');
       }, 1500);
     },
@@ -96,6 +136,10 @@ export default function AcceptInvitation() {
 
   // Handle missing token
   if (!token) {
+    logger.warn('AcceptInvitation: No token provided', {
+      component: 'AcceptInvitation',
+      action: 'missing_token',
+    });
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Card className="w-full max-w-md">
@@ -129,6 +173,12 @@ export default function AcceptInvitation() {
       (invitationError as any)?.response?.data?.detail ||
       (invitationError as Error)?.message ||
       'Failed to load invitation';
+
+    logger.error('Failed to load invitation', invitationError instanceof Error ? invitationError : new Error(String(invitationError)), {
+      component: 'AcceptInvitation',
+      action: 'fetch_invitation_error',
+      errorMessage,
+    });
 
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -164,6 +214,12 @@ export default function AcceptInvitation() {
 
   // If user is not logged in, redirect to login with token preserved
   if (!firebaseUser || !user) {
+    logger.info('User not authenticated, redirecting to login', {
+      component: 'AcceptInvitation',
+      action: 'redirect_to_login',
+      hasFirebaseUser: !!firebaseUser,
+      hasUser: !!user,
+    });
     const loginUrl = `/login?redirect=${encodeURIComponent(location)}`;
     return <Redirect to={loginUrl} />;
   }
@@ -172,6 +228,12 @@ export default function AcceptInvitation() {
   const emailMatches = user.email?.toLowerCase() === invitation.email.toLowerCase();
 
   if (!emailMatches) {
+    logger.warn('Email mismatch for invitation', {
+      component: 'AcceptInvitation',
+      action: 'email_mismatch',
+      invitationEmail: invitation.email,
+      userEmail: user.email,
+    });
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Card className="w-full max-w-md">
@@ -205,6 +267,12 @@ export default function AcceptInvitation() {
 
   // Check if already accepted
   if (invitation.status === 'accepted') {
+    logger.info('Invitation already accepted', {
+      component: 'AcceptInvitation',
+      action: 'invitation_already_accepted',
+      invitationId: invitation.id,
+      userEmail: user.email,
+    });
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Card className="w-full max-w-md">

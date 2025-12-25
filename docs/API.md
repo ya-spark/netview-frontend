@@ -57,11 +57,22 @@ Verify the 6-digit code sent to an email address.
 - Code must be verified within 10 minutes of being sent
 - After successful verification, user can proceed with Firebase account creation and registration
 
-#### POST /api/auth/register
-Register a new user with Firebase token.
+#### GET /api/auth/me
+Get current authenticated user's profile and tenant information.
 
 **Auth**: Firebase JWT Token required
-**Request Body**:
+**Request Body**: None
+**Response**: User object with tenant information
+**Notes**: 
+- Email and UID extracted from Firebase token
+- Auto-creates user if not found
+- Returns user status including email verification, tenant info, role, etc.
+
+#### POST /api/auth/me
+Register or update current authenticated user's details.
+
+**Auth**: Firebase JWT Token required
+**Request Body** (optional):
 ```json
 {
   "firstName": "string",
@@ -70,17 +81,13 @@ Register a new user with Firebase token.
   "region": "string (optional)"
 }
 ```
-**Response**: User object
+**Response**: User object with tenant information
 **Notes**: 
 - Email and UID extracted from Firebase token
-- Auto-creates tenant for non-SuperAdmin users
-- For sign-up flow: Email verification should be completed before calling this endpoint
-
-#### GET /api/auth/me
-Get current authenticated user.
-
-**Auth**: Firebase JWT Token
-**Response**: User object
+- If user exists, updates missing details
+- If user doesn't exist, creates user with provided details
+- For password sign-in, email verification required before registration
+- Returns same format as GET /api/auth/me
 
 ### Pricing
 

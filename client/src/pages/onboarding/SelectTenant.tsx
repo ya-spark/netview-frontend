@@ -24,7 +24,7 @@ interface Tenant {
  */
 export default function SelectTenant() {
   const [, setLocation] = useLocation();
-  const { firebaseUser, setSelectedTenant, syncBackendUser, selectedTenant } = useAuth();
+  const { firebaseUser, setSelectedTenant, syncBackendUser } = useAuth();
   const [selecting, setSelecting] = useState<string | null>(null);
   const { toast } = useToast();
   const autoSelectingRef = useRef(false);
@@ -118,6 +118,9 @@ export default function SelectTenant() {
         await syncBackendUser(firebaseUser);
       }
       
+      // Wait a moment for state to propagate
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       toast({
         title: "Organization Selected",
         description: `Switched to "${tenant.name}".`,
@@ -139,23 +142,13 @@ export default function SelectTenant() {
         return protectedRoutes.some(route => path.startsWith(route));
       };
 
-      // Redirect to saved path or dashboard
-      setTimeout(() => {
-        if (redirectData.path && isValidProtectedRoute(redirectData.path)) {
-          sessionStorage.removeItem('loginRedirect'); // Clear after use
-          logger.info('Redirecting to saved path after tenant selection', {
-            component: 'SelectTenant',
-            action: 'select_tenant',
-          }, { redirectPath: redirectData.path });
-          setLocation(redirectData.path);
-        } else {
-          logger.info('Redirecting to dashboard after tenant selection', {
-            component: 'SelectTenant',
-            action: 'select_tenant',
-          });
-          setLocation('/dashboard');
-        }
-      }, 500);
+      // Redirect back to entry page (central point that handles everything)
+      // Entry will then route to dashboard after tenant is set
+      logger.info('Tenant set, redirecting to entry after tenant selection', {
+        component: 'SelectTenant',
+        action: 'select_tenant',
+      });
+      setLocation('/entry');
     } catch (error: any) {
       const err = error instanceof Error ? error : new Error(String(error));
       logger.error('Failed to select tenant', err, {

@@ -20,7 +20,7 @@ export default function ProbeStatus() {
 
   const { data: probeResponse, isLoading: probeLoading } = useQuery({
     queryKey: ['/api/probes', probeId],
-    enabled: !!user && !!probeId,
+    enabled: !!probeId,
     queryFn: async () => {
       if (!probeId) throw new Error('Probe ID is required');
       return await ProbeApiService.getProbe(probeId);
@@ -29,7 +29,7 @@ export default function ProbeStatus() {
 
   const { data: statusResponse, isLoading: statusLoading } = useQuery({
     queryKey: ['/api/probes', probeId, 'status'],
-    enabled: !!user && !!probeId,
+    enabled: !!probeId,
     queryFn: async () => {
       if (!probeId) throw new Error('Probe ID is required');
       return await ProbeApiService.getProbeStatus(probeId);

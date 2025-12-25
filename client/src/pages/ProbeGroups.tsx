@@ -58,7 +58,6 @@ export default function ProbeGroups() {
 
   const { data: probeGroups, isLoading: probeGroupsLoading } = useQuery({
     queryKey: ['/api/probe-groups'],
-    enabled: !!user,
     queryFn: async () => {
       return await ProbeGroupApiService.listProbeGroups();
     },
@@ -66,7 +65,7 @@ export default function ProbeGroups() {
 
   const { data: probesInGroup, isLoading: probesLoading } = useQuery({
     queryKey: ['/api/probe-groups', selectedGroupId, 'probes'],
-    enabled: !!user && !!selectedGroupId,
+    enabled: !!selectedGroupId,
     queryFn: async () => {
       if (!selectedGroupId) return null;
       return await ProbeGroupApiService.getProbesByGroup(selectedGroupId);

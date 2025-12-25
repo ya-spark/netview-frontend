@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,7 @@ const notificationSchema = z.object({
 export default function Settings() {
   const { user, firebaseUser, syncBackendUser } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   const profileForm = useForm<z.infer<typeof profileSchema>>({
     resolver: zodResolver(profileSchema),
@@ -409,7 +411,11 @@ export default function Settings() {
                     <p className="text-sm text-muted-foreground mb-4">
                       Manage API keys for integrations
                     </p>
-                    <Button variant="outline" data-testid="button-manage-api-keys">
+                    <Button 
+                      variant="outline" 
+                      data-testid="button-manage-api-keys"
+                      onClick={() => setLocation('/manage/api-keys')}
+                    >
                       Manage API Keys
                     </Button>
                   </div>

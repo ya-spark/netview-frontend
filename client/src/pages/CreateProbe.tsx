@@ -36,7 +36,7 @@ import { ArrowLeft, HelpCircle, Search, Filter, X, Activity, Globe2, Globe, Shie
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function CreateProbe() {
-  const { user } = useAuth();
+  const { user, selectedTenant } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
@@ -177,7 +177,6 @@ export default function CreateProbe() {
 
   const { data: probeTypes, error: typesError, isLoading: typesLoading } = useQuery({
     queryKey: ['/api/probes/types'],
-    enabled: !!user,
     queryFn: async () => {
       return await ProbeApiService.getProbeTypes();
     },
@@ -185,7 +184,6 @@ export default function CreateProbe() {
 
   const { data: gateways } = useQuery({
     queryKey: ['/api/gateways'],
-    enabled: !!user,
     queryFn: async () => {
       return await GatewayApiService.listGateways();
     },
@@ -194,7 +192,6 @@ export default function CreateProbe() {
   // Fetch shared/Core gateways separately
   const { data: sharedGateways } = useQuery({
     queryKey: ['/api/gateways/shared'],
-    enabled: !!user,
     queryFn: async () => {
       return await GatewayApiService.getSharedGateways();
     },
@@ -202,7 +199,6 @@ export default function CreateProbe() {
 
   const { data: notificationGroupsResponse } = useQuery({
     queryKey: ['/api/notifications/groups'],
-    enabled: !!user,
     queryFn: async () => {
       return await NotificationGroupApiService.listGroups();
     },
@@ -212,7 +208,6 @@ export default function CreateProbe() {
 
   const { data: probeGroupsResponse } = useQuery({
     queryKey: ['/api/probe-groups'],
-    enabled: !!user,
     queryFn: async () => {
       return await ProbeGroupApiService.listProbeGroups();
     },
@@ -222,7 +217,6 @@ export default function CreateProbe() {
 
   const { data: resourceGroupsResponse } = useQuery({
     queryKey: ['/api/resource-groups'],
-    enabled: !!user,
     queryFn: async () => {
       return await ResourceGroupApiService.listResourceGroups();
     },
@@ -291,6 +285,8 @@ export default function CreateProbe() {
       configuration: Record<string, any>;
       is_active: boolean;
       template_id?: string | null;
+      resource_group?: string;
+      probe_group?: string;
     }) => {
       logger.info('Creating probe', {
         component: 'CreateProbe',

@@ -22,7 +22,7 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function Login() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const { toast } = useToast();
@@ -37,15 +37,29 @@ export default function Login() {
   });
 
   // Redirect authenticated users to entry page
+  // But only if we're still on /login (prevent redirect loops)
+  const hasRedirectedRef = useRef(false);
   useEffect(() => {
+    // Early return if not on /login route
+    if (location !== '/login') {
+      return;
+    }
+    
+    if (hasRedirectedRef.current) {
+      return;
+    }
+    
     if (firebaseUser) {
       logger.info('User already authenticated, redirecting to entry page', {
         component: 'Login',
         action: 'redirect_authenticated_user',
       });
+      hasRedirectedRef.current = true;
       setLocation('/entry');
     }
-  }, [firebaseUser, setLocation]);
+    // Only depend on firebaseUser, not location to prevent loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firebaseUser]);
 
   const handleGoogleLogin = async () => {
     setGoogleLoading(true);

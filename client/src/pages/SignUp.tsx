@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,6 +37,15 @@ export default function SignUp() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+
+  // Log component mount
+  useEffect(() => {
+    logger.info('SignUp page loaded', {
+      component: 'SignUp',
+      action: 'page_load',
+      hasUser: !!user,
+    });
+  }, [user]);
 
   const signUpForm = useForm<SignUpFormData>({
     resolver: zodResolver(signUpSchema),

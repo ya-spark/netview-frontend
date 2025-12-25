@@ -30,7 +30,7 @@ export function Header() {
   const { data: countData, error: countError } = useQuery({
     queryKey: ['/api/notifications/user/count'],
     queryFn: () => UserNotificationApiService.getUnreadNotificationCount(),
-    enabled: !!user?.email && !!selectedTenant?.id,
+    enabled: !!selectedTenant?.id,
     refetchInterval: 30000, // Refetch every 30 seconds
     retry: false, // Don't retry on error - just show 0 count
     onError: (error) => {

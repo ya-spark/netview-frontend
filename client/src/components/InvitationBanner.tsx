@@ -56,7 +56,7 @@ export function InvitationBanner({ onDismiss }: InvitationBannerProps) {
       // #endregion
       return result;
     },
-    enabled: !!user?.email && !!user?.tenantId,
+    enabled: !!user?.tenantId,
   });
 
   const pendingInvitations: PendingInvitation[] = invitationsData?.data || [];

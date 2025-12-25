@@ -85,7 +85,7 @@ export default function Collaborators() {
       });
       return result;
     },
-    enabled: !!user?.email && !!user?.tenantId && canManageCollaborators,
+    enabled: !!user?.tenantId && canManageCollaborators,
   });
 
   const collaborators = collaboratorsResponse?.data || [];

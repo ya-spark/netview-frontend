@@ -129,10 +129,12 @@ export function RunProbeResultModal({
               {getStatusIcon()}
               <div>
                 <DialogTitle>Probe Run Result</DialogTitle>
-                <DialogDescription>
-                  {result?.execution_id ? `Execution ID: ${result.execution_id}` : 'Running probe...'}
+                <div className="flex items-center gap-2">
+                  <DialogDescription>
+                    {result?.execution_id ? `Execution ID: ${result.execution_id}` : 'Running probe...'}
+                  </DialogDescription>
                   {getStatusBadge()}
-                </DialogDescription>
+                </div>
               </div>
             </div>
             <div className="flex gap-2">

@@ -68,7 +68,7 @@ export default function Monitor() {
       });
       return ProbeApiService.listProbes();
     },
-    enabled: !!user && !!selectedTenant && needsProbesList,
+    enabled: !!selectedTenant && needsProbesList,
     refetchInterval: needsProbesList ? 30000 : false,
   });
 
@@ -102,7 +102,7 @@ export default function Monitor() {
   const { data: gatewaysData, isLoading: gatewaysLoading, refetch: refetchGateways } = useQuery({
     queryKey: ['/api/gateways'],
     queryFn: () => GatewayApiService.listGateways(),
-    enabled: !!user && !!selectedTenant && needsGatewaysList,
+    enabled: !!selectedTenant && needsGatewaysList,
     refetchInterval: needsGatewaysList ? 30000 : false,
   });
 
@@ -113,7 +113,7 @@ export default function Monitor() {
   const { data: alertsData, isLoading: alertsLoading, refetch: refetchAlerts } = useQuery({
     queryKey: ['/api/alerts'],
     queryFn: () => AlertApiService.listAlerts(),
-    enabled: !!user && !!selectedTenant && needsAlerts,
+    enabled: !!selectedTenant && needsAlerts,
     refetchInterval: needsAlerts ? 30000 : false,
   });
 
@@ -134,7 +134,7 @@ export default function Monitor() {
       });
       return ProbeApiService.getLatestResults(1000);
     },
-    enabled: !!user && !!selectedTenant && needsLatestResults,
+    enabled: !!selectedTenant && needsLatestResults,
     refetchInterval: needsLatestResults ? 30000 : false,
   });
 
@@ -198,42 +198,42 @@ export default function Monitor() {
   const { data: probeDetailData, isLoading: probeDetailLoading, refetch: refetchProbeDetail } = useQuery({
     queryKey: ['/api/probes', probeId],
     queryFn: () => probeId ? ProbeApiService.getProbe(probeId) : null,
-    enabled: !!probeId && !!user && !!selectedTenant && currentSection === 'probes' && !!probeId,
+    enabled: !!probeId && !!selectedTenant && currentSection === 'probes' && !!probeId,
   });
 
   // Fetch selected gateway details - only when gateway detail page is shown
   const { data: gatewayDetailData, isLoading: gatewayDetailLoading, refetch: refetchGatewayDetail } = useQuery({
     queryKey: ['/api/gateways', gatewayId],
     queryFn: () => gatewayId ? GatewayApiService.getGateway(gatewayId) : null,
-    enabled: !!gatewayId && !!user && !!selectedTenant && currentSection === 'gateways' && !!gatewayId,
+    enabled: !!gatewayId && !!selectedTenant && currentSection === 'gateways' && !!gatewayId,
   });
 
   // Fetch probe logs (last 10) - only when probe detail page is shown
   const { data: probeLogsData, isLoading: probeLogsLoading, refetch: refetchProbeLogs } = useQuery({
     queryKey: ['/api/logs/probe', probeId],
     queryFn: () => probeId ? LogsApiService.getProbeLogs(probeId, 10, 0) : null,
-    enabled: !!probeId && !!user && !!selectedTenant && currentSection === 'probes' && !!probeId,
+    enabled: !!probeId && !!selectedTenant && currentSection === 'probes' && !!probeId,
   });
 
   // Fetch all probe results for statistics (success/failure/misses) - only when probe detail page is shown
   const { data: probeResultsForStats, refetch: refetchProbeResultsForStats } = useQuery({
     queryKey: ['/api/results/probe', probeId],
     queryFn: () => probeId ? ProbeApiService.getProbeResults(probeId, { limit: 1000 }) : null,
-    enabled: !!probeId && !!user && !!selectedTenant && currentSection === 'probes' && !!probeId,
+    enabled: !!probeId && !!selectedTenant && currentSection === 'probes' && !!probeId,
   });
 
   // Fetch gateway logs (last 10) - only when gateway detail page is shown
   const { data: gatewayLogsData, isLoading: gatewayLogsLoading, refetch: refetchGatewayLogs } = useQuery({
     queryKey: ['/api/logs/gateway', gatewayId],
     queryFn: () => gatewayId ? LogsApiService.getGatewayLogs(gatewayId, 10, 0) : null,
-    enabled: !!gatewayId && !!user && !!selectedTenant && currentSection === 'gateways' && !!gatewayId,
+    enabled: !!gatewayId && !!selectedTenant && currentSection === 'gateways' && !!gatewayId,
   });
 
   // Fetch gateway uptime - only when gateway detail page is shown
   const { data: gatewayUptimeData, refetch: refetchGatewayUptime } = useQuery({
     queryKey: ['/api/gateways', gatewayId, 'uptime'],
     queryFn: () => gatewayId ? GatewayApiService.getGatewayUptime(gatewayId) : null,
-    enabled: !!gatewayId && !!user && !!selectedTenant && currentSection === 'gateways' && !!gatewayId,
+    enabled: !!gatewayId && !!selectedTenant && currentSection === 'gateways' && !!gatewayId,
   });
 
   // Get gateway name for probe

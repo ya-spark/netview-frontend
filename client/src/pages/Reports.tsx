@@ -42,7 +42,6 @@ export default function Reports() {
 
   const { data: probes } = useQuery({
     queryKey: ['/api/probes'],
-    enabled: !!user,
     queryFn: async () => {
       logger.debug('Fetching probes for reports', {
         component: 'Reports',
@@ -61,7 +60,6 @@ export default function Reports() {
 
   const { data: gateways } = useQuery({
     queryKey: ['/api/gateways'],
-    enabled: !!user,
     queryFn: async () => {
       logger.debug('Fetching gateways for reports', {
         component: 'Reports',

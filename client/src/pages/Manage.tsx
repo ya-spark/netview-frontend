@@ -150,7 +150,6 @@ export default function Manage() {
 
   const { data: probes, refetch: refetchProbes } = useQuery({
     queryKey: ['/api/probes'],
-    enabled: !!user,
     queryFn: async () => {
       logger.debug('Fetching probes', {
         component: 'Manage',
@@ -169,7 +168,7 @@ export default function Manage() {
 
   const { data: notificationGroupsResponse, refetch: refetchNotificationGroups } = useQuery({
     queryKey: ['/api/notifications/groups'],
-    enabled: !!user && (currentSection === 'notifications' || currentSection === 'probes'),
+    enabled: (currentSection === 'notifications' || currentSection === 'probes'),
     queryFn: async () => {
       logger.debug('Fetching notification groups', {
         component: 'Manage',
@@ -189,7 +188,7 @@ export default function Manage() {
   const notificationGroups = notificationGroupsResponse?.data || [];
 
   // Query for all gateways (includes both tenant-specific and shared gateways)
-  const gatewaysQueryEnabled = !!user && (currentSection === 'gateways' || currentSection === 'probes');
+  const gatewaysQueryEnabled = (currentSection === 'gateways' || currentSection === 'probes');
   const { data: gateways, refetch: refetchGateways, error: gatewaysError, isLoading: gatewaysLoading } = useQuery({
     queryKey: ['/api/gateways', currentSection],
     enabled: gatewaysQueryEnabled, // Load gateways when viewing probes too
@@ -223,7 +222,7 @@ export default function Manage() {
   // Fetch shared/Core gateways separately
   const { data: sharedGateways } = useQuery({
     queryKey: ['/api/gateways/shared'],
-    enabled: !!user && (currentSection === 'probes' || currentSection === 'gateways'),
+    enabled: (currentSection === 'probes' || currentSection === 'gateways'),
     queryFn: async () => {
       return await GatewayApiService.getSharedGateways();
     },

@@ -72,7 +72,8 @@ export async function getCurrentUser(): Promise<any> {
 }
 
 /**
- * Register a new user with backend
+ * Register or update user details with backend
+ * Uses POST /api/auth/me to update user information
  * @param firstName - User's first name
  * @param lastName - User's last name
  * @param company - User's company (optional)
@@ -85,7 +86,7 @@ export async function registerUser(
   company?: string,
   region?: string
 ): Promise<any> {
-  logger.info('Registering new user with backend', {
+  logger.info('Registering/updating user with backend', {
     component: 'authApi',
     action: 'register_user',
     firstName,
@@ -93,7 +94,7 @@ export async function registerUser(
     hasCompany: !!company,
     hasRegion: !!region,
   });
-  const response = await apiRequest('POST', '/api/auth/register', {
+  const response = await apiRequest('POST', '/api/auth/me', {
     firstName,
     lastName,
     ...(company && { company }),
@@ -111,10 +112,10 @@ export async function registerUser(
       component: 'authApi',
       action: 'register_user',
     }, responseData);
-    throw new Error('Invalid response from registration endpoint. User data is missing.');
+    throw new Error('Invalid response from /api/auth/me endpoint. User data is missing.');
   }
   
-  logger.info('User registered successfully', {
+  logger.info('User registered/updated successfully', {
     component: 'authApi',
     action: 'register_user',
     userId: user.id,

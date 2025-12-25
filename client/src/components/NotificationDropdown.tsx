@@ -32,7 +32,7 @@ export function NotificationDropdown({ children }: NotificationDropdownProps) {
   const { data: countData, error: countError } = useQuery({
     queryKey: ['/api/notifications/user/count'],
     queryFn: () => UserNotificationApiService.getUnreadNotificationCount(),
-    enabled: !!user?.email && !!selectedTenant?.id,
+    enabled: !!selectedTenant?.id,
     refetchInterval: 30000, // Refetch every 30 seconds
     retry: false, // Don't retry on error - just show 0 count
     onError: (error) => {
@@ -52,7 +52,7 @@ export function NotificationDropdown({ children }: NotificationDropdownProps) {
   const { data: notificationsData, error: notificationsError } = useQuery({
     queryKey: ['/api/notifications/user'],
     queryFn: () => UserNotificationApiService.getUserNotifications(true, 10, 0), // Unread only, limit 10
-    enabled: !!user?.email && !!selectedTenant?.id,
+    enabled: !!selectedTenant?.id,
     refetchInterval: 30000, // Refetch every 30 seconds
     retry: false, // Don't retry on error - just show empty list
     onError: (error) => {

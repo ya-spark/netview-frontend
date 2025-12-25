@@ -187,6 +187,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: backendUser.email,
           createdAt: backendUser.createdAt || new Date().toISOString(),
         };
+        logger.info('Setting selected tenant from backend user', {
+          component: 'AuthContext',
+          action: 'sync_backend_user',
+          tenantId: tenant.id,
+          tenantIdType: typeof tenant.id,
+          tenantIdString: String(tenant.id),
+          tenantName: tenant.name,
+          backendUserTenantId: backendUser.tenantId,
+          backendUserTenantIdType: typeof backendUser.tenantId,
+        });
         setSelectedTenant(tenant);
         selectedTenantRef.current = tenant;
         setCurrentUserInfo(backendUser.email, backendUser.tenantId);
@@ -329,29 +339,88 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [isPublicRoute, syncBackendUser]);
 
-  // Restore selected tenant from localStorage on mount
+  // Restore selected tenant from localStorage on mount (run immediately, not waiting for firebaseUser)
   useEffect(() => {
     try {
       const stored = localStorage.getItem('selectedTenant');
+      logger.info('Checking localStorage for saved tenant on mount', {
+        component: 'AuthContext',
+        action: 'restore_tenant_from_storage',
+        hasStoredTenant: !!stored,
+        storedTenantRaw: stored,
+      });
+      
       if (stored) {
         const tenant = JSON.parse(stored);
-        setSelectedTenant(tenant);
+        logger.info('Restoring selected tenant from localStorage', {
+          component: 'AuthContext',
+          action: 'restore_tenant_from_storage',
+          tenantId: tenant.id,
+          tenantIdType: typeof tenant.id,
+          tenantIdString: String(tenant.id),
+          tenantName: tenant.name,
+          tenantEmail: tenant.email,
+          tenantData: tenant,
+        });
         
-        // Update API headers with restored tenant info
+        setSelectedTenant(tenant);
+        selectedTenantRef.current = tenant;
+        
+        // Update API headers with restored tenant info immediately
         // Use tenant email if available, otherwise try to get from firebaseUser
         const email = tenant.email || firebaseUser?.email || '';
         if (email && tenant.id) {
+          logger.info('Setting currentUserInfo with restored tenant', {
+            component: 'AuthContext',
+            action: 'restore_tenant_from_storage',
+            tenantId: tenant.id,
+            tenantIdType: typeof tenant.id,
+            tenantIdString: String(tenant.id),
+            email: email,
+          });
           setCurrentUserInfo(email, tenant.id);
+          logger.info('Restored selected tenant from localStorage and set in queryClient', {
+            component: 'AuthContext',
+            action: 'restore_tenant_from_storage',
+            tenantId: tenant.id,
+            tenantIdType: typeof tenant.id,
+            tenantIdString: String(tenant.id),
+            email,
+          });
+        } else {
+          logger.warn('Restored selected tenant from localStorage but missing email or id', {
+            component: 'AuthContext',
+            action: 'restore_tenant_from_storage',
+            tenantId: tenant.id,
+            tenantIdType: typeof tenant.id,
+            hasEmail: !!email,
+            hasTenantId: !!tenant.id,
+          });
         }
-        
-        logger.debug('Restored selected tenant from localStorage', {
+      } else {
+        logger.debug('No selected tenant found in localStorage', {
           component: 'AuthContext',
-          tenantId: tenant.id,
-          email,
         });
       }
     } catch (error) {
-      logger.warn('Failed to restore selected tenant from localStorage', { component: 'AuthContext' });
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.warn('Failed to restore selected tenant from localStorage', err, { component: 'AuthContext' });
+    }
+  }, []); // Run once on mount, don't wait for firebaseUser
+  
+  // Also update queryClient when firebaseUser becomes available (if tenant was restored earlier)
+  useEffect(() => {
+    if (firebaseUser && selectedTenantRef.current) {
+      const email = selectedTenantRef.current.email || firebaseUser.email || '';
+      const tenantId = selectedTenantRef.current.id;
+      if (email && tenantId) {
+        setCurrentUserInfo(email, tenantId);
+        logger.debug('Updated queryClient with tenant info after firebaseUser became available', {
+          component: 'AuthContext',
+          tenantId,
+          email,
+        });
+      }
     }
   }, [firebaseUser]);
 
@@ -713,24 +782,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [firebaseUser]);
 
   const handleSetSelectedTenant = (tenant: Tenant | null) => {
-    setSelectedTenant(tenant);
+    logger.info('Setting selected tenant in AuthContext', {
+      component: 'AuthContext',
+      action: 'set_selected_tenant',
+      tenantId: tenant?.id,
+      tenantName: tenant?.name,
+      tenantEmail: tenant?.email,
+      userId: user?.id,
+      userEmail: user?.email,
+    });
     
-    // Update API headers with selected tenant
-    if (tenant && user) {
-      setCurrentUserInfo(user.email, tenant.id);
+    setSelectedTenant(tenant);
+    selectedTenantRef.current = tenant;
+    
+    // Handle tenant setting - prioritize tenant if available, even if user is not yet synced
+    if (tenant) {
+      // Use tenant email if available, otherwise try user email, then firebaseUser email
+      const email = tenant.email || user?.email || firebaseUser?.email || '';
       
-      // Persist in localStorage for session continuity
-      if (tenant) {
-        localStorage.setItem('selectedTenant', JSON.stringify({
-          id: tenant.id,
-          name: tenant.name,
-          email: tenant.email,
-        }));
-      } else {
-        localStorage.removeItem('selectedTenant');
+      logger.info('Updating API headers with tenant info', {
+        component: 'AuthContext',
+        action: 'set_selected_tenant',
+        tenantId: tenant.id,
+        tenantIdType: typeof tenant.id,
+        tenantIdString: String(tenant.id),
+        email: email,
+        hasUser: !!user,
+        hasFirebaseUser: !!firebaseUser,
+      });
+      
+      // Always set currentUserInfo if we have tenant and email
+      if (email) {
+        setCurrentUserInfo(email, tenant.id);
       }
       
-      // Update user state with selected tenant
+      // Persist in localStorage for session continuity
+      const tenantData = {
+        id: tenant.id,
+        name: tenant.name,
+        email: email,
+      };
+      logger.info('Saving tenant to localStorage', {
+        component: 'AuthContext',
+        action: 'set_selected_tenant',
+        tenantId: tenant.id,
+        tenantIdType: typeof tenant.id,
+        tenantIdString: String(tenant.id),
+        tenantData,
+      });
+      localStorage.setItem('selectedTenant', JSON.stringify(tenantData));
+      
+      // Update user state with selected tenant if user is available
       if (user) {
         const updatedUser = {
           ...user,
@@ -738,11 +840,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           tenantName: tenant.name,
           updatedAt: new Date().toISOString(),
         };
+        logger.info('Updating user state with tenant info', {
+          component: 'AuthContext',
+          action: 'set_selected_tenant',
+          userId: user.id,
+          tenantId: tenant.id,
+          tenantIdType: typeof tenant.id,
+          tenantIdString: String(tenant.id),
+        });
         setUser(updatedUser);
+      } else {
+        logger.info('User not yet available, tenant saved for later sync', {
+          component: 'AuthContext',
+          action: 'set_selected_tenant',
+          tenantId: tenant.id,
+          tenantIdType: typeof tenant.id,
+          tenantIdString: String(tenant.id),
+        });
       }
     } else {
+      // Clearing tenant - only clear if explicitly null
+      logger.info('Clearing tenant info', {
+        component: 'AuthContext',
+        action: 'set_selected_tenant',
+        hasUser: !!user,
+      });
       localStorage.removeItem('selectedTenant');
-      setCurrentUserInfo(user?.email || '', '');
+      setCurrentUserInfo(user?.email || firebaseUser?.email || '', '');
     }
   };
 

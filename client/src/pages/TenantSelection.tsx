@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,8 +12,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { logger } from '@/lib/logger';
 import { setCurrentUserInfo } from '@/lib/queryClient';
-import { Building2, Plus, Check, Loader2 } from 'lucide-react';
+import { Building2, Plus, Check, Loader2, Mail, CheckCircle2 } from 'lucide-react';
 import { generateTenantId, validateTenantIdAvailability } from '@/services/tenantApi';
+import { getCurrentUser } from '@/services/authApi';
+import { CollaboratorApiService } from '@/services/collaboratorApi';
+import type { PendingInvitation } from '@/types/collaborator';
 
 const tenantSchema = z.object({
   name: z.string()
@@ -29,14 +32,88 @@ const tenantSchema = z.object({
 type TenantFormData = z.infer<typeof tenantSchema>;
 
 export default function TenantSelection() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [validatingTenantId, setValidatingTenantId] = useState(false);
   const [tenantIdError, setTenantIdError] = useState<string | null>(null);
   const [isTenantIdManuallyEdited, setIsTenantIdManuallyEdited] = useState(false);
+  const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
+  const [acceptingInvitation, setAcceptingInvitation] = useState<string | null>(null);
+  const [skipping, setSkipping] = useState(false);
   const { toast } = useToast();
-  const { user, tenants, selectedTenant, loadTenants, createTenant, setSelectedTenant } = useAuth();
+  const { user, tenants, selectedTenant, loadTenants, createTenant, setSelectedTenant, firebaseUser, syncBackendUser } = useAuth();
+  const hasCheckedRef = useRef(false);
+
+  // Check if tenant selection is needed
+  useEffect(() => {
+    const checkTenantSelectionNeeded = async () => {
+      if (hasCheckedRef.current || location !== '/tenant-selection') {
+        return;
+      }
+
+      if (!firebaseUser) {
+        setLocation('/login');
+        return;
+      }
+
+      hasCheckedRef.current = true;
+
+      try {
+        const userData = await getCurrentUser();
+        const userTenants = userData.tenants || [];
+        
+        // If user has exactly one tenant, auto-select and route to scope settings
+        if (userTenants.length === 1) {
+          logger.info('User has single tenant, auto-selecting and routing to scope settings', {
+            component: 'TenantSelection',
+            action: 'auto_select_single_tenant',
+            tenantId: userTenants[0].id,
+            tenantName: userTenants[0].name,
+          });
+          
+          setSkipping(true);
+          
+          const tenant = userTenants[0];
+          const tenantId = String(tenant.id);
+          const tenantObj = {
+            id: tenantId,
+            name: tenant.name,
+            email: userData.email,
+            createdAt: tenant.created_at || new Date().toISOString(),
+          };
+          
+          setCurrentUserInfo(userData.email, tenantId);
+          setSelectedTenant(tenantObj);
+          
+          // Wait a moment for state to propagate, then redirect
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          logger.info('Tenant set, routing to scope settings', {
+            component: 'TenantSelection',
+            action: 'redirect_after_tenant_set',
+          });
+            setLocation('/scope-settings');
+          
+          return;
+        }
+
+        // Load tenants if not already loaded
+        if (user?.email && tenants.length === 0) {
+          await loadTenants(user.email);
+        }
+      } catch (error: any) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        logger.error('Failed to check tenant selection status', err, {
+          component: 'TenantSelection',
+          action: 'check_tenant_selection',
+        });
+      }
+    };
+
+    checkTenantSelectionNeeded();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firebaseUser, location]);
 
   useEffect(() => {
     logger.debug('TenantSelection page initialized', {
@@ -46,6 +123,31 @@ export default function TenantSelection() {
       hasSelectedTenant: !!selectedTenant,
     });
   }, [user?.id, tenants.length, selectedTenant]);
+
+  // Fetch pending invitations
+  useEffect(() => {
+    const fetchPendingInvitations = async () => {
+      if (!user?.email) return;
+      
+      try {
+        const userData = await getCurrentUser();
+        const invitations = userData.pendingInvitations || [];
+        setPendingInvitations(invitations);
+        logger.info('Fetched pending invitations', {
+          component: 'TenantSelection',
+          action: 'fetch_pending_invitations',
+          count: invitations.length,
+        });
+      } catch (error: any) {
+        logger.error('Failed to fetch pending invitations', error instanceof Error ? error : new Error(String(error)), {
+          component: 'TenantSelection',
+          action: 'fetch_pending_invitations',
+        });
+      }
+    };
+
+    fetchPendingInvitations();
+  }, [user?.email]);
 
   const tenantForm = useForm<TenantFormData>({
     resolver: zodResolver(tenantSchema),
@@ -101,7 +203,7 @@ export default function TenantSelection() {
         logger.error('Error validating tenant ID', err, {
           component: 'TenantSelection',
           action: 'validate_tenant_id',
-          tenantId: tenantIdValue,
+          tenantIdValue: tenantIdValue,
         });
         setTenantIdError('Failed to validate tenant ID. Please try again.');
       } finally {
@@ -190,7 +292,7 @@ export default function TenantSelection() {
       logger.error('Error validating tenant ID before creation', err, {
         component: 'TenantSelection',
         action: 'validate_tenant_id',
-        tenantId: data.tenantId,
+        tenantIdValue: data.tenantId,
       });
       toast({
         title: "Validation Error",
@@ -208,7 +310,7 @@ export default function TenantSelection() {
         component: 'TenantSelection',
         action: 'create_tenant',
         tenantName: data.name,
-        tenantId: data.tenantId,
+        tenantIdValue: data.tenantId,
         userId: user.id,
       });
       const tenant = await createTenant(data.name, data.tenantId);
@@ -216,7 +318,6 @@ export default function TenantSelection() {
       logger.info('Tenant created successfully', {
         component: 'TenantSelection',
         action: 'create_tenant',
-        tenantId: tenant.id,
         tenantName: tenant.name,
         userId: user.id,
       });
@@ -241,30 +342,32 @@ export default function TenantSelection() {
         return protectedRoutes.some(route => path.startsWith(route));
       };
 
-      // Redirect to saved path or dashboard
-      setTimeout(() => {
+      // Wait a moment for state to propagate
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Redirect to saved path or scope settings
         if (redirectData.path && isValidProtectedRoute(redirectData.path)) {
           sessionStorage.removeItem('loginRedirect'); // Clear after use
           logger.info('Redirecting to saved path after tenant creation', {
             component: 'TenantSelection',
             action: 'create_tenant',
-          }, { redirectPath: redirectData.path });
+          redirectPath: redirectData.path,
+        });
           setLocation(redirectData.path);
         } else {
-          logger.info('Redirecting to dashboard after tenant creation', {
+          logger.info('Redirecting to scope settings after tenant creation', {
             component: 'TenantSelection',
             action: 'create_tenant',
           });
-          setLocation('/dashboard');
+          setLocation('/scope-settings');
         }
-      }, 1000);
     } catch (error: any) {
       const err = error instanceof Error ? error : new Error(String(error));
       logger.error('Failed to create tenant', err, {
         component: 'TenantSelection',
         action: 'create_tenant',
         tenantName: data.name,
-        tenantId: data.tenantId,
+        tenantIdValue: data.tenantId,
         userId: user.id,
       });
       toast({
@@ -295,7 +398,6 @@ export default function TenantSelection() {
       logger.info('Selecting tenant', {
         component: 'TenantSelection',
         action: 'select_tenant',
-        tenantId: tenant.id,
         tenantName: tenant.name,
         userId: user.id,
         userEmail: user.email,
@@ -307,7 +409,6 @@ export default function TenantSelection() {
         component: 'TenantSelection',
         action: 'select_tenant',
         email: user.email,
-        tenantId: tenant.id,
       });
       
       // Set selected tenant
@@ -315,8 +416,10 @@ export default function TenantSelection() {
       logger.debug('Selected tenant set in context', {
         component: 'TenantSelection',
         action: 'select_tenant',
-        tenantId: tenant.id,
       });
+      
+      // Wait a moment for state to propagate
+      await new Promise(resolve => setTimeout(resolve, 100));
       
       toast({
         title: "Organization Selected",
@@ -339,29 +442,17 @@ export default function TenantSelection() {
         return protectedRoutes.some(route => path.startsWith(route));
       };
 
-      // Redirect to saved path or dashboard
-      setTimeout(() => {
-        if (redirectData.path && isValidProtectedRoute(redirectData.path)) {
-          sessionStorage.removeItem('loginRedirect'); // Clear after use
-          logger.info('Redirecting to saved path after tenant selection', {
-            component: 'TenantSelection',
-            action: 'select_tenant',
-          }, { redirectPath: redirectData.path });
-          setLocation(redirectData.path);
-        } else {
-          logger.debug('Redirecting to dashboard', {
-            component: 'TenantSelection',
-            action: 'select_tenant',
-          });
-          setLocation('/dashboard');
-        }
-      }, 500);
+      // Route to scope settings after tenant selection
+      logger.info('Tenant set, routing to scope settings', {
+          component: 'TenantSelection',
+        action: 'redirect_after_tenant_set',
+        });
+        setLocation('/scope-settings');
     } catch (error: any) {
       const err = error instanceof Error ? error : new Error(String(error));
       logger.error('Failed to select tenant', err, {
         component: 'TenantSelection',
         action: 'select_tenant',
-        tenantId: tenant.id,
         userId: user.id,
       });
       toast({
@@ -374,8 +465,118 @@ export default function TenantSelection() {
     }
   };
 
+  const handleAcceptInvitation = async (inv: PendingInvitation) => {
+    if (!user || !firebaseUser) {
+      logger.warn('Cannot accept invitation - no user', {
+        component: 'TenantSelection',
+        action: 'accept_invitation',
+      });
+      return;
+    }
+
+    setAcceptingInvitation(inv.id);
+    try {
+      logger.info('Accepting invitation', {
+        component: 'TenantSelection',
+        action: 'accept_invitation',
+        invitationId: inv.id,
+      });
+
+      // Use collaborator_id endpoint since user is logged in
+      if (!inv.tenantId) {
+        throw new Error("Tenant ID is required to accept this invitation");
+      }
+      
+      await CollaboratorApiService.acceptInvite(
+        inv.id,
+        user.email,
+        String(inv.tenantId)
+      );
+
+      logger.info('Invitation accepted successfully', {
+        component: 'TenantSelection',
+        action: 'accept_invitation_success',
+        invitationId: inv.id,
+      });
+
+      // Wait a moment for backend to fully commit
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Sync backend user to refresh tenant list
+      await syncBackendUser(firebaseUser);
+
+      // Reload tenants
+      if (user.email) {
+        await loadTenants(user.email);
+      }
+
+      // Remove accepted invitation from list
+      setPendingInvitations(prev => prev.filter(invitation => invitation.id !== inv.id));
+
+      toast({
+        title: "Invitation Accepted",
+        description: `You have successfully joined "${inv.tenantName || 'the organization'}".`,
+      });
+
+      // Wait a moment for state to propagate, then redirect
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      logger.info('Invitation accepted, redirecting to entry', {
+        component: 'TenantSelection',
+        action: 'accept_invitation',
+      });
+        setLocation('/entry');
+    } catch (error: any) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to accept invitation', err, {
+        component: 'TenantSelection',
+        action: 'accept_invitation',
+        invitationId: inv.id,
+      });
+      toast({
+        title: "Error",
+        description: error.message || "Failed to accept invitation. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setAcceptingInvitation(null);
+    }
+  };
+
   if (!user) {
     return null;
+  }
+
+  // Show skip message if tenant selection not needed
+  if (skipping) {
+    return (
+      <Layout showSidebar={false}>
+        <div className="min-h-screen flex items-center justify-center bg-muted/20 py-12 px-4 sm:px-6 lg:px-8">
+          <Card className="w-full max-w-md">
+            <CardHeader className="text-center">
+              <div className="flex items-center justify-center space-x-2 mb-4">
+                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                  <span className="text-primary-foreground font-bold text-lg">N</span>
+                </div>
+                <span className="text-xl font-bold text-foreground">NetView</span>
+              </div>
+              <CardTitle className="text-2xl">Tenant Selected</CardTitle>
+              <CardDescription>
+                Your organization is already set. Continuing to dashboard...
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="text-center">
+                <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                <p className="text-sm text-muted-foreground">
+                  Skipping tenant selection step
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </Layout>
+    );
   }
 
   return (
@@ -402,6 +603,51 @@ export default function TenantSelection() {
           <CardContent className="space-y-6">
             {!showCreateForm ? (
               <>
+                {/* Pending Invitations Section */}
+                {pendingInvitations.length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-medium text-muted-foreground">Pending Invitations</h3>
+                    <div className="grid gap-3">
+                      {pendingInvitations.map((invitation) => (
+                        <Card 
+                          key={invitation.id}
+                          className="border-primary/20 bg-primary/5"
+                        >
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                                  <Mail className="w-5 h-5 text-primary" />
+                                </div>
+                                <div>
+                                  <p className="font-medium">{invitation.tenantName || 'Organization'}</p>
+                                  <p className="text-sm text-muted-foreground">
+                                    Role: {invitation.role || 'Viewer'}
+                                  </p>
+                                </div>
+                              </div>
+                              <Button
+                                onClick={() => handleAcceptInvitation(invitation)}
+                                disabled={acceptingInvitation === invitation.id || loading}
+                                size="sm"
+                              >
+                                {acceptingInvitation === invitation.id ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Accepting...
+                                  </>
+                                ) : (
+                                  'Accept'
+                                )}
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Existing Tenants List */}
                 {tenants.length > 0 ? (
                   <div className="space-y-3">

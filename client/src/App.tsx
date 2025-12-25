@@ -4,9 +4,9 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { useEffect, lazy, Suspense } from "react";
 import { logger } from "@/lib/logger";
+import { useToast } from "@/hooks/use-toast";
 import Landing from "@/pages/Landing";
 import SignUp from "@/pages/SignUp";
 import Login from "@/pages/Login";
@@ -18,7 +18,10 @@ import Invites from "@/pages/onboarding/Invites";
 import SelectTenant from "@/pages/onboarding/SelectTenant";
 import EmailVerification from "@/pages/EmailVerification";
 import PublicEmailError from "@/pages/PublicEmailError";
+import UserDetails from "@/pages/UserDetails";
 import TenantSelection from "@/pages/TenantSelection";
+import TenantCreated from "@/pages/TenantCreated";
+import ScopeSettings from "@/pages/ScopeSettings";
 import LoggedOut from "@/pages/LoggedOut";
 import Features from "@/pages/Features";
 import Pricing from "@/pages/Pricing";
@@ -34,6 +37,7 @@ import Reports from "@/pages/Reports";
 import Settings from "@/pages/Settings";
 const Billing = lazy(() => import("@/pages/Billing"));
 import Collaborators from "@/pages/Collaborators";
+import ApiKeys from "@/pages/ApiKeys";
 import AcceptInvitation from "@/pages/AcceptInvitation";
 import NotFound from "@/pages/not-found";
 import { isBusinessEmail } from "@/utils/emailValidation";
@@ -41,6 +45,19 @@ import { isBusinessEmail } from "@/utils/emailValidation";
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, selectedTenant, loading, emailVerification } = useAuth();
   const [location] = useLocation();
+
+  useEffect(() => {
+    if (!loading) {
+      logger.debug('ProtectedRoute check', {
+        component: 'App',
+        action: 'protected_route_check',
+        location,
+        hasUser: !!user,
+        hasSelectedTenant: !!selectedTenant,
+        hasEmailVerification: !!emailVerification,
+      });
+    }
+  }, [loading, location, user, selectedTenant, emailVerification]);
 
   if (loading) {
     return (
@@ -54,15 +71,35 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (emailVerification) {
     // Check if the email is a public email (not a business email)
     if (!isBusinessEmail(emailVerification.email)) {
+      logger.info('Redirecting to public email error page', {
+        component: 'App',
+        action: 'protected_route_redirect',
+        reason: 'public_email',
+        email: emailVerification.email,
+        location,
+      });
       // Redirect to public email error page
       return <Redirect to="/public-email-error" />;
     } else {
+      logger.info('Redirecting to email verification page', {
+        component: 'App',
+        action: 'protected_route_redirect',
+        reason: 'email_verification_pending',
+        email: emailVerification.email,
+        location,
+      });
       // Redirect to email verification page for business emails
       return <Redirect to="/email-verification" />;
     }
   }
 
   if (!user) {
+    logger.info('User not authenticated, redirecting to login', {
+      component: 'App',
+      action: 'protected_route_redirect',
+      reason: 'not_authenticated',
+      location,
+    });
     // Redirect to login with current path preserved
     const loginUrl = `/login?redirect=${encodeURIComponent(location)}`;
     return <Redirect to={loginUrl} />;
@@ -70,12 +107,29 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   // If user doesn't have firstName set, redirect to settings to complete profile
   if (!user.firstName || !user.firstName.trim()) {
+    logger.info('User missing firstName, redirecting to settings', {
+      component: 'App',
+      action: 'protected_route_redirect',
+      reason: 'missing_firstname',
+      location,
+      userId: user.id,
+    });
     return <Redirect to="/settings" />;
   }
 
   // If user doesn't have a tenant selected, redirect to tenant selection
-  // Preserve current location and tenant ID so we can redirect back after tenant selection
-  if (!selectedTenant || !user.tenantId) {
+  // Check selectedTenant first (session state), then user.tenantId (backend state)
+  // selectedTenant might be set before user.tenantId is updated, so we allow access if either exists
+  if (!selectedTenant && !user.tenantId) {
+    logger.info('User missing tenant, redirecting to tenant selection', {
+      component: 'App',
+      action: 'protected_route_redirect',
+      reason: 'missing_tenant',
+      location,
+      userId: user.id,
+      hasSelectedTenant: !!selectedTenant,
+      hasUserTenantId: !!user.tenantId,
+    });
     // Save current location and tenant ID to sessionStorage for redirect after tenant selection
     if (location && location !== '/tenant-selection') {
       const isValidProtectedRoute = (path: string): boolean => {
@@ -92,10 +146,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       };
       
       if (isValidProtectedRoute(location)) {
-        // Store redirect path and tenant ID (if available from user.tenantId)
+        // Store redirect path and tenant ID (if available from user.tenantId or selectedTenant)
+        const tenantId = user.tenantId || selectedTenant?.id || null;
         const redirectData = {
           path: location,
-          tenantId: user.tenantId || null,
+          tenantId: tenantId,
         };
         sessionStorage.setItem('loginRedirect', JSON.stringify(redirectData));
       }
@@ -117,6 +172,19 @@ function PreAuthRoute({ children }: { children: React.ReactNode }) {
 // Only check auth when user tries to access these pages
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { user, emailVerification, loading } = useAuth();
+  const [location] = useLocation();
+
+  useEffect(() => {
+    if (!loading) {
+      logger.debug('PublicRoute check', {
+        component: 'App',
+        action: 'public_route_check',
+        location,
+        hasUser: !!user,
+        hasEmailVerification: !!emailVerification,
+      });
+    }
+  }, [loading, location, user, emailVerification]);
 
   // Don't redirect while loading - wait for auth state to settle
   if (loading) {
@@ -133,9 +201,24 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   if (user) {
     // If user has a tenant, go to dashboard
     if (user.tenantId) {
+      logger.info('Authenticated user with tenant, redirecting to dashboard', {
+        component: 'App',
+        action: 'public_route_redirect',
+        reason: 'authenticated_with_tenant',
+        location,
+        userId: user.id,
+        tenantId: user.tenantId,
+      });
       return <Redirect to="/dashboard" />;
     }
     // Otherwise, go to tenant selection
+    logger.info('Authenticated user without tenant, redirecting to tenant selection', {
+      component: 'App',
+      action: 'public_route_redirect',
+      reason: 'authenticated_no_tenant',
+      location,
+      userId: user.id,
+    });
     return <Redirect to="/tenant-selection" />;
   }
 
@@ -167,6 +250,16 @@ function LoginRoute({ children }: { children: React.ReactNode }) {
 function EntryRoute({ children }: { children: React.ReactNode }) {
   const { firebaseUser, loading } = useAuth();
 
+  useEffect(() => {
+    if (!loading) {
+      logger.debug('EntryRoute check', {
+        component: 'App',
+        action: 'entry_route_check',
+        hasFirebaseUser: !!firebaseUser,
+      });
+    }
+  }, [loading, firebaseUser]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -177,6 +270,11 @@ function EntryRoute({ children }: { children: React.ReactNode }) {
 
   // Redirect to login if not authenticated
   if (!firebaseUser) {
+    logger.info('No Firebase user, redirecting to login from entry route', {
+      component: 'App',
+      action: 'entry_route_redirect',
+      reason: 'not_authenticated',
+    });
     return <Redirect to="/login" />;
   }
 
@@ -212,6 +310,17 @@ function OnboardingRoute({ children }: { children: React.ReactNode }) {
 function TenantSelectionRoute({ children }: { children: React.ReactNode }) {
   const { user, loading, emailVerification } = useAuth();
 
+  useEffect(() => {
+    if (!loading) {
+      logger.debug('TenantSelectionRoute check', {
+        component: 'App',
+        action: 'tenant_selection_route_check',
+        hasUser: !!user,
+        hasEmailVerification: !!emailVerification,
+      });
+    }
+  }, [loading, user, emailVerification]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -224,9 +333,21 @@ function TenantSelectionRoute({ children }: { children: React.ReactNode }) {
   if (emailVerification) {
     // Check if the email is a public email (not a business email)
     if (!isBusinessEmail(emailVerification.email)) {
+      logger.info('Redirecting to public email error from tenant selection route', {
+        component: 'App',
+        action: 'tenant_selection_route_redirect',
+        reason: 'public_email',
+        email: emailVerification.email,
+      });
       // Redirect to public email error page
       return <Redirect to="/public-email-error" />;
     } else {
+      logger.info('Redirecting to email verification from tenant selection route', {
+        component: 'App',
+        action: 'tenant_selection_route_redirect',
+        reason: 'email_verification_pending',
+        email: emailVerification.email,
+      });
       // Redirect to email verification page for business emails
       return <Redirect to="/email-verification" />;
     }
@@ -234,6 +355,11 @@ function TenantSelectionRoute({ children }: { children: React.ReactNode }) {
 
   // Redirect to signup if not authenticated
   if (!user) {
+    logger.info('User not authenticated, redirecting to signup from tenant selection route', {
+      component: 'App',
+      action: 'tenant_selection_route_redirect',
+      reason: 'not_authenticated',
+    });
     return <Redirect to="/signup" />;
   }
 
@@ -315,6 +441,12 @@ function Router() {
         </PreAuthRoute>
       </Route>
 
+      <Route path="/user-details">
+        <PreAuthRoute>
+          <UserDetails />
+        </PreAuthRoute>
+      </Route>
+
       <Route path="/accept-invitation">
         <PreAuthRoute>
           <AcceptInvitation />
@@ -325,6 +457,18 @@ function Router() {
         <TenantSelectionRoute>
           <TenantSelection />
         </TenantSelectionRoute>
+      </Route>
+
+      <Route path="/tenant-created">
+        <ProtectedRoute>
+          <TenantCreated />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/scope-settings">
+        <ProtectedRoute>
+          <ScopeSettings />
+        </ProtectedRoute>
       </Route>
 
       <Route path="/features">
@@ -423,6 +567,12 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
+      <Route path="/manage/api-keys">
+        <ProtectedRoute>
+          <ApiKeys />
+        </ProtectedRoute>
+      </Route>
+
       <Route path="/monitor/overview">
         <ProtectedRoute>
           <Monitor />
@@ -515,13 +665,13 @@ function PublicEmailErrorRoute() {
 
 // Component to handle EmailVerification route
 function EmailVerificationRoute() {
-  const { emailVerification, retryRegistration } = useAuth();
+  const { emailVerification } = useAuth();
   const [, setLocation] = useLocation();
 
-  // Redirect to signup if no email verification state or if email is not a business email
+  // Redirect to entry if no email verification state
   useEffect(() => {
     if (!emailVerification) {
-      setLocation('/signup');
+      setLocation('/entry');
       return;
     }
     if (!isBusinessEmail(emailVerification.email)) {
@@ -536,39 +686,18 @@ function EmailVerificationRoute() {
   return (
     <EmailVerification
       email={emailVerification.email}
-      onVerificationSuccess={async () => {
-        try {
-          const newUser = await retryRegistration();
-          logger.info('Email verification successful, registration retried', {
-            component: 'App',
-            action: 'email_verification_success',
-            userId: newUser?.id,
-          });
-          
-          // Redirect to entry page after verification
-          // Entry page will handle user details, tenant creation, etc.
-          logger.info('Navigating to entry page after successful email verification', {
-            component: 'App',
-            action: 'navigate_after_verification',
-            userId: newUser?.id,
-          });
-          setLocation('/entry');
-        } catch (error: any) {
-          const err = error instanceof Error ? error : new Error(String(error));
-          logger.error('Failed to retry registration', err, {
-            component: 'App',
-            action: 'email_verification_success',
-          });
-          // Error will be handled by AuthContext and verification state will remain
-        }
+      onVerificationSuccess={() => {
+        // onVerificationSuccess is handled inside EmailVerification component
+        // It will route to the next step automatically
       }}
     />
   );
 }
 
 function AppContent() {
-  const { error, clearError, setError } = useAuth();
+  const { clearError } = useAuth();
   const [location, setLocation] = useLocation();
+  const { toast } = useToast();
 
   // Set up global error handler for API errors
   useEffect(() => {
@@ -584,18 +713,24 @@ function AppContent() {
         });
         const loginUrl = `/login?redirect=${encodeURIComponent(location)}`;
         setLocation(loginUrl);
-        clearError(); // Clear error to prevent ErrorDisplay from showing
+        clearError(); // Clear error state
         return;
       }
       
-      setError(apiError);
+      // Show error in toast notification instead of navigating to error page
+      const errorMessage = apiError instanceof ApiError 
+        ? apiError.message 
+        : apiError.message || 'An unexpected error occurred';
+      
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      
+      clearError(); // Clear error state after showing toast
     });
-  }, [setError, location, setLocation, clearError]);
-
-  // Show error display if there's an error (but not for 401s which are handled above)
-  if (error) {
-    return <ErrorDisplay error={error} onDismiss={clearError} />;
-  }
+  }, [location, setLocation, clearError, toast]);
 
   return <Router />;
 }

@@ -67,7 +67,7 @@ function DashboardSidebar() {
 
   const { data: statsResponse } = useQuery({
     queryKey: ["/api/dashboard"],
-    enabled: !!user && !!selectedTenant,
+    enabled: !!selectedTenant,
     queryFn: async () => {
       logger.debug('Fetching dashboard stats for sidebar', {
         component: 'Sidebar',
@@ -90,14 +90,14 @@ function DashboardSidebar() {
   // Fetch all probes
   const { data: probesData } = useQuery({
     queryKey: ["/api/probes"],
-    enabled: !!user && !!selectedTenant,
+    enabled: !!selectedTenant,
     queryFn: () => ProbeApiService.listProbes(),
   });
 
   // Fetch all gateways
   const { data: gatewaysData } = useQuery({
     queryKey: ["/api/gateways"],
-    enabled: !!user && !!selectedTenant,
+    enabled: !!selectedTenant,
     queryFn: () => GatewayApiService.listGateways(),
   });
 
@@ -126,7 +126,7 @@ function DashboardSidebar() {
       );
       return results;
     },
-    enabled: !!user && !!selectedTenant && !!probesData?.data,
+    enabled: !!selectedTenant && !!probesData?.data,
   });
 
   // Calculate critical notifications from real data

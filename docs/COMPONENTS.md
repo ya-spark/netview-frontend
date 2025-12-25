@@ -177,7 +177,7 @@ function Component() {
 1. Firebase `onAuthStateChanged` listener
 2. Get Firebase ID token
 3. Check `/api/auth/me` endpoint
-4. If new user, register via `/api/auth/register`
+4. If new user, register via `POST /api/auth/me` (with user details in body)
 5. Store user in context
 
 ## State Management

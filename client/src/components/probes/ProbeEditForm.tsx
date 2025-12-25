@@ -130,7 +130,6 @@ export function ProbeEditForm({
   // Fetch resource groups and probe groups
   const { data: resourceGroupsResponse } = useQuery({
     queryKey: ['/api/resource-groups'],
-    enabled: !!user,
     queryFn: async () => {
       return await ResourceGroupApiService.listResourceGroups();
     },
@@ -138,7 +137,6 @@ export function ProbeEditForm({
 
   const { data: probeGroupsResponse } = useQuery({
     queryKey: ['/api/probe-groups'],
-    enabled: !!user,
     queryFn: async () => {
       return await ProbeGroupApiService.listProbeGroups();
     },

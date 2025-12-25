@@ -52,7 +52,6 @@ export default function ResourceGroups() {
 
   const { data: resourceGroups, isLoading: resourceGroupsLoading } = useQuery({
     queryKey: ['/api/resource-groups'],
-    enabled: !!user,
     queryFn: async () => {
       return await ResourceGroupApiService.listResourceGroups();
     },

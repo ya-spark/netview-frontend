@@ -18,13 +18,13 @@ import type { AlertResponse } from '@/types/alert';
 
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, selectedTenant } = useAuth();
 
   // Fetch all probes
   const { data: probesData, isLoading: probesLoading, refetch: refetchProbes } = useQuery({
     queryKey: ['/api/probes'],
     queryFn: () => ProbeApiService.listProbes(),
-    enabled: !!user,
+    enabled: !!selectedTenant,
     refetchInterval: 30000,
   });
 
@@ -32,7 +32,7 @@ export default function Dashboard() {
   const { data: gatewaysData, isLoading: gatewaysLoading, refetch: refetchGateways } = useQuery({
     queryKey: ['/api/gateways'],
     queryFn: () => GatewayApiService.listGateways(),
-    enabled: !!user,
+    enabled: !!selectedTenant,
     refetchInterval: 30000,
   });
 
@@ -40,7 +40,7 @@ export default function Dashboard() {
   const { data: alertsData, isLoading: alertsLoading, refetch: refetchAlerts } = useQuery({
     queryKey: ['/api/alerts'],
     queryFn: () => AlertApiService.listAlerts(),
-    enabled: !!user,
+    enabled: !!selectedTenant,
     refetchInterval: 30000,
   });
 
@@ -48,7 +48,7 @@ export default function Dashboard() {
   const { data: dashboardData, isLoading: dashboardLoading, refetch: refetchDashboard } = useQuery({
     queryKey: ['/api/dashboard'],
     queryFn: () => DashboardApiService.getDashboardStats(),
-    enabled: !!user,
+    enabled: !!selectedTenant,
     refetchInterval: 30000,
   });
 
@@ -76,7 +76,7 @@ export default function Dashboard() {
       );
       return results;
     },
-    enabled: !!user && !!probesData?.data,
+    enabled: !!probesData?.data,
     refetchInterval: 30000,
   });
 
