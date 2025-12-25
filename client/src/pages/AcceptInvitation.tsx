@@ -8,10 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { CollaboratorApiService } from '@/services/collaboratorApi';
+import { UserApiService } from '@/services/userApi';
 import { CheckCircle2, XCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { logger } from '@/lib/logger';
-import type { InvitationTokenResponse } from '@/types/collaborator';
+import type { InvitationTokenResponse } from '@/types/user';
 
 export default function AcceptInvitation() {
   const [location, setLocation] = useLocation();
@@ -40,7 +40,7 @@ export default function AcceptInvitation() {
     isLoading: isLoadingInvitation,
     error: invitationError,
   } = useQuery<InvitationTokenResponse>({
-    queryKey: ['/api/collaborators/invitation-by-token', token],
+    queryKey: ['/api/users/invitations/invitation-by-token', token],
     queryFn: async () => {
       if (!token) throw new Error('No token provided');
       logger.info('Fetching invitation by token', {
@@ -48,7 +48,7 @@ export default function AcceptInvitation() {
         action: 'fetch_invitation',
         hasToken: !!token,
       });
-      const result = await CollaboratorApiService.getInvitationByToken(token);
+      const result = await UserApiService.getInvitationByToken(token);
       logger.info('Invitation fetched successfully', {
         component: 'AcceptInvitation',
         action: 'fetch_invitation',
@@ -75,7 +75,7 @@ export default function AcceptInvitation() {
         userEmail: user.email,
         tenantId: user.tenantId,
       });
-      return CollaboratorApiService.acceptInvitationByToken(
+      return UserApiService.acceptInvitationByToken(
         token,
         user.email,
         user.tenantId.toString()
@@ -92,7 +92,7 @@ export default function AcceptInvitation() {
         description: 'You have successfully joined the organization.',
       });
       // Invalidate relevant queries
-      queryClient.invalidateQueries({ queryKey: ['/api/collaborators'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users/invitations'] });
       queryClient.invalidateQueries({ queryKey: ['/api/notifications/user'] });
       // Redirect to dashboard
       setTimeout(() => {

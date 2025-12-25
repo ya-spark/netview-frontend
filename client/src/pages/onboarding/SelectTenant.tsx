@@ -137,7 +137,7 @@ export default function SelectTenant() {
           '/reports',
           '/settings',
           '/billing',
-          '/collaborators',
+          '/users',
         ];
         return protectedRoutes.some(route => path.startsWith(route));
       };

@@ -1,6 +1,6 @@
-// Collaborator types based on NetView Collaborators API specification
+// User and Invitation types based on NetView Users API specification
 
-export interface Collaborator {
+export interface User {
   id: string; // UUID
   email: string;
   firstName: string | null;
@@ -13,7 +13,7 @@ export interface Collaborator {
   invitationToken?: string; // Token to accept the invitation (only in pending invitations response)
 }
 
-export interface CollaboratorCreate {
+export interface UserInvitationCreate {
   email: string; // required
   first_name?: string; // optional
   last_name?: string; // optional
@@ -21,7 +21,7 @@ export interface CollaboratorCreate {
   is_active?: boolean; // optional, default: true
 }
 
-export interface CollaboratorUpdate {
+export interface UserUpdate {
   first_name?: string;
   last_name?: string;
   email?: string; // optional, must be unique per tenant if changed
@@ -29,29 +29,29 @@ export interface CollaboratorUpdate {
   is_active?: boolean;
 }
 
-export interface CollaboratorListResponse {
+export interface UserListResponse {
   success: boolean;
   timestamp: string;
-  data: Collaborator[];
+  data: User[];
   count: number;
 }
 
-export interface CollaboratorSingleResponse {
+export interface UserSingleResponse {
   success: boolean;
   timestamp: string;
-  data: Collaborator;
+  data: User;
 }
 
-export interface CollaboratorDeleteResponse {
+export interface UserDeleteResponse {
   success: boolean;
   timestamp: string;
   data: {
     message: string;
-    collaborator_id: string;
+    user_id: string;
   };
 }
 
-export interface PendingInvitation {
+export interface Invitation {
   id: string;
   email: string;
   firstName: string | null;
@@ -67,8 +67,9 @@ export interface PendingInvitation {
 export interface InvitationTokenResponse {
   success: boolean;
   timestamp: string;
-  data: Collaborator & {
+  data: User & {
     tenantName: string;
   };
 }
+
 

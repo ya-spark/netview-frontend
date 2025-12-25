@@ -15,8 +15,8 @@ import { setCurrentUserInfo } from '@/lib/queryClient';
 import { Building2, Plus, Check, Loader2, Mail, CheckCircle2 } from 'lucide-react';
 import { generateTenantId, validateTenantIdAvailability } from '@/services/tenantApi';
 import { getCurrentUser } from '@/services/authApi';
-import { CollaboratorApiService } from '@/services/collaboratorApi';
-import type { PendingInvitation } from '@/types/collaborator';
+import { UserApiService } from '@/services/userApi';
+import type { Invitation } from '@/types/user';
 
 const tenantSchema = z.object({
   name: z.string()
@@ -38,7 +38,7 @@ export default function TenantSelection() {
   const [validatingTenantId, setValidatingTenantId] = useState(false);
   const [tenantIdError, setTenantIdError] = useState<string | null>(null);
   const [isTenantIdManuallyEdited, setIsTenantIdManuallyEdited] = useState(false);
-  const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
+  const [pendingInvitations, setPendingInvitations] = useState<Invitation[]>([]);
   const [acceptingInvitation, setAcceptingInvitation] = useState<string | null>(null);
   const [skipping, setSkipping] = useState(false);
   const { toast } = useToast();
@@ -337,7 +337,7 @@ export default function TenantSelection() {
           '/reports',
           '/settings',
           '/billing',
-          '/collaborators',
+          '/users',
         ];
         return protectedRoutes.some(route => path.startsWith(route));
       };
@@ -437,7 +437,7 @@ export default function TenantSelection() {
           '/reports',
           '/settings',
           '/billing',
-          '/collaborators',
+          '/users',
         ];
         return protectedRoutes.some(route => path.startsWith(route));
       };
@@ -465,7 +465,7 @@ export default function TenantSelection() {
     }
   };
 
-  const handleAcceptInvitation = async (inv: PendingInvitation) => {
+  const handleAcceptInvitation = async (inv: Invitation) => {
     if (!user || !firebaseUser) {
       logger.warn('Cannot accept invitation - no user', {
         component: 'TenantSelection',
@@ -482,12 +482,12 @@ export default function TenantSelection() {
         invitationId: inv.id,
       });
 
-      // Use collaborator_id endpoint since user is logged in
+      // Use invitation_id endpoint since user is logged in
       if (!inv.tenantId) {
         throw new Error("Tenant ID is required to accept this invitation");
       }
       
-      await CollaboratorApiService.acceptInvite(
+      await UserApiService.acceptInvitation(
         inv.id,
         user.email,
         String(inv.tenantId)

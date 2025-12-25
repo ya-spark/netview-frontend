@@ -4,10 +4,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { X, Mail } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { CollaboratorApiService } from '@/services/collaboratorApi';
+import { UserApiService } from '@/services/userApi';
 import { useAuth } from '@/contexts/AuthContext';
 import { logger } from '@/lib/logger';
-import type { PendingInvitation } from '@/types/collaborator';
+import type { Invitation } from '@/types/user';
 
 interface InvitationBannerProps {
   onDismiss?: (invitationId: string) => void;
@@ -36,7 +36,7 @@ export function InvitationBanner({ onDismiss }: InvitationBannerProps) {
 
   // Fetch pending invitations
   const { data: invitationsData, isLoading } = useQuery({
-    queryKey: ['/api/collaborators/pending', user?.email, user?.tenantId],
+    queryKey: ['/api/users/invitations/pending', user?.email, user?.tenantId],
     queryFn: async () => {
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/c2da348a-4c9d-412f-a7c7-795cb56e870b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvitationBanner.tsx:40',message:'Fetching pending invitations',data:{hasEmail:!!user?.email,hasTenantId:!!user?.tenantId,email:user?.email,tenantId:user?.tenantId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
@@ -47,7 +47,7 @@ export function InvitationBanner({ onDismiss }: InvitationBannerProps) {
         // #endregion
         return { data: [], count: 0 };
       }
-      const result = await CollaboratorApiService.getPendingInvitations(
+      const result = await UserApiService.getPendingInvitations(
         user.email,
         user.tenantId.toString()
       );
@@ -59,7 +59,7 @@ export function InvitationBanner({ onDismiss }: InvitationBannerProps) {
     enabled: !!user?.tenantId,
   });
 
-  const pendingInvitations: PendingInvitation[] = invitationsData?.data || [];
+  const pendingInvitations: Invitation[] = invitationsData?.data || [];
   
   // #region agent log
   useEffect(() => {

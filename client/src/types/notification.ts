@@ -39,11 +39,11 @@ export interface UserNotification {
   id: string;
   user_email: string;
   tenant_id?: number;
-  type: 'collaborator_invitation' | 'alert' | 'system' | string;
+  type: 'user_invitation' | 'alert' | 'system' | string;
   title: string;
   message?: string;
   data?: {
-    collaborator_id?: string;
+    invitation_id?: string;
     invitation_token?: string;
     tenant_id?: number;
     tenant_name?: string;

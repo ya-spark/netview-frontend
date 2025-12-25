@@ -359,10 +359,10 @@ function ManageSidebar() {
 
   const adminNavigation = [
     {
-      name: "Collaborators",
-      href: "/manage/collaborators",
+      name: "Users",
+      href: "/manage/users",
       icon: Users,
-      current: location === "/manage/collaborators" || location === "/collaborators",
+      current: location === "/manage/users" || location === "/users",
       requiresAdminRole: true,
     },
     {
@@ -716,7 +716,7 @@ export function Sidebar() {
       location.startsWith("/manage") ||
       location === "/billing" ||
       location === "/settings" ||
-      location === "/collaborators"
+      location === "/users"
     ) {
       return <ManageSidebar />;
     } else if (location.startsWith("/monitor")) {
@@ -741,7 +741,7 @@ export function Sidebar() {
                 (location.startsWith("/manage") ||
                   location === "/billing" ||
                   location === "/settings" ||
-                  location === "/collaborators") &&
+                  location === "/users") &&
                 "Manage"}
               {user && location.startsWith("/monitor") && "Monitor"}
               {user && location.startsWith("/reports") && "Reports"}

@@ -6,7 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { Layout } from '@/components/Layout';
 import { useAuth } from '@/contexts/AuthContext';
-import { CollaboratorApiService } from '@/services/collaboratorApi';
+import { UserApiService } from '@/services/userApi';
 import { createTenant } from '@/services/tenantApi';
 import { isBusinessEmail } from '@/utils/emailValidation';
 import { logger } from '@/lib/logger';
@@ -33,12 +33,12 @@ export default function Invites() {
   const isBusiness = isBusinessEmail(userEmail);
   
   const { data: pendingInvitationsData, isLoading: checkingInvitations } = useQuery({
-    queryKey: ['/api/collaborators/pending-by-email', userEmail],
+    queryKey: ['/api/users/invitations/pending-by-email', userEmail],
     queryFn: async () => {
       if (!userEmail) return { data: [], count: 0 };
       logger.info('Checking for pending invitations', { component: 'Invites', email: userEmail });
       try {
-        const result = await CollaboratorApiService.getPendingInvitationsByEmail(userEmail);
+        const result = await UserApiService.getPendingInvitationsByEmail(userEmail);
         logger.info('Pending invitations check completed', {
           component: 'Invites',
           email: userEmail,
@@ -55,7 +55,7 @@ export default function Invites() {
     retry: 1,
   });
   
-  const pendingInvitations = (pendingInvitationsData?.data || []) as Array<import('@/types/collaborator').PendingInvitation>;
+  const pendingInvitations = (pendingInvitationsData?.data || []) as Array<import('@/types/user').Invitation>;
   const hasPendingInvitations = pendingInvitations.length > 0;
 
   // Extract user details from Firebase
@@ -72,20 +72,20 @@ export default function Invites() {
     };
   };
 
-  const handleAcceptInvitation = async (inv: import('@/types/collaborator').PendingInvitation) => {
+  const handleAcceptInvitation = async (inv: import('@/types/user').Invitation) => {
     setAcceptingInvitation(inv.id);
     try {
       logger.info('Accepting invitation', { component: 'Invites', action: 'accept_invitation', invitationId: inv.id });
       
-      // If user is logged in, use collaborator_id endpoint (no token needed)
+      // If user is logged in, use invitation_id endpoint (no token needed)
       // Otherwise, use token-based endpoint
       if (firebaseUser) {
-        // User is logged in - use collaborator_id endpoint
+        // User is logged in - use invitation_id endpoint
         // tenantId is required - must match the invitation's tenant
         if (!inv.tenantId) {
           throw new Error("Tenant ID is required to accept this invitation");
         }
-        await CollaboratorApiService.acceptInvite(
+        await UserApiService.acceptInvitation(
           inv.id,
           userEmail,
           inv.tenantId.toString() // tenantId is required - backend will verify it matches invitation
@@ -93,7 +93,7 @@ export default function Invites() {
       } else if (inv.invitationToken) {
         // User not logged in - use token-based endpoint
         const userDetails = getUserDetails();
-        await CollaboratorApiService.acceptInvitationByToken(
+        await UserApiService.acceptInvitationByToken(
           inv.invitationToken,
           userEmail,
           undefined,

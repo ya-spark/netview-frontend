@@ -1,20 +1,20 @@
-// Collaborator API service functions based on NetView Collaborators API specification
+// User and Invitation API service functions based on NetView Users API specification
 
 import { apiRequest } from '../lib/queryClient';
 import { logger } from '../lib/logger';
 import type {
-  CollaboratorCreate,
-  CollaboratorUpdate,
-  CollaboratorListResponse,
-  CollaboratorSingleResponse,
-  CollaboratorDeleteResponse,
+  UserInvitationCreate,
+  UserUpdate,
+  UserListResponse,
+  UserSingleResponse,
+  UserDeleteResponse,
   InvitationTokenResponse,
-} from '../types/collaborator';
+} from '../types/user';
 
 /**
- * Helper function to create headers required by Collaborators API
+ * Helper function to create headers required by Users API
  */
-function getCollaboratorHeaders(userEmail: string, tenantId: string): Record<string, string> {
+function getUserHeaders(userEmail: string, tenantId: string): Record<string, string> {
   // Convert tenantId to integer (API expects integer)
   const tenantIdInt = parseInt(tenantId, 10);
   if (isNaN(tenantIdInt)) {
@@ -28,122 +28,122 @@ function getCollaboratorHeaders(userEmail: string, tenantId: string): Record<str
 }
 
 /**
- * Collaborator API service class for all collaborator-related operations
+ * User API service class for all user and invitation-related operations
  */
-export class CollaboratorApiService {
+export class UserApiService {
   /**
-   * List all collaborators for the authenticated tenant
+   * List all invitations for the authenticated tenant
    * Requires Owner role
    */
-  static async listCollaborators(
+  static async listInvitations(
     userEmail: string,
     tenantId: string
-  ): Promise<CollaboratorListResponse> {
-    const headers = getCollaboratorHeaders(userEmail, tenantId);
-    const response = await apiRequest('GET', '/api/collaborators', undefined, headers);
+  ): Promise<UserListResponse> {
+    const headers = getUserHeaders(userEmail, tenantId);
+    const response = await apiRequest('GET', '/api/users/invitations', undefined, headers);
     return response.json();
   }
 
   /**
-   * Get a specific collaborator by ID
+   * Get a specific invitation by ID
    * Requires Owner role
    */
-  static async getCollaborator(
-    collaboratorId: string,
+  static async getInvitation(
+    invitationId: string,
     userEmail: string,
     tenantId: string
-  ): Promise<CollaboratorSingleResponse> {
-    const headers = getCollaboratorHeaders(userEmail, tenantId);
-    const response = await apiRequest('GET', `/api/collaborators/${collaboratorId}`, undefined, headers);
+  ): Promise<UserSingleResponse> {
+    const headers = getUserHeaders(userEmail, tenantId);
+    const response = await apiRequest('GET', `/api/users/invitations/${invitationId}`, undefined, headers);
     return response.json();
   }
 
   /**
-   * Create a new collaborator (send invite)
+   * Create a new invitation (send invite)
    * Requires Owner role
    */
-  static async createCollaborator(
-    data: CollaboratorCreate,
+  static async createInvitation(
+    data: UserInvitationCreate,
     userEmail: string,
     tenantId: string
-  ): Promise<CollaboratorSingleResponse> {
-    logger.info('Creating collaborator', {
-      component: 'collaboratorApi',
-      action: 'create_collaborator',
-      collaboratorEmail: data.email,
+  ): Promise<UserSingleResponse> {
+    logger.info('Creating invitation', {
+      component: 'userApi',
+      action: 'create_invitation',
+      invitationEmail: data.email,
       tenantId,
     });
-    const headers = getCollaboratorHeaders(userEmail, tenantId);
-    const response = await apiRequest('POST', '/api/collaborators', data, headers);
+    const headers = getUserHeaders(userEmail, tenantId);
+    const response = await apiRequest('POST', '/api/users/invitations', data, headers);
     const result = await response.json();
-    logger.info('Collaborator created successfully', {
-      component: 'collaboratorApi',
-      action: 'create_collaborator',
-      collaboratorId: result?.data?.id,
+    logger.info('Invitation created successfully', {
+      component: 'userApi',
+      action: 'create_invitation',
+      invitationId: result?.data?.id,
     });
     return result;
   }
 
   /**
-   * Update an existing collaborator
+   * Update an existing invitation
    * Requires Owner role
    */
-  static async updateCollaborator(
-    collaboratorId: string,
-    data: CollaboratorUpdate,
+  static async updateInvitation(
+    invitationId: string,
+    data: UserUpdate,
     userEmail: string,
     tenantId: string
-  ): Promise<CollaboratorSingleResponse> {
-    const headers = getCollaboratorHeaders(userEmail, tenantId);
-    const response = await apiRequest('PUT', `/api/collaborators/${collaboratorId}`, data, headers);
+  ): Promise<UserSingleResponse> {
+    const headers = getUserHeaders(userEmail, tenantId);
+    const response = await apiRequest('PUT', `/api/users/invitations/${invitationId}`, data, headers);
     return response.json();
   }
 
   /**
-   * Delete a collaborator (soft delete)
+   * Delete an invitation (soft delete)
    * Requires Owner role
    */
-  static async deleteCollaborator(
-    collaboratorId: string,
+  static async deleteInvitation(
+    invitationId: string,
     userEmail: string,
     tenantId: string
-  ): Promise<CollaboratorDeleteResponse> {
-    const headers = getCollaboratorHeaders(userEmail, tenantId);
-    const response = await apiRequest('DELETE', `/api/collaborators/${collaboratorId}`, undefined, headers);
+  ): Promise<UserDeleteResponse> {
+    const headers = getUserHeaders(userEmail, tenantId);
+    const response = await apiRequest('DELETE', `/api/users/invitations/${invitationId}`, undefined, headers);
     return response.json();
   }
 
   /**
-   * Accept a collaborator invite
-   * Requires authenticated user with email matching collaborator email
+   * Accept an invitation
+   * Requires authenticated user with email matching invitation email
    * tenantId is required - must match the invitation's tenant (backend will verify)
    */
-  static async acceptInvite(
-    collaboratorId: string,
+  static async acceptInvitation(
+    invitationId: string,
     userEmail: string,
     tenantId: string
-  ): Promise<CollaboratorSingleResponse> {
+  ): Promise<UserSingleResponse> {
     // Build headers with required tenantId
     const headers: Record<string, string> = {
       'X-User-Email': userEmail,
       'X-Tenant-ID': tenantId, // Required - backend will verify it matches invitation's tenant
     };
     
-    const response = await apiRequest('POST', `/api/collaborators/${collaboratorId}/accept`, undefined, headers);
+    const response = await apiRequest('POST', `/api/users/invitations/${invitationId}/accept`, undefined, headers);
     return response.json();
   }
 
   /**
-   * Reject a collaborator invite
-   * Requires authenticated user with email matching collaborator email
+   * Reject an invitation
+   * Requires authenticated user with email matching invitation email
    */
-  static async rejectInvite(
-    collaboratorId: string,
+  static async rejectInvitation(
+    invitationId: string,
     userEmail: string,
     tenantId: string
-  ): Promise<CollaboratorSingleResponse> {
-    const headers = getCollaboratorHeaders(userEmail, tenantId);
-    const response = await apiRequest('POST', `/api/collaborators/${collaboratorId}/reject`, undefined, headers);
+  ): Promise<UserSingleResponse> {
+    const headers = getUserHeaders(userEmail, tenantId);
+    const response = await apiRequest('POST', `/api/users/invitations/${invitationId}/reject`, undefined, headers);
     return response.json();
   }
 
@@ -153,18 +153,18 @@ export class CollaboratorApiService {
   static async getPendingInvitations(
     userEmail: string,
     tenantId: string
-  ): Promise<CollaboratorListResponse> {
-    const headers = getCollaboratorHeaders(userEmail, tenantId);
-    const response = await apiRequest('GET', '/api/collaborators/pending', undefined, headers);
+  ): Promise<UserListResponse> {
+    const headers = getUserHeaders(userEmail, tenantId);
+    const response = await apiRequest('GET', '/api/users/invitations/pending', undefined, headers);
     return response.json();
   }
 
   /**
    * Get pending invitations by email (public endpoint, no auth required)
    */
-  static async getPendingInvitationsByEmail(email: string): Promise<CollaboratorListResponse> {
+  static async getPendingInvitationsByEmail(email: string): Promise<UserListResponse> {
     // This is a public endpoint, so we need to call it without auth headers
-    const fullUrl = `/api/collaborators/pending-by-email?email=${encodeURIComponent(email)}`;
+    const fullUrl = `/api/users/invitations/pending-by-email?email=${encodeURIComponent(email)}`;
     const res = await fetch(fullUrl, {
       method: 'GET',
       headers: {
@@ -186,7 +186,7 @@ export class CollaboratorApiService {
    */
   static async getInvitationByToken(token: string): Promise<InvitationTokenResponse> {
     // This is a public endpoint, so we need to call it without auth headers
-    const fullUrl = `/api/collaborators/invitation-by-token?token=${encodeURIComponent(token)}`;
+    const fullUrl = `/api/users/invitations/invitation-by-token?token=${encodeURIComponent(token)}`;
     const res = await fetch(fullUrl, {
       method: 'GET',
       headers: {
@@ -216,7 +216,7 @@ export class CollaboratorApiService {
       lastName?: string;
       name?: string;
     }
-  ): Promise<CollaboratorSingleResponse> {
+  ): Promise<UserSingleResponse> {
     // Build headers - only include tenantId if provided (user might not have one yet)
     const headers: Record<string, string> = {
       'X-User-Email': userEmail,
@@ -234,8 +234,9 @@ export class CollaboratorApiService {
       name: userDetails.name,
     } : undefined;
     
-    const response = await apiRequest('POST', `/api/collaborators/accept-by-token?token=${encodeURIComponent(token)}`, body, headers);
+    const response = await apiRequest('POST', `/api/users/invitations/accept-by-token?token=${encodeURIComponent(token)}`, body, headers);
     return response.json();
   }
 }
+
 

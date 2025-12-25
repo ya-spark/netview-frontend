@@ -36,7 +36,7 @@ import Monitor from "@/pages/Monitor";
 import Reports from "@/pages/Reports";
 import Settings from "@/pages/Settings";
 const Billing = lazy(() => import("@/pages/Billing"));
-import Collaborators from "@/pages/Collaborators";
+import Users from "@/pages/Users";
 import ApiKeys from "@/pages/ApiKeys";
 import AcceptInvitation from "@/pages/AcceptInvitation";
 import NotFound from "@/pages/not-found";
@@ -140,7 +140,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
           '/reports',
           '/settings',
           '/billing',
-          '/collaborators',
+          '/users',
         ];
         return protectedRoutes.some(route => path.startsWith(route));
       };
@@ -561,9 +561,9 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
-      <Route path="/manage/collaborators">
+      <Route path="/manage/users">
         <ProtectedRoute>
-          <Collaborators />
+          <Users />
         </ProtectedRoute>
       </Route>
 
@@ -633,9 +633,9 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
-      <Route path="/collaborators">
+      <Route path="/users">
         <ProtectedRoute>
-          <Redirect to="/manage/collaborators" />
+          <Redirect to="/manage/users" />
         </ProtectedRoute>
       </Route>
 

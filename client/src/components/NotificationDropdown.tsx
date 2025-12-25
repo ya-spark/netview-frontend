@@ -96,7 +96,7 @@ export function NotificationDropdown({ children }: NotificationDropdownProps) {
     }
 
     // Navigate based on notification type
-    if (notification.type === 'collaborator_invitation') {
+    if (notification.type === 'user_invitation') {
       const token = notification.data?.invitation_token;
       if (token) {
         window.location.href = `/accept-invitation?token=${token}`;
@@ -106,7 +106,7 @@ export function NotificationDropdown({ children }: NotificationDropdownProps) {
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
-      case 'collaborator_invitation':
+      case 'user_invitation':
         return <Mail className="h-4 w-4" />;
       case 'alert':
         return <AlertCircle className="h-4 w-4" />;
@@ -116,7 +116,7 @@ export function NotificationDropdown({ children }: NotificationDropdownProps) {
   };
 
   const getNotificationTitle = (notification: UserNotification) => {
-    if (notification.type === 'collaborator_invitation') {
+    if (notification.type === 'user_invitation') {
       const tenantName = notification.data?.tenant_name || 'an organization';
       const role = notification.data?.role || 'member';
       return `Invitation to join ${tenantName} as ${role}`;

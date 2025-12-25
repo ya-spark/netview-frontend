@@ -183,7 +183,7 @@ export default function ApiKeys() {
 
   return (
     <Layout>
-      <div className="container mx-auto py-8 space-y-6">
+      <div className="p-3 sm:p-4 lg:p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -197,7 +197,7 @@ export default function ApiKeys() {
           </div>
           <Button
             onClick={() => setCreateDialogOpen(true)}
-            disabled={isLoading || !userScopes.length}
+            disabled={isLoading}
           >
             <Plus className="h-4 w-4 mr-2" />
             Create API Key

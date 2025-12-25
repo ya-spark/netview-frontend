@@ -12,23 +12,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Search, Settings, Mail, User, Edit, Trash2, Crown, Shield, Eye, UserCog, Loader2, Send } from 'lucide-react';
+import { Plus, Search, Settings, Mail, User as UserIcon, Edit, Trash2, Crown, Shield, Eye, UserCog, Loader2, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/contexts/AuthContext';
-import { CollaboratorApiService } from '@/services/collaboratorApi';
+import { UserApiService } from '@/services/userApi';
 import { logger } from '@/lib/logger';
-import type { Collaborator, CollaboratorCreate, CollaboratorUpdate } from '@/types/collaborator';
+import type { User, UserInvitationCreate, UserUpdate } from '@/types/user';
 
-// Schema for creating collaborator (matches API request format with snake_case)
-const collaboratorCreateSchema = z.object({
+// Schema for creating invitation (matches API request format with snake_case)
+const invitationCreateSchema = z.object({
   email: z.string().email('Invalid email address'),
   role: z.enum(['SuperAdmin', 'Owner', 'Admin', 'Editor', 'Viewer']),
   is_active: z.boolean().optional().default(true),
 });
 
-// Schema for updating collaborator
-const collaboratorUpdateSchema = z.object({
+// Schema for updating user
+const userUpdateSchema = z.object({
   first_name: z.string().optional(),
   last_name: z.string().optional(),
   email: z.string().email('Invalid email address').optional(),
@@ -36,72 +36,72 @@ const collaboratorUpdateSchema = z.object({
   is_active: z.boolean().optional(),
 });
 
-type CollaboratorCreateForm = z.infer<typeof collaboratorCreateSchema>;
-type CollaboratorUpdateForm = z.infer<typeof collaboratorUpdateSchema>;
+type InvitationCreateForm = z.infer<typeof invitationCreateSchema>;
+type UserUpdateForm = z.infer<typeof userUpdateSchema>;
 
-export default function Collaborators() {
+export default function Users() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [selectedCollaborator, setSelectedCollaborator] = useState<Collaborator | null>(null);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
-  // Check if user can manage collaborators (only Owner role per API requirements)
-  const canManageCollaborators = user?.role === 'Owner';
+  // Check if user can manage users (only Owner role per API requirements)
+  const canManageUsers = user?.role === 'Owner';
 
   useEffect(() => {
-    logger.debug('Collaborators page initialized', {
-      component: 'Collaborators',
+    logger.debug('Users page initialized', {
+      component: 'Users',
       userId: user?.id,
-      canManage: canManageCollaborators,
+      canManage: canManageUsers,
     });
-  }, [user?.id, canManageCollaborators]);
+  }, [user?.id, canManageUsers]);
 
-  // Query to fetch collaborators
+  // Query to fetch invitations
   const {
-    data: collaboratorsResponse,
+    data: invitationsResponse,
     isLoading,
     error,
     refetch,
   } = useQuery({
-    queryKey: ['collaborators', user?.email, user?.tenantId],
+    queryKey: ['invitations', user?.email, user?.tenantId],
     queryFn: async () => {
       if (!user?.email || !user?.tenantId) {
         throw new Error('User email and tenant ID are required');
       }
-      logger.debug('Fetching collaborators', {
-        component: 'Collaborators',
-        action: 'list_collaborators',
+      logger.debug('Fetching invitations', {
+        component: 'Users',
+        action: 'list_invitations',
         userId: user.id,
         tenantId: user.tenantId,
       });
-      const result = await CollaboratorApiService.listCollaborators(user.email, user.tenantId);
-      logger.info('Collaborators loaded', {
-        component: 'Collaborators',
-        action: 'list_collaborators',
-        collaboratorCount: result?.data?.length || 0,
+      const result = await UserApiService.listInvitations(user.email, user.tenantId);
+      logger.info('Invitations loaded', {
+        component: 'Users',
+        action: 'list_invitations',
+        invitationCount: result?.data?.length || 0,
       });
       return result;
     },
-    enabled: !!user?.tenantId && canManageCollaborators,
+    enabled: !!user?.tenantId && canManageUsers,
   });
 
-  const collaborators = collaboratorsResponse?.data || [];
-  const filteredCollaborators = collaborators.filter((collaborator) => {
+  const invitations = invitationsResponse?.data || [];
+  const filteredInvitations = invitations.filter((invitation) => {
     if (!searchTerm) return true;
     const searchLower = searchTerm.toLowerCase();
     return (
-      (collaborator.firstName?.toLowerCase().includes(searchLower) ?? false) ||
-      (collaborator.lastName?.toLowerCase().includes(searchLower) ?? false) ||
-      collaborator.email.toLowerCase().includes(searchLower)
+      (invitation.firstName?.toLowerCase().includes(searchLower) ?? false) ||
+      (invitation.lastName?.toLowerCase().includes(searchLower) ?? false) ||
+      invitation.email.toLowerCase().includes(searchLower)
     );
   });
 
-  // Create collaborator form
-  const createForm = useForm<CollaboratorCreateForm>({
-    resolver: zodResolver(collaboratorCreateSchema),
+  // Create invitation form
+  const createForm = useForm<InvitationCreateForm>({
+    resolver: zodResolver(invitationCreateSchema),
     defaultValues: {
       email: '',
       role: 'Viewer',
@@ -109,41 +109,41 @@ export default function Collaborators() {
     },
   });
 
-  // Update collaborator form
-  const updateForm = useForm<CollaboratorUpdateForm>({
-    resolver: zodResolver(collaboratorUpdateSchema),
+  // Update user form
+  const updateForm = useForm<UserUpdateForm>({
+    resolver: zodResolver(userUpdateSchema),
   });
 
-  // Create collaborator mutation
-  const createCollaboratorMutation = useMutation({
-    mutationFn: async (data: CollaboratorCreateForm) => {
+  // Create invitation mutation
+  const createInvitationMutation = useMutation({
+    mutationFn: async (data: InvitationCreateForm) => {
       if (!user?.email || !user?.tenantId) {
         throw new Error('User email and tenant ID are required');
       }
-      const createData: CollaboratorCreate = {
+      const createData: UserInvitationCreate = {
         email: data.email,
         role: data.role,
         is_active: data.is_active,
       };
-      logger.info('Creating collaborator', {
-        component: 'Collaborators',
-        action: 'create_collaborator',
-        collaboratorEmail: data.email,
+      logger.info('Creating invitation', {
+        component: 'Users',
+        action: 'create_invitation',
+        invitationEmail: data.email,
         role: data.role,
         userId: user.id,
       });
-      return CollaboratorApiService.createCollaborator(createData, user.email, user.tenantId);
+      return UserApiService.createInvitation(createData, user.email, user.tenantId);
     },
     onSuccess: (response) => {
-      logger.info('Collaborator created successfully', {
-        component: 'Collaborators',
-        action: 'create_collaborator',
-        collaboratorId: response?.data?.id,
+      logger.info('Invitation created successfully', {
+        component: 'Users',
+        action: 'create_invitation',
+        invitationId: response?.data?.id,
         userId: user?.id,
       });
       const toastResult = toast({ 
         title: 'Success', 
-        description: 'Collaborator invited successfully'
+        description: 'User invited successfully'
       });
       // Auto-dismiss toast after 2 seconds
       setTimeout(() => {
@@ -151,124 +151,124 @@ export default function Collaborators() {
       }, 2000);
       createForm.reset();
       setCreateDialogOpen(false);
-      queryClient.invalidateQueries({ queryKey: ['collaborators'] });
+      queryClient.invalidateQueries({ queryKey: ['invitations'] });
     },
     onError: (error: any) => {
       const err = error instanceof Error ? error : new Error(String(error));
-      logger.error('Failed to create collaborator', err, {
-        component: 'Collaborators',
-        action: 'create_collaborator',
+      logger.error('Failed to create invitation', err, {
+        component: 'Users',
+        action: 'create_invitation',
         userId: user?.id,
       });
-      const errorMessage = error.message || 'Failed to invite collaborator';
+      const errorMessage = error.message || 'Failed to invite user';
       toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
     },
   });
 
-  // Update collaborator mutation
-  const updateCollaboratorMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: CollaboratorUpdateForm }) => {
+  // Update invitation mutation
+  const updateInvitationMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: UserUpdateForm }) => {
       if (!user?.email || !user?.tenantId) {
         throw new Error('User email and tenant ID are required');
       }
-      const updateData: CollaboratorUpdate = {};
+      const updateData: UserUpdate = {};
       if (data.first_name !== undefined && data.first_name !== '') updateData.first_name = data.first_name;
       if (data.last_name !== undefined && data.last_name !== '') updateData.last_name = data.last_name;
       if (data.email !== undefined && data.email !== '') updateData.email = data.email;
       if (data.role !== undefined) updateData.role = data.role;
       if (data.is_active !== undefined) updateData.is_active = data.is_active;
-      logger.info('Updating collaborator', {
-        component: 'Collaborators',
-        action: 'update_collaborator',
-        collaboratorId: id,
+      logger.info('Updating invitation', {
+        component: 'Users',
+        action: 'update_invitation',
+        invitationId: id,
         userId: user.id,
       });
-      return CollaboratorApiService.updateCollaborator(id, updateData, user.email, user.tenantId);
+      return UserApiService.updateInvitation(id, updateData, user.email, user.tenantId);
     },
     onSuccess: () => {
-      logger.info('Collaborator updated successfully', {
-        component: 'Collaborators',
-        action: 'update_collaborator',
+      logger.info('Invitation updated successfully', {
+        component: 'Users',
+        action: 'update_invitation',
         userId: user?.id,
       });
-      toast({ title: 'Success', description: 'Collaborator updated successfully' });
+      toast({ title: 'Success', description: 'User updated successfully' });
       setEditDialogOpen(false);
-      setSelectedCollaborator(null);
+      setSelectedUser(null);
       updateForm.reset();
-      queryClient.invalidateQueries({ queryKey: ['collaborators'] });
+      queryClient.invalidateQueries({ queryKey: ['invitations'] });
     },
     onError: (error: any) => {
       const err = error instanceof Error ? error : new Error(String(error));
-      logger.error('Failed to update collaborator', err, {
-        component: 'Collaborators',
-        action: 'update_collaborator',
+      logger.error('Failed to update invitation', err, {
+        component: 'Users',
+        action: 'update_invitation',
         userId: user?.id,
       });
-      const errorMessage = error.message || 'Failed to update collaborator';
+      const errorMessage = error.message || 'Failed to update user';
       toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
     },
   });
 
-  // Delete collaborator mutation
-  const deleteCollaboratorMutation = useMutation({
+  // Delete invitation mutation
+  const deleteInvitationMutation = useMutation({
     mutationFn: async (id: string) => {
       if (!user?.email || !user?.tenantId) {
         throw new Error('User email and tenant ID are required');
       }
-      logger.info('Deleting collaborator', {
-        component: 'Collaborators',
-        action: 'delete_collaborator',
-        collaboratorId: id,
+      logger.info('Deleting invitation', {
+        component: 'Users',
+        action: 'delete_invitation',
+        invitationId: id,
         userId: user.id,
       });
-      return CollaboratorApiService.deleteCollaborator(id, user.email, user.tenantId);
+      return UserApiService.deleteInvitation(id, user.email, user.tenantId);
     },
     onSuccess: () => {
-      logger.info('Collaborator deleted successfully', {
-        component: 'Collaborators',
-        action: 'delete_collaborator',
+      logger.info('Invitation deleted successfully', {
+        component: 'Users',
+        action: 'delete_invitation',
         userId: user?.id,
       });
-      toast({ title: 'Success', description: 'Collaborator deleted successfully' });
+      toast({ title: 'Success', description: 'User removed successfully' });
       setDeleteDialogOpen(false);
-      setSelectedCollaborator(null);
-      queryClient.invalidateQueries({ queryKey: ['collaborators'] });
+      setSelectedUser(null);
+      queryClient.invalidateQueries({ queryKey: ['invitations'] });
     },
     onError: (error: any) => {
       const err = error instanceof Error ? error : new Error(String(error));
-      logger.error('Failed to delete collaborator', err, {
-        component: 'Collaborators',
-        action: 'delete_collaborator',
+      logger.error('Failed to delete invitation', err, {
+        component: 'Users',
+        action: 'delete_invitation',
         userId: user?.id,
       });
-      const errorMessage = error.message || 'Failed to delete collaborator';
+      const errorMessage = error.message || 'Failed to remove user';
       toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
     },
   });
 
   // Handle edit button click
-  const handleEditClick = (collaborator: Collaborator) => {
-    setSelectedCollaborator(collaborator);
+  const handleEditClick = (user: User) => {
+    setSelectedUser(user);
     updateForm.reset({
-      first_name: collaborator.firstName || '',
-      last_name: collaborator.lastName || '',
-      email: collaborator.email,
-      role: collaborator.role,
-      is_active: collaborator.isActive,
+      first_name: user.firstName || '',
+      last_name: user.lastName || '',
+      email: user.email,
+      role: user.role,
+      is_active: user.isActive,
     });
     setEditDialogOpen(true);
   };
 
   // Handle delete button click
-  const handleDeleteClick = (collaborator: Collaborator) => {
-    setSelectedCollaborator(collaborator);
+  const handleDeleteClick = (user: User) => {
+    setSelectedUser(user);
     setDeleteDialogOpen(true);
   };
 
   // Handle delete confirmation
   const handleDeleteConfirm = () => {
-    if (selectedCollaborator) {
-      deleteCollaboratorMutation.mutate(selectedCollaborator.id);
+    if (selectedUser) {
+      deleteInvitationMutation.mutate(selectedUser.id);
     }
   };
 
@@ -285,7 +285,7 @@ export default function Collaborators() {
       case 'Viewer':
         return <Eye className="w-4 h-4" />;
       default:
-        return <User className="w-4 h-4" />;
+        return <UserIcon className="w-4 h-4" />;
     }
   };
 
@@ -309,7 +309,7 @@ export default function Collaborators() {
   };
 
   // Show message if user is not Owner
-  if (user && !canManageCollaborators) {
+  if (user && !canManageUsers) {
     return (
       <Layout>
         <div className="p-3 sm:p-4 lg:p-6">
@@ -318,7 +318,7 @@ export default function Collaborators() {
               <Shield className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <h2 className="text-xl font-semibold mb-2">Access Restricted</h2>
               <p className="text-muted-foreground">
-                Only Owners can manage collaborators for this tenant.
+                Only Owners can manage users for this tenant.
               </p>
             </CardContent>
           </Card>
@@ -331,7 +331,7 @@ export default function Collaborators() {
     <Layout>
       <div className="p-3 sm:p-4 lg:p-6">
         <div className="mb-6 sm:mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2" data-testid="text-page-title">Collaborators</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2" data-testid="text-page-title">Users</h1>
           <p className="text-muted-foreground">Manage team members and their access levels</p>
         </div>
 
@@ -342,28 +342,28 @@ export default function Collaborators() {
                 <div className="relative">
                   <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
                   <Input
-                    placeholder="Search collaborators..."
+                    placeholder="Search users..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10 w-64"
-                    data-testid="input-search-collaborators"
+                    data-testid="input-search-users"
                   />
                 </div>
               </div>
-              {canManageCollaborators && (
+              {canManageUsers && (
                 <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button data-testid="button-invite-collaborator">
+                    <Button data-testid="button-invite-user">
                       <Plus className="w-4 h-4 mr-2" />
-                      Invite Collaborator
+                      Invite User
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-md">
                     <DialogHeader>
-                      <DialogTitle>Invite New Collaborator</DialogTitle>
+                      <DialogTitle>Invite New User</DialogTitle>
                     </DialogHeader>
                     <Form {...createForm}>
-                      <form onSubmit={createForm.handleSubmit((data) => createCollaboratorMutation.mutate(data))} className="space-y-4">
+                      <form onSubmit={createForm.handleSubmit((data) => createInvitationMutation.mutate(data))} className="space-y-4">
                         <FormField
                           control={createForm.control}
                           name="email"
@@ -371,7 +371,7 @@ export default function Collaborators() {
                             <FormItem>
                               <FormLabel>Email Address</FormLabel>
                               <FormControl>
-                                <Input placeholder="user@company.com" {...field} data-testid="input-collaborator-email" />
+                                <Input placeholder="user@company.com" {...field} data-testid="input-user-email" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -385,7 +385,7 @@ export default function Collaborators() {
                               <FormLabel>Role</FormLabel>
                               <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <FormControl>
-                                  <SelectTrigger data-testid="select-collaborator-role">
+                                  <SelectTrigger data-testid="select-user-role">
                                     <SelectValue placeholder="Select role" />
                                   </SelectTrigger>
                                 </FormControl>
@@ -401,8 +401,8 @@ export default function Collaborators() {
                             </FormItem>
                           )}
                         />
-                        <Button type="submit" disabled={createCollaboratorMutation.isPending} className="w-full" data-testid="button-send-invitation">
-                          {createCollaboratorMutation.isPending ? 'Sending...' : 'Send Invitation'}
+                        <Button type="submit" disabled={createInvitationMutation.isPending} className="w-full" data-testid="button-send-invitation">
+                          {createInvitationMutation.isPending ? 'Sending...' : 'Send Invitation'}
                         </Button>
                       </form>
                     </Form>
@@ -415,91 +415,91 @@ export default function Collaborators() {
 
         <Card className="mt-6">
           <CardHeader>
-            <CardTitle>Team Members ({filteredCollaborators.length})</CardTitle>
+            <CardTitle>Team Members ({filteredInvitations.length})</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
               <div className="text-center py-8">
                 <Loader2 className="w-8 h-8 text-muted-foreground mx-auto mb-4 animate-spin" />
-                <p className="text-muted-foreground">Loading collaborators...</p>
+                <p className="text-muted-foreground">Loading users...</p>
               </div>
             ) : error ? (
               <div className="text-center py-8">
                 <Settings className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-foreground mb-2">Error loading collaborators</h3>
+                <h3 className="text-lg font-medium text-foreground mb-2">Error loading users</h3>
                 <p className="text-muted-foreground mb-4">{error instanceof Error ? error.message : 'Unknown error occurred'}</p>
                 <Button onClick={() => refetch()} variant="outline">
                   Retry
                 </Button>
               </div>
-            ) : filteredCollaborators.length === 0 ? (
+            ) : filteredInvitations.length === 0 ? (
               <div className="text-center py-8">
                 <Settings className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-foreground mb-2">No collaborators found</h3>
+                <h3 className="text-lg font-medium text-foreground mb-2">No users found</h3>
                 <p className="text-muted-foreground">
                   {searchTerm ? 'Try adjusting your search terms' : 'Invite team members to start collaborating'}
                 </p>
               </div>
             ) : (
               <div className="space-y-4">
-                {filteredCollaborators.map((collaborator) => (
-                  <div key={collaborator.id} className="flex items-center justify-between p-4 border border-border rounded-lg" data-testid={`collaborator-item-${collaborator.id}`}>
+                {filteredInvitations.map((invitation) => (
+                  <div key={invitation.id} className="flex items-center justify-between p-4 border border-border rounded-lg" data-testid={`user-item-${invitation.id}`}>
                     <div className="flex items-center space-x-4">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        collaborator.isActive ? 'bg-secondary/20' : 'bg-muted'
+                        invitation.isActive ? 'bg-secondary/20' : 'bg-muted'
                       }`}>
-                        <User className={`w-5 h-5 ${collaborator.isActive ? 'text-secondary' : 'text-muted-foreground'}`} />
+                        <UserIcon className={`w-5 h-5 ${invitation.isActive ? 'text-secondary' : 'text-muted-foreground'}`} />
                       </div>
                       <div>
                         <div className="font-medium text-foreground">
-                          {collaborator.firstName || collaborator.lastName 
-                            ? `${collaborator.firstName || ''} ${collaborator.lastName || ''}`.trim()
+                          {invitation.firstName || invitation.lastName 
+                            ? `${invitation.firstName || ''} ${invitation.lastName || ''}`.trim()
                             : 'No name'}
                         </div>
                         <div className="text-sm text-muted-foreground flex items-center space-x-2">
                           <Mail className="w-3 h-3" />
-                          <span>{collaborator.email}</span>
+                          <span>{invitation.email}</span>
                         </div>
                         <div className="text-xs text-muted-foreground mt-1">
-                          Created {new Date(collaborator.createdAt).toLocaleDateString()}
+                          Created {new Date(invitation.createdAt).toLocaleDateString()}
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center space-x-3">
-                      {getRoleBadge(collaborator.role)}
-                      {collaborator.status && (
+                      {getRoleBadge(invitation.role)}
+                      {invitation.status && (
                         <Badge 
                           variant={
-                            collaborator.status === 'accepted' 
+                            invitation.status === 'accepted' 
                               ? 'default' 
-                              : collaborator.status === 'invited' 
+                              : invitation.status === 'invited' 
                               ? 'secondary' 
                               : 'outline'
                           }
                         >
-                          {collaborator.status === 'accepted' 
+                          {invitation.status === 'accepted' 
                             ? 'Accepted' 
-                            : collaborator.status === 'invited' 
+                            : invitation.status === 'invited' 
                             ? 'Invited' 
-                            : collaborator.status === 'rejected'
+                            : invitation.status === 'rejected'
                             ? 'Rejected'
                             : 'Unknown'}
                         </Badge>
                       )}
-                      <Badge variant={collaborator.isActive ? "secondary" : "outline"}>
-                        {collaborator.isActive ? 'Active' : 'Inactive'}
+                      <Badge variant={invitation.isActive ? "secondary" : "outline"}>
+                        {invitation.isActive ? 'Active' : 'Inactive'}
                       </Badge>
-                      {canManageCollaborators && (
+                      {canManageUsers && (
                         <div className="flex items-center space-x-1">
-                          {collaborator.status === 'invited' && (
+                          {invitation.status === 'invited' && (
                             <Button 
                               variant="ghost" 
                               size="sm" 
                               onClick={() => {
                                 // Resend invitation - create a new one (this will generate a new token)
-                                createCollaboratorMutation.mutate({
-                                  email: collaborator.email,
-                                  role: collaborator.role,
+                                createInvitationMutation.mutate({
+                                  email: invitation.email,
+                                  role: invitation.role,
                                   is_active: true,
                                 });
                                 toast({
@@ -547,8 +547,8 @@ export default function Collaborators() {
             </DialogHeader>
             <Form {...updateForm}>
               <form onSubmit={updateForm.handleSubmit((data) => {
-                if (selectedCollaborator) {
-                  updateCollaboratorMutation.mutate({ id: selectedCollaborator.id, data });
+                if (selectedUser) {
+                  updateInvitationMutation.mutate({ id: selectedUser.id, data });
                 }
               })} className="space-y-4">
                 <FormField
@@ -620,8 +620,8 @@ export default function Collaborators() {
                   <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={updateCollaboratorMutation.isPending}>
-                    {updateCollaboratorMutation.isPending ? 'Saving...' : 'Save Changes'}
+                  <Button type="submit" disabled={updateInvitationMutation.isPending}>
+                    {updateInvitationMutation.isPending ? 'Saving...' : 'Save Changes'}
                   </Button>
                 </div>
               </form>
@@ -635,19 +635,19 @@ export default function Collaborators() {
             <AlertDialogHeader>
               <AlertDialogTitle>Delete Collaborator</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete {selectedCollaborator?.firstName || selectedCollaborator?.lastName 
-                  ? `${selectedCollaborator.firstName || ''} ${selectedCollaborator.lastName || ''}`.trim()
-                  : selectedCollaborator?.email}? This action cannot be undone.
+                Are you sure you want to delete {selectedUser?.firstName || selectedUser?.lastName 
+                  ? `${selectedUser.firstName || ''} ${selectedUser.lastName || ''}`.trim()
+                  : selectedUser?.email}? This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleDeleteConfirm}
-                disabled={deleteCollaboratorMutation.isPending}
+                disabled={deleteInvitationMutation.isPending}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                {deleteCollaboratorMutation.isPending ? 'Deleting...' : 'Delete'}
+                {deleteInvitationMutation.isPending ? 'Deleting...' : 'Delete'}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

@@ -12,7 +12,7 @@ import { Layout } from '@/components/Layout';
 import { useAuth } from '@/contexts/AuthContext';
 import { sendVerificationCode, verifyCode, registerUser } from '@/services/authApi';
 import { createTenant } from '@/services/tenantApi';
-import { CollaboratorApiService } from '@/services/collaboratorApi';
+import { UserApiService } from '@/services/userApi';
 import { logger } from '@/lib/logger';
 import { useQuery } from '@tanstack/react-query';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -50,12 +50,12 @@ export default function Onboarding() {
   const shouldCheckInvitations = !!userEmail && !!firebaseUser && !authLoading && (!user || !user.tenantId);
   
   const { data: pendingInvitationsData, isLoading: checkingInvitations } = useQuery({
-    queryKey: ['/api/collaborators/pending-by-email', userEmail],
+    queryKey: ['/api/users/invitations/pending-by-email', userEmail],
     queryFn: async () => {
       if (!userEmail) return { data: [], count: 0 };
       logger.info('Checking for pending invitations', { component: 'Onboarding', email: userEmail });
       try {
-        const result = await CollaboratorApiService.getPendingInvitationsByEmail(userEmail);
+        const result = await UserApiService.getPendingInvitationsByEmail(userEmail);
         logger.info('Pending invitations check completed', {
           component: 'Onboarding',
           email: userEmail,
@@ -72,7 +72,7 @@ export default function Onboarding() {
     retry: 1,
   });
   
-  const pendingInvitations = (pendingInvitationsData?.data || []) as Array<import('@/types/collaborator').PendingInvitation>;
+  const pendingInvitations = (pendingInvitationsData?.data || []) as Array<import('@/types/user').Invitation>;
   const hasPendingInvitations = pendingInvitations.length > 0;
 
   const verifyCodeForm = useForm<VerifyCodeFormData>({
@@ -195,7 +195,7 @@ export default function Onboarding() {
     }
   }, [sendingCode, firebaseUser?.email, toast, resendCooldown]);
 
-  const handleAcceptInvitation = async (inv: import('@/types/collaborator').PendingInvitation) => {
+  const handleAcceptInvitation = async (inv: import('@/types/user').Invitation) => {
     if (!inv.invitationToken) {
       toast({
         title: "Invitation Token Missing",
@@ -232,7 +232,7 @@ export default function Onboarding() {
       }
       
       logger.info('Accepting invitation', { component: 'Onboarding', action: 'accept_invitation', invitationId: inv.id });
-      await CollaboratorApiService.acceptInvitationByToken(inv.invitationToken, userEmail, undefined, userDetails);
+      await UserApiService.acceptInvitationByToken(inv.invitationToken, userEmail, undefined, userDetails);
       
       logger.info('Invitation accepted successfully', { component: 'Onboarding', action: 'accept_invitation_success', invitationId: inv.id });
       
