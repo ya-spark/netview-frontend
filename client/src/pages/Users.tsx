@@ -504,10 +504,10 @@ export default function Users() {
                                 });
                                 toast({
                                   title: 'Invitation resent',
-                                  description: `A new invitation has been sent to ${collaborator.email}`,
+                                  description: `A new invitation has been sent to ${invitation.email}`,
                                 });
                               }}
-                              data-testid={`button-resend-invitation-${collaborator.id}`}
+                              data-testid={`button-resend-invitation-${invitation.id}`}
                               title="Resend Invitation"
                             >
                               <Send className="w-4 h-4" />
@@ -516,16 +516,16 @@ export default function Users() {
                           <Button 
                             variant="ghost" 
                             size="sm" 
-                            onClick={() => handleEditClick(collaborator)}
-                            data-testid={`button-edit-collaborator-${collaborator.id}`}
+                            onClick={() => handleEditClick(invitation)}
+                            data-testid={`button-edit-collaborator-${invitation.id}`}
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
                           <Button 
                             variant="ghost" 
                             size="sm" 
-                            onClick={() => handleDeleteClick(collaborator)}
-                            data-testid={`button-remove-collaborator-${collaborator.id}`}
+                            onClick={() => handleDeleteClick(invitation)}
+                            data-testid={`button-remove-collaborator-${invitation.id}`}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
