@@ -2,14 +2,20 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Activity, FileText, ArrowLeft, Settings, Info, RefreshCw } from 'lucide-react';
+import { Activity, FileText, ArrowLeft, Settings, Info, RefreshCw, Play } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { useState, useMemo } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
+import { ProbeApiService } from '@/services/probeApi';
+import { logger } from '@/lib/logger';
+import { useAuth } from '@/contexts/AuthContext';
 import type { Probe, ProbeResult, ProbeResultsListResponse } from '@/types/probe';
 import type { LogEntry } from '@/services/logsApi';
 import { getProbeStatusBgColor, getProbeStatusLabel, getProbeStatus, formatRelativeTime, formatDate, formatResponseTime } from './utils';
 import { LogFileViewer } from './LogFileViewer';
 import { ProbeTemplateHelp } from '@/components/probes/ProbeTemplateHelp';
+import { RunProbeResultModal } from '@/components/probes/RunProbeResultModal';
 
 interface ProbeDetailProps {
   probeId: string;
@@ -41,7 +47,70 @@ export function ProbeDetail({
   getGatewayName,
 }: ProbeDetailProps) {
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const { user } = useAuth();
   const [viewingExecutionId, setViewingExecutionId] = useState<string | null>(null);
+  
+  // Run Probe Modal State
+  const [runProbeModalOpen, setRunProbeModalOpen] = useState(false);
+  const [runProbeResult, setRunProbeResult] = useState<{
+    result: string;
+    status?: string;
+    execution_time?: number;
+    error_message?: string;
+    execution_id?: string;
+    timestamp?: string;
+  } | null>(null);
+  const [runningProbeId, setRunningProbeId] = useState<string | null>(null);
+
+  const runProbeMutation = useMutation({
+    mutationFn: async (probeId: string) => {
+      logger.info('Running probe', {
+        component: 'ProbeDetail',
+        action: 'run_probe',
+        probeId,
+        userId: user?.id,
+      });
+      setRunningProbeId(probeId);
+      return await ProbeApiService.runProbe(probeId);
+    },
+    onSuccess: (response) => {
+      logger.info('Probe run completed', {
+        component: 'ProbeDetail',
+        action: 'run_probe',
+        result: response.result,
+        userId: user?.id,
+      });
+      setRunProbeResult(response);
+      setRunProbeModalOpen(true);
+    },
+    onError: (error: any) => {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to run probe', err, {
+        component: 'ProbeDetail',
+        action: 'run_probe',
+        userId: user?.id,
+      });
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      setRunningProbeId(null);
+    },
+  });
+
+  const handleRunProbeAgain = () => {
+    if (runningProbeId) {
+      runProbeMutation.mutate(runningProbeId);
+    }
+  };
+
+  const handleCloseRunProbeModal = () => {
+    setRunProbeModalOpen(false);
+    setRunProbeResult(null);
+    setRunningProbeId(null);
+  };
+
+  const handleRunProbe = () => {
+    runProbeMutation.mutate(probeId);
+  };
 
   // Calculate success/failure/misses from probe results (last 1 hour only)
   const resultsStats = useMemo(() => {
@@ -87,6 +156,15 @@ export function ProbeDetail({
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Probes
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRunProbe}
+          disabled={runProbeMutation.isPending}
+        >
+          <Play className="w-4 h-4 mr-2" />
+          {runProbeMutation.isPending ? 'Running...' : 'Run Probe'}
         </Button>
         <Button
           variant="outline"
@@ -290,6 +368,18 @@ export function ProbeDetail({
         isOpen={!!viewingExecutionId}
         onClose={() => setViewingExecutionId(null)}
       />
+      
+      {/* Run Probe Result Modal */}
+      {runningProbeId && (
+        <RunProbeResultModal
+          isOpen={runProbeModalOpen}
+          onClose={handleCloseRunProbeModal}
+          onRunAgain={handleRunProbeAgain}
+          probeId={runningProbeId}
+          result={runProbeResult}
+          isLoading={runProbeMutation.isPending}
+        />
+      )}
     </div>
   );
 }

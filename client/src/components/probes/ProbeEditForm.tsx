@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,7 +13,7 @@ import { HttpHttpsProbeForm } from './HttpHttpsProbeForm';
 import { DnsProbeForm } from './DnsProbeForm';
 import { SslTlsProbeForm } from './SslTlsProbeForm';
 import { AuthenticationProbeForm } from './AuthenticationProbeForm';
-import { ArrowLeft, HelpCircle, Play, Trash2, Edit } from 'lucide-react';
+import { ArrowLeft, HelpCircle, Play, Trash2, Edit, Activity } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ProbeTemplateHelp } from './ProbeTemplateHelp';
 import { logger } from '@/lib/logger';
@@ -69,6 +70,7 @@ export function ProbeEditForm({
   viewMode = false,
   onToggleViewMode,
 }: ProbeEditFormProps) {
+  const [, setLocation] = useLocation();
   // Advanced settings visibility
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -360,6 +362,15 @@ export function ProbeEditForm({
             </p>
           </div>
           <div className="flex gap-2">
+            {probe && (
+              <Button
+                variant="outline"
+                onClick={() => setLocation(`/monitor/probes/${probe.id}`)}
+              >
+                <Activity className="w-4 h-4 mr-2" />
+                Monitor
+              </Button>
+            )}
             {onRunProbe && (
               <Button
                 variant="outline"
