@@ -124,19 +124,24 @@ export default function Dashboard() {
     };
   }, [probesData, probeResultsData]);
 
-  // Calculate gateway statuses
+  // Calculate gateway statuses from gateways list
   const gatewayStatuses = useMemo(() => {
     if (!gatewaysData?.data) return { online: 0, offline: 0, pending: 0, total: 0 };
     
-    const online = gatewaysData.data.filter((g) => g.is_online && g.status === 'active').length;
-    const offline = gatewaysData.data.filter((g) => !g.is_online && g.status === 'active').length;
+    const total = gatewaysData.data.length;
     const pending = gatewaysData.data.filter((g) => g.status === 'pending').length;
+    // Count online gateways: is_online must be truthy (true or 1), and status should not be 'pending'
+    // Include all non-pending statuses: 'registered', 'active', etc.
+    const activeGateways = gatewaysData.data.filter((g) => g.status !== 'pending');
+    // Use truthy check to handle both boolean true and integer 1
+    const online = activeGateways.filter((g) => Boolean(g.is_online)).length;
+    const offline = activeGateways.filter((g) => !Boolean(g.is_online)).length;
     
     return {
       online,
       offline,
       pending,
-      total: gatewaysData.data.length,
+      total,
     };
   }, [gatewaysData]);
 

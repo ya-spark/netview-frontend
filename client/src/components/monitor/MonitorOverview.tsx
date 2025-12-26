@@ -65,11 +65,14 @@ export function MonitorOverview({
   }, [probesData, probeResultsData]);
 
   // Calculate gateway statuses
+  // Note: This component doesn't have access to dashboardData, so we calculate from gateways list
+  // For accurate online count including shared gateways, use the value from dashboard API
   const gatewayStatuses = useMemo(() => {
     if (!gatewaysData?.data) return { online: 0, offline: 0, pending: 0, total: 0 };
     
     const total = gatewaysData.data.length;
     const pending = gatewaysData.data.filter((g) => g.status === 'pending').length;
+    // Count online gateways - include both 'active' and 'registered' status
     const activeGateways = gatewaysData.data.filter((g) => g.status !== 'pending');
     const online = activeGateways.filter((g) => g.is_online).length;
     const offline = activeGateways.filter((g) => !g.is_online).length;
